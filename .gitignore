@@ -8,3 +8,6 @@ venv/
 # 파이썬 캐시 파일
 __pycache__/
 *.pyc
+
+# 데이터베이스 파일
+scenario_builder.db
