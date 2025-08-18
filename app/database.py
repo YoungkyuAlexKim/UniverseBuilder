@@ -1,8 +1,12 @@
 import sqlite3
 import json
+import os # 이 줄을 추가하세요
 
 DATABASE_NAME = "scenario_builder.db"
-
+# Render의 영구 디스크 경로를 기본으로 사용하고, 없으면 현재 폴더에 생성
+# 이렇게 하면 로컬 테스트와 배포 환경 모두에서 잘 작동합니다.
+DATA_DIR = os.environ.get("RENDER_DISK_PATH", ".")
+DATABASE_NAME = os.path.join(DATA_DIR, "scenario_builder.db")
 def get_db_connection():
     """데이터베이스 연결을 생성하고 반환합니다."""
     conn = sqlite3.connect(DATABASE_NAME)
