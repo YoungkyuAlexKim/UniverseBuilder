@@ -3,7 +3,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 from .routers import projects, generators
-from . import database
+from . import database 
+
+# Alembic 라이브러리에서 필요한 부분을 직접 가져옵니다.
+from alembic.config import Config
+from alembic import command
 
 app = FastAPI()
 
@@ -26,10 +30,26 @@ def read_root():
 
 @app.on_event("startup")
 def on_startup():
-    """앱 시작 시 실행되는 이벤트입니다."""
-    # 데이터베이스 관련 로직을 모두 제거합니다.
-    # Alembic이 외부에서 모든 것을 관리합니다.
-    print("FastAPI application startup")
+    """
+    앱이 시작될 때 데이터베이스 마이그레이션을 실행합니다.
+    """
+    print("Application startup: Running database migrations...")
+    try:
+        # Alembic 설정 파일을 로드합니다.
+        alembic_cfg = Config("alembic.ini")
+        
+        # Render 환경 변수가 존재하면, alembic 설정의 DB URL을 덮어씁니다.
+        # 이렇게 하면 로컬과 서버 환경 모두를 지원할 수 있습니다.
+        db_url = os.environ.get("DATABASE_URL")
+        if db_url:
+            alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+        # 데이터베이스를 최신 버전으로 업그레이드합니다.
+        command.upgrade(alembic_cfg, "head")
+        print("Database migrations completed successfully.")
+    except Exception as e:
+        print(f"Error during database migration: {e}")
+
 
 app.include_router(projects.router)
 app.include_router(generators.router)
