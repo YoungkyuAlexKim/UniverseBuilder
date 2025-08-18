@@ -7,6 +7,16 @@ from sqlalchemy import pool
 
 from alembic import context
 
+# --- 이 아래 코드를 추가해주세요 ---
+# Render의 DATABASE_URL 환경 변수를 읽어 alembic.ini의 설정을 덮어씁니다.
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    # Render의 postgres 주소는 postgresql로 시작할 수 있으므로 변경해줍니다.
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    config.set_main_option("sqlalchemy.url", database_url)
+    
+# --- 여기까지 추가 ---
 # 프로젝트의 app 폴더를 파이썬 경로에 추가합니다.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
