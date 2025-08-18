@@ -145,7 +145,7 @@ def parse_card_fields(card_obj):
 
 @router.get("", response_model=dict)
 def get_projects(db: Session = Depends(database.get_db)):
-    # joinedload를 사용하여 연관된 모든 데이터를 한 번에 효율적으로 로드합니다.
+    # joinedload를 사용하여 연관된 모든 데이터를 한 번에 효율적으로 로드하는 것은 그대로 유지합니다.
     projects_from_db = db.query(ProjectModel).options(
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
@@ -153,14 +153,21 @@ def get_projects(db: Session = Depends(database.get_db)):
         joinedload(ProjectModel.relationships)
     ).order_by(ProjectModel.name).all()
 
-    # 이제 데이터가 항상 완전하므로, 수동으로 객체를 채울 필요가 없습니다.
+    # (핵심 수정) 각 프로젝트를 순회하며 데이터가 None일 경우를 안전하게 처리합니다.
     for p in projects_from_db:
-        for group in p.groups:
-            group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
-            for card in group.cards:
-                parse_card_fields(card)
-        for wv_group in p.worldview_groups:
-            wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+        # 그룹과 카드 정렬 (기존과 동일하지만, None이 아니라는 보장이 중요)
+        if p.groups:
+            for group in p.groups:
+                if group.cards:
+                    group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+                    for card in group.cards:
+                        parse_card_fields(card) # JSON 필드 파싱
+        
+        # 세계관 그룹 및 카드 정렬 (None일 경우 건너뛰도록 수정)
+        if p.worldview_groups:
+            for wv_group in p.worldview_groups:
+                if wv_group.worldview_cards:
+                    wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
 
     return {"projects": projects_from_db}
 
