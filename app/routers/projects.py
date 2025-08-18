@@ -10,7 +10,9 @@ from typing import List, Optional
 from .. import database
 from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
 
-# --- Pydantic 데이터 모델 (기존과 동일) ---
+# --- Pydantic 데이터 모델 ---
+# 각 모델에 orm_mode=True가 이미 설정되어 있으므로, SQLAlchemy 객체를 Pydantic 모델로 변환할 준비가 되어 있습니다.
+
 class Relationship(BaseModel):
     id: str
     project_id: str
@@ -75,6 +77,10 @@ class Project(BaseModel):
     class Config:
         orm_mode = True
 
+# (핵심 수정 1) API의 전체 응답 구조를 정의하는 새로운 Pydantic 모델을 만듭니다.
+class ProjectListResponse(BaseModel):
+    projects: List[Project]
+
 class CreateProjectRequest(BaseModel):
     name: str
 
@@ -131,7 +137,6 @@ router = APIRouter(
 
 # --- 유틸리티 함수 ---
 def parse_card_fields(card_obj):
-    """DB에서 가져온 Card 객체의 JSON 문자열 필드를 리스트로 변환"""
     for field in ['quote', 'personality', 'abilities', 'goal']:
         field_value = getattr(card_obj, field)
         if field_value and isinstance(field_value, str):
@@ -143,9 +148,9 @@ def parse_card_fields(card_obj):
 
 # --- API 엔드포인트 ---
 
-@router.get("", response_model=dict)
+# (핵심 수정 2) response_model을 dict에서 새로 만든 ProjectListResponse로 변경합니다.
+@router.get("", response_model=ProjectListResponse)
 def get_projects(db: Session = Depends(database.get_db)):
-    # 모든 연관 데이터를 한 번에 효율적으로 로드합니다.
     projects_from_db = db.query(ProjectModel).options(
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
@@ -153,25 +158,17 @@ def get_projects(db: Session = Depends(database.get_db)):
         joinedload(ProjectModel.relationships)
     ).order_by(ProjectModel.name).all()
 
-    # (최종 수정) 이전 버전의 코드로 인해 생성된 불완전한 데이터를 포함한
-    # 모든 예외 상황을 처리하기 위해 모든 단계에서 데이터 존재 여부를 확인합니다.
+    # 데이터 정렬 및 파싱 로직은 유지합니다.
     for p in projects_from_db:
-        # 그룹과 카드 데이터 처리
-        if p.groups: # 👈 프로젝트에 그룹이 있는지 확인
-            for group in p.groups:
-                if group.cards: # 👈 그룹에 카드가 있는지 확인
-                    group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
-                    for card in group.cards:
-                        parse_card_fields(card)
-        
-        # 세계관 그룹 및 카드 데이터 처리
-        if p.worldview_groups: # 👈 프로젝트에 세계관 그룹이 있는지 확인
-            for wv_group in p.worldview_groups:
-                if wv_group.worldview_cards: # 👈 세계관 그룹에 카드가 있는지 확인
-                    wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+        for group in p.groups:
+            group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+            for card in group.cards:
+                parse_card_fields(card)
+        for wv_group in p.worldview_groups:
+            wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
 
+    # 반환하는 딕셔너리의 키("projects")는 ProjectListResponse 모델의 필드 이름과 일치해야 합니다.
     return {"projects": projects_from_db}
-
 
 @router.get("/{project_id}", response_model=Project)
 def get_project_details(project_id: str, db: Session = Depends(database.get_db)):
@@ -193,23 +190,19 @@ def create_project(project_request: CreateProjectRequest, db: Session = Depends(
     timestamp = int(time.time() * 1000)
     new_project_id = f"project-{timestamp}"
     
-    # 1. 새 프로젝트 객체 생성
     new_project = ProjectModel(id=new_project_id, name=project_request.name)
     
-    # 2. 기본 '미분류' 그룹 생성
     uncategorized_group = GroupModel(
         id=f"group-uncategorized-{timestamp}",
         project_id=new_project_id,
         name='미분류'
     )
     
-    # 3. (핵심 수정) 기본 '세계관' 객체 생성
     default_worldview = WorldviewModel(
         project_id=new_project_id,
         content=''
     )
     
-    # 4. 모든 새 객체를 DB 세션에 추가
     db.add(new_project)
     db.add(uncategorized_group)
     db.add(default_worldview)
@@ -217,7 +210,6 @@ def create_project(project_request: CreateProjectRequest, db: Session = Depends(
     db.commit()
     db.refresh(new_project)
     
-    # 관계형 데이터 로드를 위해 다시 조회
     created_project = db.query(ProjectModel).filter(ProjectModel.id == new_project_id).first()
         
     return created_project
@@ -314,9 +306,6 @@ def create_worldview_card(project_id: str, group_id: str, card_request: Worldvie
     db.refresh(new_card)
     return new_card
 
-# ... 이하 나머지 API들도 SQLAlchemy 방식으로 수정해야 합니다. ...
-# (전체 코드를 제공하기 위해 나머지 함수들도 마저 수정합니다)
-
 @router.put("/{project_id}/cards/{card_id}", response_model=Card)
 def update_card(project_id: str, card_id: str, card_data: UpdateCardRequest, db: Session = Depends(database.get_db)):
     card = db.query(CardModel).join(GroupModel).filter(CardModel.id == card_id, GroupModel.project_id == project_id).first()
@@ -334,8 +323,6 @@ def update_card(project_id: str, card_id: str, card_data: UpdateCardRequest, db:
     db.refresh(card)
     return parse_card_fields(card)
 
-
-# 이하 나머지 함수들도 같은 패턴으로 수정합니다...
 @router.put("/{project_id}/worldview_cards/{card_id}", response_model=WorldviewCard)
 def update_worldview_card(project_id: str, card_id: str, card_request: WorldviewCardCreateUpdateRequest, db: Session = Depends(database.get_db)):
     card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
