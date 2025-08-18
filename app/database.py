@@ -13,7 +13,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 # 이 engine 객체를 Alembic이 사용하게 됩니다.
 engine = None
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres"):
+if DATABASE_URL and "postgres" in DATABASE_URL:
     # 배포 환경 (PostgreSQL)
     engine = create_engine(DATABASE_URL)
 else:
