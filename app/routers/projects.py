@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 import time
 import json
 from pydantic import BaseModel
@@ -144,10 +145,16 @@ def parse_card_fields(card_obj):
 
 @router.get("", response_model=dict)
 def get_projects(db: Session = Depends(database.get_db)):
-    projects_from_db = db.query(ProjectModel).order_by(ProjectModel.name).all()
+    # joinedload를 사용하여 연관된 모든 데이터를 한 번에 효율적으로 로드합니다.
+    projects_from_db = db.query(ProjectModel).options(
+        joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
+        joinedload(ProjectModel.worldview),
+        joinedload(ProjectModel.worldview_groups).joinedload(WorldviewGroupModel.worldview_cards),
+        joinedload(ProjectModel.relationships)
+    ).order_by(ProjectModel.name).all()
+
+    # 이제 데이터가 항상 완전하므로, 수동으로 객체를 채울 필요가 없습니다.
     for p in projects_from_db:
-        if p.worldview is None:
-             p.worldview = WorldviewModel(content='')
         for group in p.groups:
             group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
             for card in group.cards:
@@ -177,23 +184,32 @@ def create_project(project_request: CreateProjectRequest, db: Session = Depends(
     timestamp = int(time.time() * 1000)
     new_project_id = f"project-{timestamp}"
     
+    # 1. 새 프로젝트 객체 생성
     new_project = ProjectModel(id=new_project_id, name=project_request.name)
     
+    # 2. 기본 '미분류' 그룹 생성
     uncategorized_group = GroupModel(
         id=f"group-uncategorized-{timestamp}",
         project_id=new_project_id,
         name='미분류'
     )
     
+    # 3. (핵심 수정) 기본 '세계관' 객체 생성
+    default_worldview = WorldviewModel(
+        project_id=new_project_id,
+        content=''
+    )
+    
+    # 4. 모든 새 객체를 DB 세션에 추가
     db.add(new_project)
     db.add(uncategorized_group)
+    db.add(default_worldview)
+    
     db.commit()
     db.refresh(new_project)
     
     # 관계형 데이터 로드를 위해 다시 조회
     created_project = db.query(ProjectModel).filter(ProjectModel.id == new_project_id).first()
-    if created_project.worldview is None:
-        created_project.worldview = WorldviewModel(content='')
         
     return created_project
 
