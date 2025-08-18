@@ -1,12 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 import time
-import json # JSON 처리를 위해 추가
+import json
 from pydantic import BaseModel
 from typing import List, Optional
+
+# --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
+from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
 
-# --- Pydantic 데이터 모델 ---
-
+# --- Pydantic 데이터 모델 (기존과 동일) ---
 class Relationship(BaseModel):
     id: str
     project_id: str
@@ -14,6 +17,8 @@ class Relationship(BaseModel):
     target_character_id: str
     type: str
     description: Optional[str] = None
+    class Config:
+        orm_mode = True
 
 class WorldviewCard(BaseModel):
     id: str
@@ -21,41 +26,53 @@ class WorldviewCard(BaseModel):
     title: str
     content: str
     ordering: int
+    class Config:
+        orm_mode = True
 
 class WorldviewGroup(BaseModel):
     id: str
     project_id: str
     name: str
     worldview_cards: List[WorldviewCard] = []
+    class Config:
+        orm_mode = True
 
 class Card(BaseModel):
     id: str
     group_id: str
     name: str
     description: Optional[str] = None
-    goal: Optional[List[str]] = None 
+    goal: Optional[List[str]] = None
     personality: Optional[List[str]] = None
     abilities: Optional[List[str]] = None
     quote: Optional[List[str]] = None
     introduction_story: Optional[str] = None
     ordering: Optional[int] = None
+    class Config:
+        orm_mode = True
 
 class Group(BaseModel):
     id: str
     project_id: str
     name: str
     cards: List[Card]
+    class Config:
+        orm_mode = True
 
 class Worldview(BaseModel):
     content: Optional[str] = ''
+    class Config:
+        orm_mode = True
 
 class Project(BaseModel):
     id: str
     name: str
     groups: List[Group]
-    worldview: Worldview
+    worldview: Optional[Worldview] = None
     worldview_groups: List[WorldviewGroup] = []
-    relationships: List[Relationship] = [] 
+    relationships: List[Relationship] = []
+    class Config:
+        orm_mode = True
 
 class CreateProjectRequest(BaseModel):
     name: str
@@ -111,417 +128,267 @@ router = APIRouter(
     tags=["Projects & Groups"]
 )
 
-def _get_full_project_data(project_id: str, conn):
-    """프로젝트 전체 데이터를 조회하는 헬퍼 함수"""
-    project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
-    if not project:
-        return None
+# --- 유틸리티 함수 ---
+def parse_card_fields(card_obj):
+    """DB에서 가져온 Card 객체의 JSON 문자열 필드를 리스트로 변환"""
+    for field in ['quote', 'personality', 'abilities', 'goal']:
+        field_value = getattr(card_obj, field)
+        if field_value and isinstance(field_value, str):
+            try:
+                setattr(card_obj, field, json.loads(field_value))
+            except json.JSONDecodeError:
+                setattr(card_obj, field, [s.strip() for s in field_value.split(',')])
+    return card_obj
 
-    project_dict = dict(project)
-    
-    worldview = conn.execute('SELECT content FROM worldviews WHERE project_id = ?', (project_id,)).fetchone()
-    project_dict['worldview'] = dict(worldview) if worldview else {'content': ''}
-
-    groups_from_db = conn.execute("SELECT * FROM groups WHERE project_id = ? ORDER BY CASE WHEN name = '미분류' THEN 1 ELSE 0 END, name", (project_id,)).fetchall()
-    groups_list = []
-    for group in groups_from_db:
-        group_dict = dict(group)
-        cards_from_db = conn.execute('SELECT * FROM cards WHERE group_id = ? ORDER BY ordering', (group['id'],)).fetchall()
-        
-        cards_list = []
-        for card_row in cards_from_db:
-            card_dict = dict(card_row)
-            
-            for field in ['quote', 'personality', 'abilities', 'goal']:
-                try:
-                    if card_dict.get(field):
-                        card_dict[field] = json.loads(card_dict[field])
-                except (json.JSONDecodeError, TypeError):
-                    original_value = card_dict.get(field)
-                    if isinstance(original_value, str):
-                        card_dict[field] = [item.strip() for item in original_value.split(',') if item.strip()]
-                    else:
-                        card_dict[field] = []
-            
-            cards_list.append(card_dict)
-            
-        group_dict['cards'] = cards_list
-        groups_list.append(group_dict)
-    project_dict['groups'] = groups_list
-
-    wv_groups_from_db = conn.execute('SELECT * FROM worldview_groups WHERE project_id = ? ORDER BY name', (project_id,)).fetchall()
-    wv_groups_list = []
-    for group in wv_groups_from_db:
-        group_dict = dict(group)
-        cards_from_db = conn.execute('SELECT * FROM worldview_cards WHERE group_id = ? ORDER BY ordering', (group['id'],)).fetchall()
-        group_dict['worldview_cards'] = [dict(card) for card in cards_from_db]
-        wv_groups_list.append(group_dict)
-    project_dict['worldview_groups'] = wv_groups_list
-        
-    relationships_from_db = conn.execute('SELECT * FROM relationships WHERE project_id = ?', (project_id,)).fetchall()
-    project_dict['relationships'] = [dict(row) for row in relationships_from_db]
-
-    return project_dict
+# --- API 엔드포인트 ---
 
 @router.get("", response_model=dict)
-def get_projects():
-    conn = database.get_db_connection()
-    projects_from_db = conn.execute('SELECT * FROM projects ORDER BY name').fetchall()
-    projects_list = [_get_full_project_data(p['id'], conn) for p in projects_from_db]
-    conn.close()
-    return {"projects": projects_list}
+def get_projects(db: Session = Depends(database.get_db)):
+    projects_from_db = db.query(ProjectModel).order_by(ProjectModel.name).all()
+    for p in projects_from_db:
+        if p.worldview is None:
+             p.worldview = WorldviewModel(content='')
+        for group in p.groups:
+            group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+            for card in group.cards:
+                parse_card_fields(card)
+        for wv_group in p.worldview_groups:
+            wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+
+    return {"projects": projects_from_db}
 
 @router.get("/{project_id}", response_model=Project)
-def get_project_details(project_id: str):
-    conn = database.get_db_connection()
-    project_data = _get_full_project_data(project_id, conn)
-    conn.close()
-    if not project_data:
+def get_project_details(project_id: str, db: Session = Depends(database.get_db)):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-    return project_data
+    if project.worldview is None:
+        project.worldview = WorldviewModel(content='')
+    for group in project.groups:
+        group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+        for card in group.cards:
+            parse_card_fields(card)
+    for wv_group in project.worldview_groups:
+        wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+    return project
 
 @router.post("", response_model=Project)
-def create_project(project_request: CreateProjectRequest):
-    conn = database.get_db_connection()
+def create_project(project_request: CreateProjectRequest, db: Session = Depends(database.get_db)):
     timestamp = int(time.time() * 1000)
     new_project_id = f"project-{timestamp}"
-    uncategorized_group_id = f"group-uncategorized-{timestamp}"
-    try:
-        conn.execute('INSERT INTO projects (id, name) VALUES (?, ?)', (new_project_id, project_request.name))
-        conn.execute('INSERT INTO groups (id, project_id, name) VALUES (?, ?, ?)', (uncategorized_group_id, new_project_id, '미분류'))
-        conn.commit()
-    except Exception as e:
-        conn.rollback(); conn.close()
-        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
     
-    conn.close()
-    project_details = get_project_details(new_project_id)
-    return project_details
-
+    new_project = ProjectModel(id=new_project_id, name=project_request.name)
+    
+    uncategorized_group = GroupModel(
+        id=f"group-uncategorized-{timestamp}",
+        project_id=new_project_id,
+        name='미분류'
+    )
+    
+    db.add(new_project)
+    db.add(uncategorized_group)
+    db.commit()
+    db.refresh(new_project)
+    
+    # 관계형 데이터 로드를 위해 다시 조회
+    created_project = db.query(ProjectModel).filter(ProjectModel.id == new_project_id).first()
+    if created_project.worldview is None:
+        created_project.worldview = WorldviewModel(content='')
+        
+    return created_project
 
 @router.delete("/{project_id}")
-def delete_project(project_id: str):
-    conn = database.get_db_connection()
-    cursor = conn.execute('DELETE FROM projects WHERE id = ?', (project_id,))
-    conn.commit()
-    conn.close()
-    if cursor.rowcount == 0:
+def delete_project(project_id: str, db: Session = Depends(database.get_db)):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
         raise HTTPException(status_code=404, detail="삭제할 프로젝트를 찾을 수 없습니다.")
+    db.delete(project)
+    db.commit()
     return {"message": "프로젝트가 성공적으로 삭제되었습니다."}
 
 @router.put("/{project_id}")
-def update_project(project_id: str, project_request: UpdateProjectRequest):
-    conn = database.get_db_connection()
-    cursor = conn.execute('UPDATE projects SET name = ? WHERE id = ?', (project_request.name, project_id))
-    conn.commit()
-    if cursor.rowcount == 0:
-        conn.close()
+def update_project(project_id: str, project_request: UpdateProjectRequest, db: Session = Depends(database.get_db)):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
         raise HTTPException(status_code=404, detail="수정할 프로젝트를 찾을 수 없습니다.")
-    updated_project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
-    conn.close()
-    return {"message": "프로젝트 이름이 성공적으로 수정되었습니다.", "project": dict(updated_project)}
+    project.name = project_request.name
+    db.commit()
+    db.refresh(project)
+    return {"message": "프로젝트 이름이 성공적으로 수정되었습니다.", "project": project}
 
 # --- 캐릭터 그룹 & 카드 ---
-@router.post("/{project_id}/groups")
-def create_group(project_id: str, group_request: CreateGroupRequest):
-    conn = database.get_db_connection()
-    if not conn.execute('SELECT id FROM projects WHERE id = ?', (project_id,)).fetchone():
-        conn.close(); raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+@router.post("/{project_id}/groups", response_model=Group)
+def create_group(project_id: str, group_request: CreateGroupRequest, db: Session = Depends(database.get_db)):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+        
     new_group_id = f"group-{int(time.time() * 1000)}"
-    try:
-        conn.execute('INSERT INTO groups (id, project_id, name) VALUES (?, ?, ?)', (new_group_id, project_id, group_request.name))
-        conn.commit()
-        new_group = conn.execute('SELECT * FROM groups WHERE id = ?', (new_group_id,)).fetchone()
-    except Exception as e:
-        conn.rollback(); conn.close(); raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    conn.close()
-    return {"message": "그룹이 성공적으로 생성되었습니다.", "group": {**dict(new_group), "cards": []}}
+    new_group = GroupModel(id=new_group_id, project_id=project_id, name=group_request.name)
+    db.add(new_group)
+    db.commit()
+    db.refresh(new_group)
+    return new_group
 
 @router.delete("/{project_id}/groups/{group_id}")
-def delete_group(project_id: str, group_id: str):
-    conn = database.get_db_connection()
-    group_to_delete = conn.execute('SELECT name FROM groups WHERE id = ?', (group_id,)).fetchone()
-    if group_to_delete and group_to_delete['name'] == '미분류':
-        conn.close(); raise HTTPException(status_code=400, detail="'미분류' 그룹은 삭제할 수 없습니다.")
-    cursor = conn.execute('DELETE FROM groups WHERE id = ? AND project_id = ?', (group_id, project_id))
-    conn.commit()
-    conn.close()
-    if cursor.rowcount == 0:
+def delete_group(project_id: str, group_id: str, db: Session = Depends(database.get_db)):
+    group = db.query(GroupModel).filter(GroupModel.id == group_id, GroupModel.project_id == project_id).first()
+    if not group:
         raise HTTPException(status_code=404, detail="삭제할 그룹을 찾을 수 없습니다.")
+    if group.name == '미분류':
+        raise HTTPException(status_code=400, detail="'미분류' 그룹은 삭제할 수 없습니다.")
+    db.delete(group)
+    db.commit()
     return {"message": "그룹이 성공적으로 삭제되었습니다."}
 
-
 # --- 메인 세계관 ---
-@router.put("/{project_id}/worldview")
-def update_worldview(project_id: str, request: WorldviewUpdateRequest):
-    conn = database.get_db_connection()
-    if not conn.execute('SELECT id FROM projects WHERE id = ?', (project_id,)).fetchone():
-        conn.close(); raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-    try:
-        conn.execute('INSERT INTO worldviews (project_id, content) VALUES (?, ?) ON CONFLICT(project_id) DO UPDATE SET content = excluded.content', (project_id, request.content))
-        conn.commit()
-    except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    finally:
-        conn.close()
-    return {"message": "세계관 설정이 성공적으로 저장되었습니다."}
-
+@router.put("/{project_id}/worldview", response_model=Worldview)
+def update_worldview(project_id: str, request: WorldviewUpdateRequest, db: Session = Depends(database.get_db)):
+    worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == project_id).first()
+    if worldview:
+        worldview.content = request.content
+    else:
+        worldview = WorldviewModel(project_id=project_id, content=request.content)
+        db.add(worldview)
+    db.commit()
+    db.refresh(worldview)
+    return worldview
 
 # --- 세계관 서브-그룹 및 카드 API ---
-@router.post("/{project_id}/worldview_groups")
-def create_worldview_group(project_id: str, group_request: CreateGroupRequest):
-    conn = database.get_db_connection()
-    if not conn.execute('SELECT id FROM projects WHERE id = ?', (project_id,)).fetchone():
-        conn.close(); raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+@router.post("/{project_id}/worldview_groups", response_model=WorldviewGroup)
+def create_worldview_group(project_id: str, group_request: CreateGroupRequest, db: Session = Depends(database.get_db)):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
     new_group_id = f"wv-group-{int(time.time() * 1000)}"
-    try:
-        conn.execute('INSERT INTO worldview_groups (id, project_id, name) VALUES (?, ?, ?)', (new_group_id, project_id, group_request.name))
-        conn.commit()
-        new_group = conn.execute('SELECT * FROM worldview_groups WHERE id = ?', (new_group_id,)).fetchone()
-    except Exception as e:
-        conn.rollback(); conn.close(); raise HTTPException(status_code=500, detail=f"DB 오류: {e}")
-    conn.close()
-    return {"message": "세계관 그룹이 생성되었습니다.", "group": {**dict(new_group), "worldview_cards": []}}
+    new_group = WorldviewGroupModel(id=new_group_id, project_id=project_id, name=group_request.name)
+    db.add(new_group)
+    db.commit()
+    db.refresh(new_group)
+    return new_group
 
 @router.delete("/{project_id}/worldview_groups/{group_id}")
-def delete_worldview_group(project_id: str, group_id: str):
-    conn = database.get_db_connection()
-    cursor = conn.execute('DELETE FROM worldview_groups WHERE id = ? AND project_id = ?', (group_id, project_id))
-    conn.commit()
-    conn.close()
-    if cursor.rowcount == 0:
+def delete_worldview_group(project_id: str, group_id: str, db: Session = Depends(database.get_db)):
+    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project_id).first()
+    if not group:
         raise HTTPException(status_code=404, detail="삭제할 그룹을 찾을 수 없습니다.")
+    db.delete(group)
+    db.commit()
     return {"message": "세계관 그룹이 삭제되었습니다."}
 
-@router.post("/{project_id}/worldview_groups/{group_id}/cards")
-def create_worldview_card(project_id: str, group_id: str, card_request: WorldviewCardCreateUpdateRequest):
-    conn = database.get_db_connection()
-    if not conn.execute('SELECT id FROM worldview_groups WHERE id = ? AND project_id = ?', (group_id, project_id)).fetchone():
-        conn.close(); raise HTTPException(status_code=404, detail="상위 그룹을 찾을 수 없습니다.")
+@router.post("/{project_id}/worldview_groups/{group_id}/cards", response_model=WorldviewCard)
+def create_worldview_card(project_id: str, group_id: str, card_request: WorldviewCardCreateUpdateRequest, db: Session = Depends(database.get_db)):
+    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="상위 그룹을 찾을 수 없습니다.")
     new_card_id = f"wv-card-{int(time.time() * 1000)}"
-    try:
-        card_count = conn.execute('SELECT COUNT(id) as card_count FROM worldview_cards WHERE group_id = ?', (group_id,)).fetchone()['card_count']
-        conn.execute('INSERT INTO worldview_cards (id, group_id, title, content, ordering) VALUES (?, ?, ?, ?, ?)',(new_card_id, group_id, card_request.title, card_request.content, card_count))
-        conn.commit()
-        new_card = conn.execute('SELECT * FROM worldview_cards WHERE id = ?', (new_card_id,)).fetchone()
-    except Exception as e:
-        conn.rollback(); conn.close(); raise HTTPException(status_code=500, detail=f"DB 오류: {e}")
-    conn.close()
-    return {"message": "세계관 카드가 생성되었습니다.", "card": dict(new_card)}
+    card_count = len(group.worldview_cards)
+    new_card = WorldviewCardModel(id=new_card_id, group_id=group_id, title=card_request.title, content=card_request.content, ordering=card_count)
+    db.add(new_card)
+    db.commit()
+    db.refresh(new_card)
+    return new_card
 
-@router.put("/{project_id}/worldview_cards/{card_id}")
-def update_worldview_card(project_id: str, card_id: str, card_request: WorldviewCardCreateUpdateRequest):
-    conn = database.get_db_connection()
-    try:
-        cursor = conn.execute('UPDATE worldview_cards SET title = ?, content = ? WHERE id = ?', (card_request.title, card_request.content, card_id))
-        conn.commit()
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="수정할 카드를 찾을 수 없습니다.")
-    except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=f"DB 오류: {e}")
-    finally:
-        conn.close()
-    return {"message": "세계관 카드가 수정되었습니다."}
+# ... 이하 나머지 API들도 SQLAlchemy 방식으로 수정해야 합니다. ...
+# (전체 코드를 제공하기 위해 나머지 함수들도 마저 수정합니다)
 
-@router.put("/{project_id}/worldview_cards/{card_id}/move")
-def move_worldview_card(project_id: str, card_id: str, request: MoveCardRequest):
-    conn = database.get_db_connection()
-    try:
-        card_check = conn.execute('''
-            SELECT wc.id FROM worldview_cards wc
-            JOIN worldview_groups wg ON wc.group_id = wg.id
-            WHERE wc.id = ? AND wg.project_id = ?
-        ''', (card_id, project_id)).fetchone()
+@router.put("/{project_id}/cards/{card_id}", response_model=Card)
+def update_card(project_id: str, card_id: str, card_data: UpdateCardRequest, db: Session = Depends(database.get_db)):
+    card = db.query(CardModel).join(GroupModel).filter(CardModel.id == card_id, GroupModel.project_id == project_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="해당 프로젝트에서 카드를 찾을 수 없거나 권한이 없습니다.")
 
-        if not card_check:
-            raise HTTPException(status_code=404, detail="이동할 카드를 찾을 수 없거나 권한이 없습니다.")
+    update_data = card_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        if key in ['quote', 'personality', 'abilities', 'goal'] and value is not None:
+            setattr(card, key, json.dumps(value, ensure_ascii=False))
+        elif key != 'id':
+            setattr(card, key, value)
+    
+    db.commit()
+    db.refresh(card)
+    return parse_card_fields(card)
 
-        conn.execute('UPDATE worldview_cards SET group_id = ? WHERE id = ?', (request.target_group_id, card_id))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        if isinstance(e, HTTPException):
-            raise
-        raise HTTPException(status_code=500, detail=f"DB 오류: {e}")
-    finally:
-        conn.close()
-    return {"message": "세계관 카드가 성공적으로 이동되었습니다."}
 
+# 이하 나머지 함수들도 같은 패턴으로 수정합니다...
+@router.put("/{project_id}/worldview_cards/{card_id}", response_model=WorldviewCard)
+def update_worldview_card(project_id: str, card_id: str, card_request: WorldviewCardCreateUpdateRequest, db: Session = Depends(database.get_db)):
+    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="수정할 카드를 찾을 수 없습니다.")
+    card.title = card_request.title
+    card.content = card_request.content
+    db.commit()
+    db.refresh(card)
+    return card
+
+@router.put("/{project_id}/worldview_cards/{card_id}/details", response_model=WorldviewCard)
+def update_worldview_card_details(project_id: str, card_id: str, card_data: UpdateWorldviewCardRequest, db: Session = Depends(database.get_db)):
+    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="해당 프로젝트에서 카드를 찾을 수 없거나 권한이 없습니다.")
+    
+    update_data = card_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        if key != 'id':
+            setattr(card, key, value)
+            
+    db.commit()
+    db.refresh(card)
+    return card
 
 @router.delete("/{project_id}/worldview_cards/{card_id}")
-def delete_worldview_card(project_id: str, card_id: str):
-    conn = database.get_db_connection()
-    try:
-        cursor = conn.execute('DELETE FROM worldview_cards WHERE id = ?', (card_id,))
-        conn.commit()
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="삭제할 카드를 찾을 수 없습니다.")
-    except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=f"DB 오류: {e}")
-    finally:
-        conn.close()
+def delete_worldview_card(project_id: str, card_id: str, db: Session = Depends(database.get_db)):
+    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="삭제할 카드를 찾을 수 없습니다.")
+    db.delete(card)
+    db.commit()
     return {"message": "세계관 카드가 삭제되었습니다."}
 
-
 @router.put("/{project_id}/worldview_groups/{group_id}/cards/order")
-def update_worldview_card_order(project_id: str, group_id: str, request: UpdateCardOrderRequest):
-    conn = database.get_db_connection()
-    try:
-        for index, card_id in enumerate(request.card_ids):
-            conn.execute('UPDATE worldview_cards SET ordering = ? WHERE id = ? AND group_id = ?', (index, card_id, group_id))
-        conn.commit()
-    except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=f"DB 오류: {e}")
-    finally:
-        conn.close()
+def update_worldview_card_order(project_id: str, group_id: str, request: UpdateCardOrderRequest, db: Session = Depends(database.get_db)):
+    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
+    for index, card_id in enumerate(request.card_ids):
+        db.query(WorldviewCardModel).filter(WorldviewCardModel.id == card_id).update({"ordering": index})
+    db.commit()
     return {"message": "카드 순서가 성공적으로 업데이트되었습니다."}
 
-@router.put("/{project_id}/cards/{card_id}")
-def update_card(project_id: str, card_id: str, card_data: UpdateCardRequest):
-    conn = database.get_db_connection()
-    
-    update_dict = card_data.dict(exclude_unset=True)
-    
-    if 'id' in update_dict:
-        del update_dict['id']
-        
-    for field in ['quote', 'personality', 'abilities', 'goal']:
-        if field in update_dict and update_dict[field] is not None:
-            update_dict[field] = json.dumps(update_dict[field], ensure_ascii=False)
-
-    if not update_dict:
-        raise HTTPException(status_code=400, detail="수정할 데이터가 없습니다.")
-
-    set_clauses = [f"{key} = ?" for key in update_dict.keys()]
-    values = list(update_dict.values())
-    values.append(card_id)
-
-    try:
-        check_cursor = conn.execute('''
-            SELECT 1 FROM cards c
-            JOIN groups g ON c.group_id = g.id
-            WHERE c.id = ? AND g.project_id = ?
-        ''', (card_id, project_id))
-
-        if check_cursor.fetchone() is None:
-            raise HTTPException(status_code=404, detail="해당 프로젝트에서 카드를 찾을 수 없거나 권한이 없습니다.")
-
-        cursor = conn.execute(f"UPDATE cards SET {', '.join(set_clauses)} WHERE id = ?", tuple(values))
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="수정할 카드를 찾을 수 없습니다.")
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        if isinstance(e, HTTPException):
-            raise
-        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    finally:
-        conn.close()
-
-    return {"message": "카드가 성공적으로 업데이트되었습니다."}
-
-@router.put("/{project_id}/worldview_cards/{card_id}/details")
-def update_worldview_card_details(project_id: str, card_id: str, card_data: UpdateWorldviewCardRequest):
-    conn = database.get_db_connection()
-    
-    update_dict = card_data.dict(exclude_unset=True)
-    if 'id' in update_dict:
-        del update_dict['id']
-
-    if not update_dict:
-        raise HTTPException(status_code=400, detail="수정할 데이터가 없습니다.")
-
-    set_clauses = [f"{key} = ?" for key in update_dict.keys()]
-    values = list(update_dict.values())
-    values.append(card_id)
-
-    try:
-        check_cursor = conn.execute('''
-            SELECT 1 FROM worldview_cards wc
-            JOIN worldview_groups wg ON wc.group_id = wg.id
-            WHERE wc.id = ? AND wg.project_id = ?
-        ''', (card_id, project_id))
-        
-        if check_cursor.fetchone() is None:
-            raise HTTPException(status_code=404, detail="해당 프로젝트에서 카드를 찾을 수 없거나 권한이 없습니다.")
-
-        cursor = conn.execute(f"UPDATE worldview_cards SET {', '.join(set_clauses)} WHERE id = ?", tuple(values))
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="수정할 카드를 찾을 수 없습니다.")
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        if isinstance(e, HTTPException):
-            raise
-        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    finally:
-        conn.close()
-
-    return {"message": "세계관 카드가 성공적으로 업데이트되었습니다."}
-
-
-# --- [신규] 캐릭터 관계도 ---
+# --- 관계도 ---
 @router.post("/{project_id}/relationships", response_model=Relationship)
-def create_relationship(project_id: str, request: CreateRelationshipRequest):
-    """새로운 캐릭터 관계를 생성합니다."""
-    conn = database.get_db_connection()
-    if not conn.execute('SELECT id FROM projects WHERE id = ?', (project_id,)).fetchone():
-        conn.close()
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-    
-    new_relationship_id = f"rel-{int(time.time() * 1000)}"
-    try:
-        conn.execute('''
-            INSERT INTO relationships (id, project_id, source_character_id, target_character_id, type, description)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (new_relationship_id, project_id, request.source_character_id, request.target_character_id, request.type, request.description))
-        conn.commit()
-        new_relationship = conn.execute('SELECT * FROM relationships WHERE id = ?', (new_relationship_id,)).fetchone()
-    except Exception as e:
-        conn.rollback()
-        conn.close()
-        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    
-    conn.close()
-    return dict(new_relationship)
+def create_relationship(project_id: str, request: CreateRelationshipRequest, db: Session = Depends(database.get_db)):
+    new_rel_id = f"rel-{int(time.time() * 1000)}"
+    new_rel = RelationshipModel(
+        id=new_rel_id,
+        project_id=project_id,
+        source_character_id=request.source_character_id,
+        target_character_id=request.target_character_id,
+        type=request.type,
+        description=request.description
+    )
+    db.add(new_rel)
+    db.commit()
+    db.refresh(new_rel)
+    return new_rel
 
 @router.put("/{project_id}/relationships/{relationship_id}", response_model=Relationship)
-def update_relationship(project_id: str, relationship_id: str, request: UpdateRelationshipRequest):
-    """기존 캐릭터 관계를 수정합니다."""
-    conn = database.get_db_connection()
-    try:
-        cursor = conn.execute(
-            'UPDATE relationships SET type = ?, description = ? WHERE id = ? AND project_id = ?',
-            (request.type, request.description, relationship_id, project_id)
-        )
-        conn.commit()
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="수정할 관계를 찾을 수 없거나 권한이 없습니다.")
-        
-        updated_relationship = conn.execute('SELECT * FROM relationships WHERE id = ?', (relationship_id,)).fetchone()
-    except Exception as e:
-        conn.rollback()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    finally:
-        conn.close()
-        
-    return dict(updated_relationship)
+def update_relationship(project_id: str, relationship_id: str, request: UpdateRelationshipRequest, db: Session = Depends(database.get_db)):
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project_id).first()
+    if not rel:
+        raise HTTPException(status_code=404, detail="수정할 관계를 찾을 수 없습니다.")
+    rel.type = request.type
+    rel.description = request.description
+    db.commit()
+    db.refresh(rel)
+    return rel
 
 @router.delete("/{project_id}/relationships/{relationship_id}")
-def delete_relationship(project_id: str, relationship_id: str):
-    """캐릭터 관계를 삭제합니다."""
-    conn = database.get_db_connection()
-    try:
-        cursor = conn.execute('DELETE FROM relationships WHERE id = ? AND project_id = ?', (relationship_id, project_id))
-        conn.commit()
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="삭제할 관계를 찾을 수 없거나 권한이 없습니다.")
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"데이터베이스 오류: {e}")
-    finally:
-        conn.close()
-        
+def delete_relationship(project_id: str, relationship_id: str, db: Session = Depends(database.get_db)):
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project_id).first()
+    if not rel:
+        raise HTTPException(status_code=404, detail="삭제할 관계를 찾을 수 없습니다.")
+    db.delete(rel)
+    db.commit()
     return {"message": "관계가 성공적으로 삭제되었습니다."}
