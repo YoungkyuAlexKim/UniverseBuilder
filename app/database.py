@@ -10,6 +10,9 @@ import sqlite3
 # Render PostgreSQL 접속 주소를 환경 변수에서 가져옵니다.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# 이 engine 객체를 Alembic이 사용하게 됩니다.
+engine = None
+
 if DATABASE_URL and DATABASE_URL.startswith("postgres"):
     # 배포 환경 (PostgreSQL)
     engine = create_engine(DATABASE_URL)
@@ -28,7 +31,7 @@ class Project(Base):
     __tablename__ = "projects"
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    hashed_password = Column(String, nullable=True) # <-- 이 라인이 추가되었습니다.
+    hashed_password = Column(String, nullable=True) 
 
     groups = relationship("Group", back_populates="project", cascade="all, delete-orphan")
     worldview = relationship("Worldview", uselist=False, back_populates="project", cascade="all, delete-orphan")
