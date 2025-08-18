@@ -1,0 +1,47 @@
+Alembic 데이터베이스 마이그레이션 절차
+전제 조건: 가상환경(venv)이 활성화된 터미널에서, 프로젝트 최상위 폴더 ( alembic.ini 파일이 있는 곳)에서 아래 명령어들을 실행합니다.
+
+Step 1: 데이터베이스 모델 수정
+app/database.py 파일을 열어 원하는 대로 SQLAlchemy 모델(테이블)을 수정합니다.
+
+새 테이블 추가: class Episode(Base): ... 와 같이 새로운 클래스를 추가합니다.
+
+기존 테이블 수정: Card 클래스에 새로운 Column을 추가하는 등 기존 모델을 변경합니다.
+
+Step 2: 마이그레이션 계획서 자동 생성 (Revision)
+수정한 코드를 기반으로 데이터베이스 변경 계획서를 만듭니다.
+
+명령어:
+
+Bash
+
+alembic revision --autogenerate -m "변경 내용에 대한 간단한 설명"
+설명:
+
+--autogenerate: database.py의 변경사항을 자동으로 감지합니다.
+
+-m "...": 어떤 작업을 했는지 나중에 알아볼 수 있도록 메시지를 꼭 남겨두는 것이 좋습니다. (예: "Add episodes and dialogues tables")
+
+결과:
+
+이 명령을 실행하면 alembic/versions/ 폴더에 계획서에 해당하는 .py 파일이 새로 생성됩니다.
+
+Step 3: 데이터베이스에 계획서 적용 (Upgrade)
+생성된 계획서의 내용대로 실제 데이터베이스(로컬 DB, 서버 DB 모두)의 구조를 변경합니다.
+
+명령어:
+
+Bash
+
+alembic upgrade head
+설명:
+
+upgrade: 데이터베이스 스키마를 업그레이드합니다.
+
+head: 가장 최신 버전의 계획서까지 모두 적용합니다.
+
+결과:
+
+데이터베이스에 새로운 테이블이나 컬럼이 안전하게 추가됩니다.
+
+요약: 앞으로 데이터베이스 구조를 바꿀 때는 언제나 이 3단계(코드 수정 → revision → upgrade)를 순서대로 진행하면 됩니다.

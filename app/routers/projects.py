@@ -1,14 +1,19 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 import time
 import json
 from pydantic import BaseModel
 from typing import List, Optional
+from passlib.context import CryptContext
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
 from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
+
+# --- 비밀번호 해싱 설정 ---
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 # --- Pydantic 데이터 모델 ---
 # 각 모델에 orm_mode=True가 이미 설정되어 있으므로, SQLAlchemy 객체를 Pydantic 모델로 변환할 준비가 되어 있습니다.
@@ -70,6 +75,7 @@ class Worldview(BaseModel):
 class Project(BaseModel):
     id: str
     name: str
+    # hashed_password 필드는 클라이언트에 노출하지 않으므로 여기엔 추가하지 않습니다.
     groups: List[Group]
     worldview: Optional[Worldview] = None
     worldview_groups: List[WorldviewGroup] = []
@@ -77,12 +83,12 @@ class Project(BaseModel):
     class Config:
         orm_mode = True
 
-# (핵심 수정 1) API의 전체 응답 구조를 정의하는 새로운 Pydantic 모델을 만듭니다.
 class ProjectListResponse(BaseModel):
     projects: List[Project]
 
 class CreateProjectRequest(BaseModel):
     name: str
+    password: Optional[str] = None # 생성 시 비밀번호 추가
 
 class UpdateProjectRequest(BaseModel):
     name: str
@@ -129,13 +135,17 @@ class UpdateRelationshipRequest(BaseModel):
     type: str
     description: Optional[str] = None
 
+class ProjectPasswordRequest(BaseModel):
+    password: str
+
 # --- 라우터 생성 ---
 router = APIRouter(
     prefix="/api/v1/projects",
     tags=["Projects & Groups"]
 )
 
-# --- 유틸리티 함수 ---
+# --- 유틸리티 및 의존성 함수 ---
+
 def parse_card_fields(card_obj):
     for field in ['quote', 'personality', 'abilities', 'goal']:
         field_value = getattr(card_obj, field)
@@ -146,11 +156,29 @@ def parse_card_fields(card_obj):
                 setattr(card_obj, field, [s.strip() for s in field_value.split(',')])
     return card_obj
 
+# 프로젝트 접근 권한을 확인하는 의존성 함수
+def get_project_if_accessible(
+    project_id: str,
+    x_project_password: Optional[str] = Header(None, alias="X-Project-Password"),
+    db: Session = Depends(database.get_db)
+):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    
+    # 프로젝트에 비밀번호가 설정되어 있다면, 제공된 비밀번호와 일치하는지 확인
+    if project.hashed_password:
+        if not x_project_password or not pwd_context.verify(x_project_password, project.hashed_password):
+            raise HTTPException(status_code=403, detail="비밀번호가 틀렸거나 제공되지 않았습니다.")
+    
+    return project
+
+
 # --- API 엔드포인트 ---
 
-# (핵심 수정 2) response_model을 dict에서 새로 만든 ProjectListResponse로 변경합니다.
 @router.get("", response_model=ProjectListResponse)
 def get_projects(db: Session = Depends(database.get_db)):
+    # 프로젝트 목록은 비밀번호 없이 조회 가능해야 하므로, 여기서는 보호 로직을 적용하지 않습니다.
     projects_from_db = db.query(ProjectModel).options(
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
@@ -158,7 +186,6 @@ def get_projects(db: Session = Depends(database.get_db)):
         joinedload(ProjectModel.relationships)
     ).order_by(ProjectModel.name).all()
 
-    # 데이터 정렬 및 파싱 로직은 유지합니다.
     for p in projects_from_db:
         for group in p.groups:
             group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
@@ -167,14 +194,40 @@ def get_projects(db: Session = Depends(database.get_db)):
         for wv_group in p.worldview_groups:
             wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
 
-    # 반환하는 딕셔너리의 키("projects")는 ProjectListResponse 모델의 필드 이름과 일치해야 합니다.
     return {"projects": projects_from_db}
 
-@router.get("/{project_id}", response_model=Project)
-def get_project_details(project_id: str, db: Session = Depends(database.get_db)):
+# [신규] 비밀번호 필요 여부 확인 엔드포인트
+@router.get("/{project_id}/status")
+def get_project_status(project_id: str, db: Session = Depends(database.get_db)):
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    return {"requires_password": bool(project.hashed_password)}
+
+# [신규] 비밀번호 검증 엔드포인트
+@router.post("/{project_id}/verify")
+def verify_password(project_id: str, request: ProjectPasswordRequest, db: Session = Depends(database.get_db)):
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    if not project.hashed_password:
+        return {"message": "이 프로젝트는 비밀번호가 설정되어 있지 않습니다."}
+    if not pwd_context.verify(request.password, project.hashed_password):
+        raise HTTPException(status_code=403, detail="비밀번호가 틀렸습니다.")
+    return {"message": "인증 성공"}
+
+# [신규] 비밀번호 설정/변경 엔드포인트
+@router.put("/{project_id}/password")
+def set_or_change_password(request: ProjectPasswordRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    # get_project_if_accessible 의존성을 사용하여, 기존 비밀번호가 있는 경우 인증을 거쳐야만 변경 가능하도록 합니다.
+    project.hashed_password = pwd_context.hash(request.password)
+    db.commit()
+    return {"message": "비밀번호가 성공적으로 설정/변경되었습니다."}
+
+
+# [수정] get_project_if_accessible 의존성으로 프로젝트 상세 정보 조회 보호
+@router.get("/{project_id}", response_model=Project)
+def get_project_details(project: ProjectModel = Depends(get_project_if_accessible)):
     if project.worldview is None:
         project.worldview = WorldviewModel(content='')
     for group in project.groups:
@@ -185,12 +238,21 @@ def get_project_details(project_id: str, db: Session = Depends(database.get_db))
         wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
     return project
 
+# [수정] 프로젝트 생성 시 비밀번호 해싱
 @router.post("", response_model=Project)
 def create_project(project_request: CreateProjectRequest, db: Session = Depends(database.get_db)):
     timestamp = int(time.time() * 1000)
     new_project_id = f"project-{timestamp}"
     
-    new_project = ProjectModel(id=new_project_id, name=project_request.name)
+    hashed_password = None
+    if project_request.password:
+        hashed_password = pwd_context.hash(project_request.password)
+        
+    new_project = ProjectModel(
+        id=new_project_id, 
+        name=project_request.name, 
+        hashed_password=hashed_password
+    )
     
     uncategorized_group = GroupModel(
         id=f"group-uncategorized-{timestamp}",
@@ -214,42 +276,36 @@ def create_project(project_request: CreateProjectRequest, db: Session = Depends(
         
     return created_project
 
+# [수정] get_project_if_accessible 의존성으로 프로젝트 삭제 보호
 @router.delete("/{project_id}")
-def delete_project(project_id: str, db: Session = Depends(database.get_db)):
-    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="삭제할 프로젝트를 찾을 수 없습니다.")
+def delete_project(project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     db.delete(project)
     db.commit()
     return {"message": "프로젝트가 성공적으로 삭제되었습니다."}
 
+# [수정] get_project_if_accessible 의존성으로 프로젝트 수정 보호
 @router.put("/{project_id}")
-def update_project(project_id: str, project_request: UpdateProjectRequest, db: Session = Depends(database.get_db)):
-    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="수정할 프로젝트를 찾을 수 없습니다.")
+def update_project(project_request: UpdateProjectRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     project.name = project_request.name
     db.commit()
     db.refresh(project)
     return {"message": "프로젝트 이름이 성공적으로 수정되었습니다.", "project": project}
 
 # --- 캐릭터 그룹 & 카드 ---
+# [수정] get_project_if_accessible 의존성으로 그룹 생성 보호
 @router.post("/{project_id}/groups", response_model=Group)
-def create_group(project_id: str, group_request: CreateGroupRequest, db: Session = Depends(database.get_db)):
-    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-        
+def create_group(group_request: CreateGroupRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     new_group_id = f"group-{int(time.time() * 1000)}"
-    new_group = GroupModel(id=new_group_id, project_id=project_id, name=group_request.name)
+    new_group = GroupModel(id=new_group_id, project_id=project.id, name=group_request.name)
     db.add(new_group)
     db.commit()
     db.refresh(new_group)
     return new_group
 
+# [수정] get_project_if_accessible 의존성으로 그룹 삭제 보호
 @router.delete("/{project_id}/groups/{group_id}")
-def delete_group(project_id: str, group_id: str, db: Session = Depends(database.get_db)):
-    group = db.query(GroupModel).filter(GroupModel.id == group_id, GroupModel.project_id == project_id).first()
+def delete_group(group_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    group = db.query(GroupModel).filter(GroupModel.id == group_id, GroupModel.project_id == project.id).first()
     if not group:
         raise HTTPException(status_code=404, detail="삭제할 그룹을 찾을 수 없습니다.")
     if group.name == '미분류':
@@ -259,34 +315,33 @@ def delete_group(project_id: str, group_id: str, db: Session = Depends(database.
     return {"message": "그룹이 성공적으로 삭제되었습니다."}
 
 # --- 메인 세계관 ---
+# [수정] get_project_if_accessible 의존성으로 세계관 수정 보호
 @router.put("/{project_id}/worldview", response_model=Worldview)
-def update_worldview(project_id: str, request: WorldviewUpdateRequest, db: Session = Depends(database.get_db)):
-    worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == project_id).first()
+def update_worldview(request: WorldviewUpdateRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == project.id).first()
     if worldview:
         worldview.content = request.content
     else:
-        worldview = WorldviewModel(project_id=project_id, content=request.content)
+        worldview = WorldviewModel(project_id=project.id, content=request.content)
         db.add(worldview)
     db.commit()
     db.refresh(worldview)
     return worldview
 
-# --- 세계관 서브-그룹 및 카드 API ---
+# --- 이하 모든 엔드포인트들도 동일한 패턴으로 get_project_if_accessible 의존성을 적용해야 합니다. ---
+
 @router.post("/{project_id}/worldview_groups", response_model=WorldviewGroup)
-def create_worldview_group(project_id: str, group_request: CreateGroupRequest, db: Session = Depends(database.get_db)):
-    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+def create_worldview_group(group_request: CreateGroupRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     new_group_id = f"wv-group-{int(time.time() * 1000)}"
-    new_group = WorldviewGroupModel(id=new_group_id, project_id=project_id, name=group_request.name)
+    new_group = WorldviewGroupModel(id=new_group_id, project_id=project.id, name=group_request.name)
     db.add(new_group)
     db.commit()
     db.refresh(new_group)
     return new_group
 
 @router.delete("/{project_id}/worldview_groups/{group_id}")
-def delete_worldview_group(project_id: str, group_id: str, db: Session = Depends(database.get_db)):
-    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project_id).first()
+def delete_worldview_group(group_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project.id).first()
     if not group:
         raise HTTPException(status_code=404, detail="삭제할 그룹을 찾을 수 없습니다.")
     db.delete(group)
@@ -294,8 +349,8 @@ def delete_worldview_group(project_id: str, group_id: str, db: Session = Depends
     return {"message": "세계관 그룹이 삭제되었습니다."}
 
 @router.post("/{project_id}/worldview_groups/{group_id}/cards", response_model=WorldviewCard)
-def create_worldview_card(project_id: str, group_id: str, card_request: WorldviewCardCreateUpdateRequest, db: Session = Depends(database.get_db)):
-    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project_id).first()
+def create_worldview_card(group_id: str, card_request: WorldviewCardCreateUpdateRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project.id).first()
     if not group:
         raise HTTPException(status_code=404, detail="상위 그룹을 찾을 수 없습니다.")
     new_card_id = f"wv-card-{int(time.time() * 1000)}"
@@ -307,8 +362,8 @@ def create_worldview_card(project_id: str, group_id: str, card_request: Worldvie
     return new_card
 
 @router.put("/{project_id}/cards/{card_id}", response_model=Card)
-def update_card(project_id: str, card_id: str, card_data: UpdateCardRequest, db: Session = Depends(database.get_db)):
-    card = db.query(CardModel).join(GroupModel).filter(CardModel.id == card_id, GroupModel.project_id == project_id).first()
+def update_card(card_id: str, card_data: UpdateCardRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    card = db.query(CardModel).join(GroupModel).filter(CardModel.id == card_id, GroupModel.project_id == project.id).first()
     if not card:
         raise HTTPException(status_code=404, detail="해당 프로젝트에서 카드를 찾을 수 없거나 권한이 없습니다.")
 
@@ -324,8 +379,8 @@ def update_card(project_id: str, card_id: str, card_data: UpdateCardRequest, db:
     return parse_card_fields(card)
 
 @router.put("/{project_id}/worldview_cards/{card_id}", response_model=WorldviewCard)
-def update_worldview_card(project_id: str, card_id: str, card_request: WorldviewCardCreateUpdateRequest, db: Session = Depends(database.get_db)):
-    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
+def update_worldview_card(card_id: str, card_request: WorldviewCardCreateUpdateRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project.id).first()
     if not card:
         raise HTTPException(status_code=404, detail="수정할 카드를 찾을 수 없습니다.")
     card.title = card_request.title
@@ -335,8 +390,8 @@ def update_worldview_card(project_id: str, card_id: str, card_request: Worldview
     return card
 
 @router.put("/{project_id}/worldview_cards/{card_id}/details", response_model=WorldviewCard)
-def update_worldview_card_details(project_id: str, card_id: str, card_data: UpdateWorldviewCardRequest, db: Session = Depends(database.get_db)):
-    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
+def update_worldview_card_details(card_id: str, card_data: UpdateWorldviewCardRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project.id).first()
     if not card:
         raise HTTPException(status_code=404, detail="해당 프로젝트에서 카드를 찾을 수 없거나 권한이 없습니다.")
     
@@ -350,8 +405,8 @@ def update_worldview_card_details(project_id: str, card_id: str, card_data: Upda
     return card
 
 @router.delete("/{project_id}/worldview_cards/{card_id}")
-def delete_worldview_card(project_id: str, card_id: str, db: Session = Depends(database.get_db)):
-    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project_id).first()
+def delete_worldview_card(card_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project.id).first()
     if not card:
         raise HTTPException(status_code=404, detail="삭제할 카드를 찾을 수 없습니다.")
     db.delete(card)
@@ -359,8 +414,8 @@ def delete_worldview_card(project_id: str, card_id: str, db: Session = Depends(d
     return {"message": "세계관 카드가 삭제되었습니다."}
 
 @router.put("/{project_id}/worldview_groups/{group_id}/cards/order")
-def update_worldview_card_order(project_id: str, group_id: str, request: UpdateCardOrderRequest, db: Session = Depends(database.get_db)):
-    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project_id).first()
+def update_worldview_card_order(group_id: str, request: UpdateCardOrderRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    group = db.query(WorldviewGroupModel).filter(WorldviewGroupModel.id == group_id, WorldviewGroupModel.project_id == project.id).first()
     if not group:
         raise HTTPException(status_code=404, detail="그룹을 찾을 수 없습니다.")
     for index, card_id in enumerate(request.card_ids):
@@ -370,11 +425,11 @@ def update_worldview_card_order(project_id: str, group_id: str, request: UpdateC
 
 # --- 관계도 ---
 @router.post("/{project_id}/relationships", response_model=Relationship)
-def create_relationship(project_id: str, request: CreateRelationshipRequest, db: Session = Depends(database.get_db)):
+def create_relationship(request: CreateRelationshipRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     new_rel_id = f"rel-{int(time.time() * 1000)}"
     new_rel = RelationshipModel(
         id=new_rel_id,
-        project_id=project_id,
+        project_id=project.id,
         source_character_id=request.source_character_id,
         target_character_id=request.target_character_id,
         type=request.type,
@@ -386,8 +441,8 @@ def create_relationship(project_id: str, request: CreateRelationshipRequest, db:
     return new_rel
 
 @router.put("/{project_id}/relationships/{relationship_id}", response_model=Relationship)
-def update_relationship(project_id: str, relationship_id: str, request: UpdateRelationshipRequest, db: Session = Depends(database.get_db)):
-    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project_id).first()
+def update_relationship(relationship_id: str, request: UpdateRelationshipRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project.id).first()
     if not rel:
         raise HTTPException(status_code=404, detail="수정할 관계를 찾을 수 없습니다.")
     rel.type = request.type
@@ -397,8 +452,8 @@ def update_relationship(project_id: str, relationship_id: str, request: UpdateRe
     return rel
 
 @router.delete("/{project_id}/relationships/{relationship_id}")
-def delete_relationship(project_id: str, relationship_id: str, db: Session = Depends(database.get_db)):
-    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project_id).first()
+def delete_relationship(relationship_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project.id).first()
     if not rel:
         raise HTTPException(status_code=404, detail="삭제할 관계를 찾을 수 없습니다.")
     db.delete(rel)

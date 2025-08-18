@@ -28,6 +28,8 @@ class Project(Base):
     __tablename__ = "projects"
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=True) # <-- 이 라인이 추가되었습니다.
+
     groups = relationship("Group", back_populates="project", cascade="all, delete-orphan")
     worldview = relationship("Worldview", uselist=False, back_populates="project", cascade="all, delete-orphan")
     worldview_groups = relationship("WorldviewGroup", back_populates="project", cascade="all, delete-orphan")

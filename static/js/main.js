@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         openCardModal: modals.openCardModal,
         openWorldviewCardModal: modals.openWorldviewCardModal,
         showCharacterGeneratorUI: panels.showCharacterGeneratorUI,
-        showRelationshipPanel: panels.showRelationshipPanel, // [신규] 관계도 패널 핸들러 추가
+        showRelationshipPanel: panels.showRelationshipPanel,
     };
 
     ui.initializeUI(mainHandlers);
@@ -141,37 +141,71 @@ async function loadProjects() {
     }
 }
 
+// [수정] 비밀번호 확인 및 설정 로직 추가
 async function showProjectDetails(projectId) {
-    document.querySelectorAll('.sidebar li.active').forEach(i => i.classList.remove('active'));
-    document.querySelector(`.project-list span[data-id="${projectId}"]`)?.closest('li').classList.add('active');
-
-    document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
-    const detailView = document.getElementById('project-detail-view');
-    detailView.classList.add('active');
-
-    const tabContainer = detailView.querySelector('nav ul');
-    const newTabContainer = tabContainer.cloneNode(true);
-    tabContainer.parentNode.replaceChild(newTabContainer, tabContainer);
-    newTabContainer.querySelectorAll('.tab-link').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const tabId = link.dataset.tab;
-            newTabContainer.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
-            detailView.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            link.classList.add('active');
-            document.getElementById(`tab-content-${tabId}`).classList.add('active');
-        });
-    });
-
-    if (!newTabContainer.querySelector('.tab-link.active')) {
-        newTabContainer.querySelector('.tab-link[data-tab="characters"]').classList.add('active');
-        detailView.querySelector('#tab-content-characters').classList.add('active');
-    }
-
-    document.getElementById('card-list-container').innerHTML = '<p aria-busy="true">캐릭터 목록을 불러오는 중...</p>';
-    document.getElementById('worldview-card-list-container').innerHTML = '<p aria-busy="true">세계관 카드 목록을 불러오는 중...</p>';
-
     try {
+        // 1. 비밀번호 필요 여부 확인
+        const status = await api.checkPasswordStatus(projectId);
+        const storedPassword = sessionStorage.getItem(`project-password-${projectId}`);
+
+        // 2. 비밀번호가 필요한데, 세션에 저장된 비밀번호가 없을 경우
+        if (status.requires_password && !storedPassword) {
+            const password = prompt("이 프로젝트의 비밀번호를 입력하세요:");
+            if (!password) return; // 사용자가 입력을 취소하면 아무것도 하지 않음
+
+            try {
+                await api.verifyPassword(projectId, password);
+                // 인증 성공 시 sessionStorage에 비밀번호 저장
+                sessionStorage.setItem(`project-password-${projectId}`, password);
+            } catch (error) {
+                alert("비밀번호가 틀렸습니다.");
+                return; // 인증 실패 시 함수 종료
+            }
+        }
+
+        // 3. (레거시 프로젝트) 비밀번호가 없으면 설정 유도
+        if (!status.requires_password) {
+             if (confirm("이 프로젝트에는 비밀번호가 설정되어 있지 않습니다.\n지금 설정하시겠습니까?")) {
+                const newPassword = prompt("사용할 새 비밀번호를 입력하세요:");
+                if (newPassword) {
+                    await api.setPassword(projectId, newPassword);
+                    sessionStorage.setItem(`project-password-${projectId}`, newPassword);
+                    alert("비밀번호가 성공적으로 설정되었습니다.");
+                }
+             }
+        }
+        
+        // --- 이하 비밀번호 인증 후 기존 로직 수행 ---
+
+        document.querySelectorAll('.sidebar li.active').forEach(i => i.classList.remove('active'));
+        document.querySelector(`.project-list span[data-id="${projectId}"]`)?.closest('li').classList.add('active');
+
+        document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+        const detailView = document.getElementById('project-detail-view');
+        detailView.classList.add('active');
+
+        const tabContainer = detailView.querySelector('nav ul');
+        const newTabContainer = tabContainer.cloneNode(true);
+        tabContainer.parentNode.replaceChild(newTabContainer, tabContainer);
+        newTabContainer.querySelectorAll('.tab-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tabId = link.dataset.tab;
+                newTabContainer.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
+                detailView.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                link.classList.add('active');
+                document.getElementById(`tab-content-${tabId}`).classList.add('active');
+            });
+        });
+
+        if (!newTabContainer.querySelector('.tab-link.active')) {
+            newTabContainer.querySelector('.tab-link[data-tab="characters"]').classList.add('active');
+            detailView.querySelector('#tab-content-characters').classList.add('active');
+        }
+
+        document.getElementById('card-list-container').innerHTML = '<p aria-busy="true">캐릭터 목록을 불러오는 중...</p>';
+        document.getElementById('worldview-card-list-container').innerHTML = '<p aria-busy="true">세계관 카드 목록을 불러오는 중...</p>';
+
         const projectData = await api.fetchProjectDetails(projectId);
         const projectIndex = projects.findIndex(p => p.id === projectId);
         if (projectIndex > -1) {
@@ -188,7 +222,7 @@ async function showProjectDetails(projectId) {
 
     } catch (error) {
         console.error('Error loading project details:', error);
-        document.getElementById('card-list-container').innerHTML = `<p style="color: var(--pico-color-red-500);">정보 로딩 실패</p>`;
+        document.getElementById('card-list-container').innerHTML = `<p style="color: var(--pico-color-red-500);">정보 로딩 실패: ${error.message}</p>`;
     }
 }
 
@@ -236,6 +270,7 @@ function setupSortable(lists, projectId, type) {
     });
 }
 
+// [수정] 새 프로젝트 생성 시 비밀번호 입력받도록 수정
 async function handleCreateProject(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -243,10 +278,13 @@ async function handleCreateProject(event) {
     const button = form.querySelector('button');
     const projectName = input.value.trim();
     if (!projectName) { alert('프로젝트 이름을 입력해주세요.'); return; }
+    
+    const password = prompt("새 프로젝트에 사용할 비밀번호를 입력하세요.\n(입력하지 않으면 비밀번호 없이 생성됩니다)");
+
     button.setAttribute('aria-busy', 'true');
     button.disabled = true;
     try {
-        await api.createProject(projectName);
+        await api.createProject(projectName, password || null); // 비밀번호가 없으면 null 전달
         alert('새로운 프로젝트가 생성되었습니다!');
         input.value = '';
         await loadProjects();
