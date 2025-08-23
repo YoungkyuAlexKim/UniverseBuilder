@@ -9,14 +9,33 @@ from passlib.context import CryptContext
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
-from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
+from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel # [수정] Scenario, PlotPoint 모델 임포트
 
 # --- 비밀번호 해싱 설정 ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # --- Pydantic 데이터 모델 ---
-# 각 모델에 orm_mode=True가 이미 설정되어 있으므로, SQLAlchemy 객체를 Pydantic 모델로 변환할 준비가 되어 있습니다.
+
+# [신규] PlotPoint, Scenario 모델 추가
+class PlotPoint(BaseModel):
+    id: str
+    scenario_id: str
+    title: str
+    content: Optional[str] = None
+    ordering: int
+    class Config:
+        orm_mode = True
+
+class Scenario(BaseModel):
+    id: str
+    project_id: str
+    title: str
+    summary: Optional[str] = None
+    themes: Optional[List[str]] = None
+    plot_points: List[PlotPoint] = []
+    class Config:
+        orm_mode = True
 
 class Relationship(BaseModel):
     id: str
@@ -80,6 +99,7 @@ class Project(BaseModel):
     worldview: Optional[Worldview] = None
     worldview_groups: List[WorldviewGroup] = []
     relationships: List[Relationship] = []
+    scenarios: List[Scenario] = [] # [수정] scenarios 필드 추가
     class Config:
         orm_mode = True
 
@@ -156,6 +176,17 @@ def parse_card_fields(card_obj):
                 setattr(card_obj, field, [s.strip() for s in field_value.split(',')])
     return card_obj
 
+# [신규] 시나리오 필드 파싱 함수
+def parse_scenario_fields(scenario_obj):
+    if scenario_obj.themes and isinstance(scenario_obj.themes, str):
+        try:
+            scenario_obj.themes = json.loads(scenario_obj.themes)
+        except json.JSONDecodeError:
+            scenario_obj.themes = []
+    elif not scenario_obj.themes:
+        scenario_obj.themes = []
+    return scenario_obj
+
 # 프로젝트 접근 권한을 확인하는 의존성 함수
 def get_project_if_accessible(
     project_id: str,
@@ -183,7 +214,8 @@ def get_projects(db: Session = Depends(database.get_db)):
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
         joinedload(ProjectModel.worldview_groups).joinedload(WorldviewGroupModel.worldview_cards),
-        joinedload(ProjectModel.relationships)
+        joinedload(ProjectModel.relationships),
+        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points) # [수정] 시나리오 정보도 함께 로드
     ).order_by(ProjectModel.name).all()
 
     for p in projects_from_db:
@@ -193,6 +225,10 @@ def get_projects(db: Session = Depends(database.get_db)):
                 parse_card_fields(card)
         for wv_group in p.worldview_groups:
             wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+        for scenario in p.scenarios: # [신규] 시나리오 필드 파싱
+            parse_scenario_fields(scenario)
+            scenario.plot_points.sort(key=lambda x: (x.ordering is None, x.ordering))
+
 
     return {"projects": projects_from_db}
 
@@ -227,18 +263,33 @@ def set_or_change_password(request: ProjectPasswordRequest, project: ProjectMode
 
 # [수정] get_project_if_accessible 의존성으로 프로젝트 상세 정보 조회 보호
 @router.get("/{project_id}", response_model=Project)
-def get_project_details(project: ProjectModel = Depends(get_project_if_accessible)):
+def get_project_details(project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)): # [수정] db 세션 추가
+    # [수정] 시나리오가 없을 경우 자동으로 생성
+    if not project.scenarios:
+        new_scenario = ScenarioModel(
+            id=f"scen-{int(time.time() * 1000)}",
+            project_id=project.id,
+            title="메인 시나리오"
+        )
+        db.add(new_scenario)
+        db.commit()
+        db.refresh(project) # project 객체를 refresh하여 새로운 시나리오를 반영
+
     if project.worldview is None:
         project.worldview = WorldviewModel(content='')
+
     for group in project.groups:
         group.cards.sort(key=lambda x: (x.ordering is None, x.ordering))
         for card in group.cards:
             parse_card_fields(card)
     for wv_group in project.worldview_groups:
         wv_group.worldview_cards.sort(key=lambda x: (x.ordering is None, x.ordering))
+    for scenario in project.scenarios:
+        parse_scenario_fields(scenario)
+        scenario.plot_points.sort(key=lambda x: (x.ordering is None, x.ordering))
     return project
 
-# [수정] 프로젝트 생성 시 비밀번호 해싱
+# [수정] 프로젝트 생성 시 비밀번호 해싱 및 기본 시나리오 생성
 @router.post("", response_model=Project)
 def create_project(project_request: CreateProjectRequest, db: Session = Depends(database.get_db)):
     timestamp = int(time.time() * 1000)
@@ -265,14 +316,27 @@ def create_project(project_request: CreateProjectRequest, db: Session = Depends(
         content=''
     )
     
+    # [신규] 프로젝트 생성 시 기본 시나리오 추가
+    default_scenario = ScenarioModel(
+        id=f"scen-{timestamp}",
+        project_id=new_project_id,
+        title="메인 시나리오"
+    )
+    
     db.add(new_project)
     db.add(uncategorized_group)
     db.add(default_worldview)
+    db.add(default_scenario)
     
     db.commit()
     db.refresh(new_project)
     
-    created_project = db.query(ProjectModel).filter(ProjectModel.id == new_project_id).first()
+    # joinedload를 사용하여 관련 데이터 로드
+    created_project = db.query(ProjectModel).options(
+        joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
+        joinedload(ProjectModel.worldview),
+        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points)
+    ).filter(ProjectModel.id == new_project_id).first()
         
     return created_project
 

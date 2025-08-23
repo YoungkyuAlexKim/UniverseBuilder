@@ -10,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
     
-    <!-- [신규] Vis.js 네트워크 라이브러리 추가 -->
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     
     <script type="module" src="/static/js/main.js?v=1.5"></script>
@@ -53,7 +52,7 @@
                     <ul>
                         <li><a href="#" class="tab-link active" data-tab="characters">캐릭터</a></li>
                         <li><a href="#" class="tab-link" data-tab="worldview">세계관</a></li>
-                    </ul>
+                        <li><a href="#" class="tab-link" data-tab="scenario">시나리오</a></li> </ul>
                 </nav>
                 <div id="tab-content-characters" class="tab-content active">
                     <div id="card-list-container"></div> 
@@ -79,6 +78,9 @@
                     <hr>
                     <div id="worldview-card-list-container">
                         </div>
+                </div>
+                <div id="tab-content-scenario" class="tab-content">
+                    <p>시나리오 기능이 여기에 표시됩니다.</p>
                 </div>
             </div>
         </main>

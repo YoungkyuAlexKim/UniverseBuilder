@@ -37,6 +37,8 @@ class Project(Base):
     worldview = relationship("Worldview", uselist=False, back_populates="project", cascade="all, delete-orphan")
     worldview_groups = relationship("WorldviewGroup", back_populates="project", cascade="all, delete-orphan")
     relationships = relationship("Relationship", back_populates="project", cascade="all, delete-orphan")
+    # [신규] 시나리오 관계 추가
+    scenarios = relationship("Scenario", back_populates="project", cascade="all, delete-orphan")
 
 class Group(Base):
     __tablename__ = "groups"
@@ -93,6 +95,27 @@ class Relationship(Base):
     type = Column(String, nullable=False)
     description = Column(Text)
     project = relationship("Project", back_populates="relationships")
+
+# [신규] Scenario 모델 추가
+class Scenario(Base):
+    __tablename__ = "scenarios"
+    id = Column(String, primary_key=True, index=True)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    title = Column(String, nullable=False, default="메인 시나리오")
+    summary = Column(Text)
+    themes = Column(Text) # JSON list of strings e.g., '["복수", "희생"]'
+    project = relationship("Project", back_populates="scenarios")
+    plot_points = relationship("PlotPoint", back_populates="scenario", cascade="all, delete-orphan")
+
+# [신규] PlotPoint 모델 추가
+class PlotPoint(Base):
+    __tablename__ = "plot_points"
+    id = Column(String, primary_key=True, index=True)
+    scenario_id = Column(String, ForeignKey("scenarios.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text)
+    ordering = Column(Integer, nullable=False)
+    scenario = relationship("Scenario", back_populates="plot_points")
 
 
 # --- 데이터베이스 연결 및 초기화 함수 ---

@@ -29,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
         openWorldviewCardModal: modals.openWorldviewCardModal,
         showCharacterGeneratorUI: panels.showCharacterGeneratorUI,
         showRelationshipPanel: panels.showRelationshipPanel,
+        handleSaveScenario,
+        handleCreatePlotPoint, // 핸들러 추가
     };
 
     ui.initializeUI(mainHandlers);
@@ -48,8 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
-
-// ... (이하 나머지 코드는 이전 버전과 동일합니다) ...
 
 // -------------------------
 // 초기화 및 전역 상태 관리
@@ -141,29 +141,24 @@ async function loadProjects() {
     }
 }
 
-// [수정] 비밀번호 확인 및 설정 로직 추가
 async function showProjectDetails(projectId) {
     try {
-        // 1. 비밀번호 필요 여부 확인
         const status = await api.checkPasswordStatus(projectId);
         const storedPassword = sessionStorage.getItem(`project-password-${projectId}`);
 
-        // 2. 비밀번호가 필요한데, 세션에 저장된 비밀번호가 없을 경우
         if (status.requires_password && !storedPassword) {
             const password = prompt("이 프로젝트의 비밀번호를 입력하세요:");
-            if (!password) return; // 사용자가 입력을 취소하면 아무것도 하지 않음
+            if (!password) return;
 
             try {
                 await api.verifyPassword(projectId, password);
-                // 인증 성공 시 sessionStorage에 비밀번호 저장
                 sessionStorage.setItem(`project-password-${projectId}`, password);
             } catch (error) {
                 alert("비밀번호가 틀렸습니다.");
-                return; // 인증 실패 시 함수 종료
+                return;
             }
         }
 
-        // 3. (레거시 프로젝트) 비밀번호가 없으면 설정 유도
         if (!status.requires_password) {
              if (confirm("이 프로젝트에는 비밀번호가 설정되어 있지 않습니다.\n지금 설정하시겠습니까?")) {
                 const newPassword = prompt("사용할 새 비밀번호를 입력하세요:");
@@ -175,8 +170,6 @@ async function showProjectDetails(projectId) {
              }
         }
         
-        // --- 이하 비밀번호 인증 후 기존 로직 수행 ---
-
         document.querySelectorAll('.sidebar li.active').forEach(i => i.classList.remove('active'));
         document.querySelector(`.project-list span[data-id="${projectId}"]`)?.closest('li').classList.add('active');
 
@@ -205,6 +198,7 @@ async function showProjectDetails(projectId) {
 
         document.getElementById('card-list-container').innerHTML = '<p aria-busy="true">캐릭터 목록을 불러오는 중...</p>';
         document.getElementById('worldview-card-list-container').innerHTML = '<p aria-busy="true">세계관 카드 목록을 불러오는 중...</p>';
+        document.getElementById('tab-content-scenario').innerHTML = '<p aria-busy="true">시나리오 정보를 불러오는 중...</p>';
 
         const projectData = await api.fetchProjectDetails(projectId);
         const projectIndex = projects.findIndex(p => p.id === projectId);
@@ -219,6 +213,7 @@ async function showProjectDetails(projectId) {
 
         ui.renderCharacterTab(projectData);
         ui.renderWorldviewTab(projectData);
+        ui.renderScenarioTab(projectData);
 
     } catch (error) {
         console.error('Error loading project details:', error);
@@ -270,7 +265,6 @@ function setupSortable(lists, projectId, type) {
     });
 }
 
-// [수정] 새 프로젝트 생성 시 비밀번호 입력받도록 수정
 async function handleCreateProject(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -284,7 +278,7 @@ async function handleCreateProject(event) {
     button.setAttribute('aria-busy', 'true');
     button.disabled = true;
     try {
-        await api.createProject(projectName, password || null); // 비밀번호가 없으면 null 전달
+        await api.createProject(projectName, password || null);
         alert('새로운 프로젝트가 생성되었습니다!');
         input.value = '';
         await loadProjects();
@@ -504,5 +498,68 @@ async function handleDeleteWorldviewCard(projectId, cardId) {
     } catch (error) {
         console.error('설정 카드 삭제 실패:', error);
         alert(error.message);
+    }
+}
+
+async function handleSaveScenario(event, projectId, scenarioId) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+
+    const themes = form.elements.themes.value.split(',')
+        .map(theme => theme.trim())
+        .filter(Boolean);
+
+    const scenarioData = {
+        title: form.elements.title.value,
+        summary: form.elements.summary.value,
+        themes: themes
+    };
+    
+    button.setAttribute('aria-busy', 'true');
+    try {
+        await api.updateScenario(projectId, scenarioId, scenarioData);
+        alert('시나리오 정보가 성공적으로 저장되었습니다.');
+
+        const project = projects.find(p => p.id === projectId);
+        if (project) {
+            const scenario = project.scenarios.find(s => s.id === scenarioId);
+            if (scenario) {
+                Object.assign(scenario, scenarioData);
+            }
+        }
+    } catch (error) {
+        console.error('시나리오 저장 실패:', error);
+        alert(error.message);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+async function handleCreatePlotPoint(event, projectId, scenarioId) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+
+    const plotData = {
+        title: form.elements.title.value,
+        content: form.elements.content.value
+    };
+
+    if (!plotData.title) {
+        alert('플롯 제목을 입력해주세요.');
+        return;
+    }
+
+    button.setAttribute('aria-busy', 'true');
+    try {
+        await api.createPlotPoint(projectId, scenarioId, plotData);
+        form.reset();
+        await showProjectDetails(projectId);
+    } catch (error) {
+        console.error('플롯 포인트 생성 실패:', error);
+        alert(error.message);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
     }
 }

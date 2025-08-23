@@ -3,7 +3,7 @@
  */
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
-let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, handleSaveWorldview, handleAiGenerateNewWorldview, handleAiEditWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal;
+let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, handleSaveWorldview, handleAiGenerateNewWorldview, handleAiEditWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint;
 
 export function initializeUI(handlers) {
     showCharacterGeneratorUI = handlers.showCharacterGeneratorUI;
@@ -17,6 +17,8 @@ export function initializeUI(handlers) {
     handleCreateWorldviewGroup = handlers.handleCreateWorldviewGroup;
     handleDeleteWorldviewGroup = handlers.handleDeleteWorldviewGroup;
     openWorldviewCardModal = handlers.openWorldviewCardModal;
+    handleSaveScenario = handlers.handleSaveScenario;
+    handleCreatePlotPoint = handlers.handleCreatePlotPoint;
 }
 
 
@@ -133,6 +135,78 @@ function createWorldviewCardElement(card, projectId, groupId) {
     cardEl.addEventListener('click', () => openWorldviewCardModal(card, projectId, groupId));
     return cardEl;
 }
+
+export function renderScenarioTab(projectData) {
+    const container = document.getElementById('tab-content-scenario');
+    const mainScenario = projectData.scenarios && projectData.scenarios[0];
+    if (!mainScenario) {
+        container.innerHTML = '<p>시나리오 데이터를 불러오지 못했습니다.</p>';
+        return;
+    }
+
+    let plotPointsHTML = '';
+    if (mainScenario.plot_points && mainScenario.plot_points.length > 0) {
+        plotPointsHTML = mainScenario.plot_points.map(plot => `
+            <article class="plot-point-item" data-plot-id="${plot.id}" style="padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; margin-bottom: 1rem;">
+                <h6>${plot.ordering + 1}. ${plot.title}</h6>
+                <p style="margin:0;">${plot.content || '세부 내용 없음'}</p>
+            </article>
+        `).join('');
+    } else {
+        plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
+    }
+
+    container.innerHTML = `
+        <article>
+            <hgroup>
+                <h4>메인 스토리 로드맵</h4>
+                <p>이야기의 전체적인 흐름을 설계하고 AI와 함께 플롯을 발전시켜 보세요.</p>
+            </hgroup>
+            <form id="scenario-details-form">
+                <div class="grid">
+                    <label for="scenario-title">
+                        시나리오 제목
+                        <input type="text" id="scenario-title" name="title" value="${mainScenario.title || ''}" placeholder="시나리오의 제목">
+                    </label>
+                    <label for="scenario-themes">
+                        핵심 테마 (쉼표로 구분)
+                        <input type="text" id="scenario-themes" name="themes" value="${(mainScenario.themes || []).join(', ')}" placeholder="예: 복수, 희생, 구원">
+                    </label>
+                </div>
+                <label for="scenario-summary">한 줄 요약</label>
+                <textarea id="scenario-summary" name="summary" rows="2" placeholder="이 이야기의 핵심 내용을 한두 문장으로 요약합니다.">${mainScenario.summary || ''}</textarea>
+                <button type="submit" style="width: auto;">시나리오 정보 저장</button>
+            </form>
+        </article>
+        <hr>
+        <div id="plot-points-container">
+            <h4>플롯 포인트</h4>
+            <div id="plot-list">
+                ${plotPointsHTML}
+            </div>
+            
+            <form id="add-plot-point-form" style="margin-top: 1.5rem; border-top: 1px solid var(--pico-muted-border-color); padding-top: 1.5rem;">
+                <label for="new-plot-title"><strong>새 플롯 추가</strong></label>
+                <input type="text" id="new-plot-title" name="title" placeholder="플롯 제목 (예: 주인공의 각성)" required>
+                <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
+                <button type="submit" style="width: auto;">+ 플롯 추가</button>
+            </form>
+
+            <button id="ai-draft-btn" class="contrast" style="margin-top: 1.5rem;">✨ AI로 전체 스토리 초안 생성</button>
+        </div>
+    `;
+
+    const scenarioForm = document.getElementById('scenario-details-form');
+    scenarioForm.addEventListener('submit', (e) => {
+        handleSaveScenario(e, projectData.id, mainScenario.id);
+    });
+
+    const addPlotForm = document.getElementById('add-plot-point-form');
+    addPlotForm.addEventListener('submit', (e) => {
+        handleCreatePlotPoint(e, projectData.id, mainScenario.id);
+    });
+}
+
 
 // 동적 입력 필드 UI 생성 (수동 편집 패널용)
 export function createDynamicInputGroupHTML(field, label, values = []) {

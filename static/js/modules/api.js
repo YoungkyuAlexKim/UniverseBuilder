@@ -243,10 +243,33 @@ export async function updateWorldviewCardOrder(projectId, groupId, cardIds) {
 }
 
 // -------------------------
+// 시나리오 (Scenario)
+// -------------------------
+
+export async function updateScenario(projectId, scenarioId, scenarioData) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/${scenarioId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(scenarioData)
+    });
+    return handleResponse(response);
+}
+
+// [신규] 플롯 포인트 생성 함수
+export async function createPlotPoint(projectId, scenarioId, plotPointData) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/${scenarioId}/plot_points`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(plotPointData)
+    });
+    return handleResponse(response);
+}
+
+
+// -------------------------
 // AI 생성 및 수정 (AI Generators & Editors)
 // -------------------------
 
-// AI 관련 기능들도 프로젝트 데이터를 기반으로 하므로 모두 인증 헤더를 추가합니다.
 export async function generateCharacter(projectId, requestBody) {
     const response = await fetch(`/api/v1/projects/${projectId}/generate/character`, {
         method: 'POST',
@@ -259,7 +282,7 @@ export async function generateCharacter(projectId, requestBody) {
 export async function generateNewWorldview(requestBody) {
     const response = await fetch('/api/v1/generate/worldview/new', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }, // 이 API는 프로젝트와 직접적 연관이 없으므로 인증 불필요
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
     });
     return handleResponse(response);
@@ -268,7 +291,7 @@ export async function generateNewWorldview(requestBody) {
 export async function editWorldview(requestBody) {
      const response = await fetch('/api/v1/generate/worldview/edit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }, // 이 API는 프로젝트와 직접적 연관이 없으므로 인증 불필요
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
     });
     return handleResponse(response);
