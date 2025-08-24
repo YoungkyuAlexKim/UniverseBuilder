@@ -165,11 +165,12 @@ export async function updateCardOrder(projectId, groupId, cardIds) {
 // 세계관 (Worldview)
 // -------------------------
 
-export async function saveWorldview(projectId, content) {
+// [수정] saveWorldview가 구조화된 데이터를 보내도록 변경
+export async function saveWorldview(projectId, worldviewData) {
     const response = await fetch(`/api/v1/projects/${projectId}/worldview`, {
         method: 'PUT',
         headers: getAuthHeaders(projectId),
-        body: JSON.stringify({ content: content })
+        body: JSON.stringify(worldviewData)
     });
     return handleResponse(response);
 }
@@ -304,29 +305,13 @@ export async function generateCharacter(projectId, requestBody) {
     return handleResponse(response);
 }
 
-export async function generateNewWorldview(requestBody) {
-    const response = await fetch('/api/v1/generate/worldview/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-    });
-    return handleResponse(response);
-}
+// [삭제] UI에서 관련 기능이 사라졌으므로 API 함수도 제거
+// export async function generateNewWorldview(requestBody) { ... }
+// export async function editWorldview(requestBody) { ... }
 
-export async function editWorldview(requestBody) {
-     const response = await fetch('/api/v1/generate/worldview/edit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-    });
-    return handleResponse(response);
-}
-
-// [수정] 이야기 핵심 컨셉 다듬기 - requestBody에 projectId 추가되도록 수정
 export async function refineScenarioConcept(requestBody) {
     const response = await fetch('/api/v1/generate/scenario-concept', {
        method: 'POST',
-       // projectId가 필요하므로 인증 헤더를 사용 (인증 목적이 아닌 데이터 전달 목적)
        headers: getAuthHeaders(requestBody.project_id),
        body: JSON.stringify(requestBody)
    });
@@ -354,7 +339,7 @@ export async function fetchAiWorldviewEdit(projectId, cardId, requestBody) {
 export async function applyAiSuggestion(projectId, updatedCards, cardType) {
     const updatePromises = updatedCards.map(cardToUpdate => {
         const apiPath = cardType === 'character'
-            ? `/api/v1/projects/${projectId}/cards/${cardToUpdate.id}`
+            ? `/api/v1/projects/${cardToUpdate.id}`
             : `/api/v1/projects/${projectId}/worldview_cards/${cardToUpdate.id}/details`;
 
         return fetch(apiPath, {

@@ -37,7 +37,6 @@ class Project(Base):
     worldview = relationship("Worldview", uselist=False, back_populates="project", cascade="all, delete-orphan")
     worldview_groups = relationship("WorldviewGroup", back_populates="project", cascade="all, delete-orphan")
     relationships = relationship("Relationship", back_populates="project", cascade="all, delete-orphan")
-    # [신규] 시나리오 관계 추가
     scenarios = relationship("Scenario", back_populates="project", cascade="all, delete-orphan")
 
 class Group(Base):
@@ -66,6 +65,8 @@ class Worldview(Base):
     __tablename__ = "worldviews"
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False, unique=True)
+    # [역할 재정의] 이 content 컬럼은 이제부터 구조화된 JSON 문자열을 저장합니다.
+    # 예: { "logline": "...", "genre": "...", "rules": ["...", "..."] }
     content = Column(Text)
     project = relationship("Project", back_populates="worldview")
 
@@ -96,7 +97,6 @@ class Relationship(Base):
     description = Column(Text)
     project = relationship("Project", back_populates="relationships")
 
-# [신규] Scenario 모델 추가
 class Scenario(Base):
     __tablename__ = "scenarios"
     id = Column(String, primary_key=True, index=True)
@@ -104,10 +104,10 @@ class Scenario(Base):
     title = Column(String, nullable=False, default="메인 시나리오")
     summary = Column(Text)
     themes = Column(Text) # JSON list of strings e.g., '["복수", "희생"]'
+    prologue = Column(Text) # [신규] 프롤로그 / 도입부 스토리 컬럼 추가
     project = relationship("Project", back_populates="scenarios")
     plot_points = relationship("PlotPoint", back_populates="scenario", cascade="all, delete-orphan")
 
-# [신규] PlotPoint 모델 추가
 class PlotPoint(Base):
     __tablename__ = "plot_points"
     id = Column(String, primary_key=True, index=True)

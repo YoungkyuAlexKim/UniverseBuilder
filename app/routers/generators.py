@@ -17,7 +17,7 @@ from ..database import Project as ProjectModel, Group as GroupModel, Card as Car
 class GenerateRequest(BaseModel):
     keywords: str
     character_ids: Optional[List[str]] = None
-    worldview_context: Optional[str] = None
+    # [삭제] worldview_context 필드는 이제 프로젝트에서 직접 조회하므로 삭제합니다.
     worldview_level: Optional[str] = 'none'
     model_name: Optional[str] = None
     worldview_card_ids: Optional[List[str]] = None
@@ -72,7 +72,6 @@ class SuggestRelationshipRequest(BaseModel):
     tendency: Optional[int] = 0
     keyword: Optional[str] = None
 
-# [수정] 컨셉 다듬기 요청 모델에 project_id 추가
 class RefineConceptRequest(BaseModel):
     existing_concept: str
     project_id: str
@@ -84,7 +83,7 @@ router = APIRouter(
     tags=["Generators & Cards"]
 )
 
-AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"]
+AVAILABLE_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"]
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 if api_key:
@@ -166,6 +165,39 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
     if not api_key:
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
 
+    # [수정] 프로젝트에서 직접 세계관 정보를 조회하고 파싱
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+
+    worldview_data = {"logline": "", "genre": "", "rules": []}
+    if project.worldview and project.worldview.content:
+        try:
+            worldview_data = json.loads(project.worldview.content)
+        except json.JSONDecodeError:
+            pass
+
+    worldview_context_prompt = ""
+    base_worldview_prompt = ""
+    genre_prompt = f"\n- 장르 및 분위기: {worldview_data.get('genre') or '미설정'}"
+    rules_prompt = "\n- 이 세계의 절대 규칙:\n  - " + "\n  - ".join(worldview_data.get("rules", [])) if worldview_data.get("rules") else ""
+    
+    if genre_prompt or rules_prompt:
+        base_worldview_prompt = f"\n**참고할 메인 세계관 설정:**{genre_prompt}{rules_prompt}"
+
+    level_instruction = ""
+    if request.worldview_level == 'high':
+        level_instruction = "\n- 캐릭터의 모든 설정은 메인 세계관의 장르, 규칙과 깊고 직접적으로 연결되어야 합니다."
+    elif request.worldview_level == 'medium':
+        level_instruction = "\n- 캐릭터는 메인 세계관의 사회, 문화적 배경에 자연스럽게 녹아들어야 합니다."
+    elif request.worldview_level == 'low':
+        level_instruction = "\n- 캐릭터의 개인적인 서사 중심으로 서술하되, 세계관의 큰 흐름과는 무관하게 설정해주세요."
+    else: # none
+        level_instruction = "\n- 세계관의 고유 설정(지명, 특정 사건 등)은 언급하지 말고, 장르와 분위기만 참고하세요."
+    
+    if base_worldview_prompt:
+        worldview_context_prompt = base_worldview_prompt + level_instruction
+
     worldview_cards_context_prompt = ""
     if request.worldview_card_ids:
         cards_from_db = db.query(WorldviewCardModel).filter(WorldviewCardModel.id.in_(request.worldview_card_ids)).all()
@@ -180,23 +212,10 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
             character_info = [f"- 이름: {card.name}, 설명: {card.description}" for card in existing_cards]
             character_context_prompt = "\n**참고할 기존 캐릭터 정보:**\n" + "\n".join(character_info)
 
-    worldview_context_prompt = ""
-    if request.worldview_context:
-        base_worldview_prompt = f"\n**참고할 메인 세계관 설정:**\n---\n{request.worldview_context}\n---"
-        level_instruction = ""
-        if request.worldview_level == 'high':
-            level_instruction = "\n- 캐릭터의 모든 설정은 메인 세계관 및 서브 설정과 깊고 직접적으로 연결되어야 합니다."
-        elif request.worldview_level == 'medium':
-            level_instruction = "\n- 캐릭터는 메인 세계관 및 서브 설정의 사회, 문화적 배경에 자연스럽게 녹아들어야 합니다."
-        elif request.worldview_level == 'low':
-             level_instruction = "\n- 캐릭터의 개인적인 서사 중심으로 서술하되, 세계관의 큰 흐름과는 무관하게 설정해주세요."
-        else:
-            level_instruction = "\n- 세계관의 고유 설정(지명, 특정 사건 등)은 언급하지 말고, 장르와 분위기만 참고하세요."
-        worldview_context_prompt = base_worldview_prompt + level_instruction
-
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
 
+    # [수정] AI 프롬프트를 새로운 세계관 구조에 맞게 수정
     prompt = f"""당신은 매력적인 스토리를 만드는 세계관 설정 작가입니다.
 아래 '정보'와 '지시사항'을 모두 종합적으로 고려하여, 이 세계에 자연스럽게 녹아들 수 있는 새로운 판타지 캐릭터 카드 1개를 생성해 주세요.
 {worldview_context_prompt}
@@ -301,10 +320,22 @@ async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditReques
         if card.id == card_id:
             edited_card_name = card.name
     
-    worldview_content = project.worldview.content if project.worldview else ""
+    # [수정] 구조화된 세계관 데이터 파싱하여 프롬프트에 적용
+    worldview_data = {"logline": "", "genre": "", "rules": []}
+    if project.worldview and project.worldview.content:
+        try:
+            worldview_data = json.loads(project.worldview.content)
+        except json.JSONDecodeError:
+            pass
+            
+    worldview_context_for_prompt = {
+        "genre": worldview_data.get("genre"),
+        "rules": worldview_data.get("rules")
+    }
+
     full_project_context = json.dumps({
         "name": project.name,
-        "worldview": {"content": worldview_content},
+        "worldview": worldview_context_for_prompt,
         "cards": cards_for_context
     }, indent=2, ensure_ascii=False)
 
@@ -360,7 +391,15 @@ async def edit_worldview_card_with_ai(project_id: str, card_id: str, request: AI
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
 
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-    main_worldview_context = project.worldview.content if project and project.worldview else ""
+    
+    # [수정] 구조화된 메인 세계관 데이터 파싱
+    worldview_data = {"logline": "", "genre": "", "rules": []}
+    if project and project.worldview and project.worldview.content:
+        try:
+            worldview_data = json.loads(project.worldview.content)
+        except json.JSONDecodeError:
+            pass
+    main_worldview_context = f"장르: {worldview_data.get('genre')}, 규칙: {worldview_data.get('rules')}"
 
     all_card_ids = set(request.selected_card_ids or [])
     all_card_ids.add(card_id)
@@ -552,27 +591,36 @@ async def suggest_relationship(project_id: str, request: SuggestRelationshipRequ
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 관계 추천 중 오류가 발생했습니다: {e}")
 
-# [수정] 이야기 핵심 컨셉 다듬기 - 메인 세계관 참고 로직 추가
 @router.post("/generate/scenario-concept")
 async def refine_scenario_concept(request: RefineConceptRequest, db: Session = Depends(database.get_db)):
     if not api_key:
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
     
-    # 메인 세계관 정보 조회
+    # [수정] 메인 세계관 정보를 구조화된 데이터로 조회 및 파싱
     worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == request.project_id).first()
     worldview_context = ""
     if worldview and worldview.content and worldview.content.strip():
-        worldview_context = f"""
+        try:
+            worldview_data = json.loads(worldview.content)
+            genre = worldview_data.get('genre', '미설정')
+            rules = worldview_data.get('rules', [])
+            rules_text = "\n- ".join(rules)
+            worldview_context = f"""
 [참고할 메인 세계관]
-{worldview.content}
+- 장르 및 분위기: {genre}
+- 절대 규칙:
+- {rules_text}
 """
+        except json.JSONDecodeError:
+            # 파싱 실패 시 기존 텍스트 그대로 사용 (하위 호환성)
+            worldview_context = f"\n[참고할 메인 세계관]\n{worldview.content}"
+
 
     try:
         chosen_model = request.model_name or AVAILABLE_MODELS[0]
         model = genai.GenerativeModel(chosen_model)
         prompt = f"""당신은 사용자의 아이디어를 존중하며 글을 다듬는 전문 스토리 에디터입니다.
 아래 정보를 바탕으로, '기존 컨셉'의 핵심 아이디어와 뉘앙스를 **반드시 유지**하면서, 문장을 더욱 생생하고 구체적으로 다듬어 주세요.
-
 {worldview_context}
 
 **매우 중요한 규칙:**

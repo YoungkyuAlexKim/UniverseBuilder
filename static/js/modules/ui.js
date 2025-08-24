@@ -3,7 +3,7 @@
  */
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
-let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleAiGenerateNewWorldview, handleAiEditWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept;
+let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept;
 
 export function initializeUI(handlers) {
     showCharacterGeneratorUI = handlers.showCharacterGeneratorUI;
@@ -13,15 +13,13 @@ export function initializeUI(handlers) {
     openCardModal = handlers.openCardModal;
     openPlotPointEditModal = handlers.openPlotPointEditModal;
     handleSaveWorldview = handlers.handleSaveWorldview;
-    handleAiGenerateNewWorldview = handlers.handleAiGenerateNewWorldview;
-    handleAiEditWorldview = handlers.handleAiEditWorldview;
     handleCreateWorldviewGroup = handlers.handleCreateWorldviewGroup;
     handleDeleteWorldviewGroup = handlers.handleDeleteWorldviewGroup;
     openWorldviewCardModal = handlers.openWorldviewCardModal;
     handleSaveScenario = handlers.handleSaveScenario;
     handleCreatePlotPoint = handlers.handleCreatePlotPoint;
     handleAiDraftGeneration = handlers.handleAiDraftGeneration;
-    handleRefineConcept = handlers.handleRefineConcept; // [신규] 핸들러 추가
+    handleRefineConcept = handlers.handleRefineConcept;
 }
 
 
@@ -76,23 +74,39 @@ function createCardElement(card, projectId, groupId) {
 }
 
 export function renderWorldviewTab(projectData) {
-    const worldviewContent = document.getElementById('worldview-content');
-    worldviewContent.value = projectData.worldview?.content || '';
+    const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
+    
+    document.getElementById('worldview-logline').value = worldview.logline || '';
+    document.getElementById('worldview-genre').value = worldview.genre || '';
+    
+    const rulesContainer = document.getElementById('worldview-rules-container');
+    rulesContainer.innerHTML = ''; 
 
-    const setupButton = (id, handler) => {
-        const button = document.getElementById(id);
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-        newButton.addEventListener('click', handler);
-    };
+    if (worldview.rules && worldview.rules.length > 0) {
+        worldview.rules.forEach(ruleText => {
+            addWorldviewRuleInput(ruleText);
+        });
+    } else {
+        addWorldviewRuleInput('');
+        addWorldviewRuleInput('');
+        addWorldviewRuleInput('');
+    }
 
-    setupButton('save-worldview-btn', (e) => {
+    const form = document.getElementById('worldview-form');
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+
+    // [오류 수정] 이벤트 리스너를 복제된 newForm 내부의 버튼에 연결하도록 순서 변경
+    newForm.addEventListener('submit', (e) => {
         e.preventDefault();
         handleSaveWorldview(projectData.id);
     });
-    setupButton('ai-generate-new-btn', () => handleAiGenerateNewWorldview(projectData.id));
-    setupButton('ai-work-on-existing-btn', () => handleAiEditWorldview(projectData.id));
+    
+    const addRuleBtn = newForm.querySelector('#add-worldview-rule-btn');
+    addRuleBtn.addEventListener('click', () => addWorldviewRuleInput(''));
 
+
+    // --- 서브 설정 카드 렌더링 로직 (기존과 동일) ---
     const container = document.getElementById('worldview-card-list-container');
     const groupsContainer = document.createElement('div');
     groupsContainer.className = 'groups-container';
@@ -130,6 +144,22 @@ export function renderWorldviewTab(projectData) {
     setupSortable(container.querySelectorAll('.worldview-cards-list'), projectData.id, 'worldview');
 }
 
+function addWorldviewRuleInput(value = '') {
+    const container = document.getElementById('worldview-rules-container');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'dynamic-input-wrapper';
+    wrapper.innerHTML = `
+        <input type="text" name="rules" placeholder="세계관의 핵심 전제, 설정, 규칙..." value="${value}">
+        <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
+    `;
+    container.appendChild(wrapper);
+
+    wrapper.querySelector('.remove-dynamic-input-btn').addEventListener('click', () => {
+        wrapper.remove();
+    });
+}
+
+
 function createWorldviewCardElement(card, projectId, groupId) {
     const cardEl = document.createElement('article');
     cardEl.className = 'card-item';
@@ -146,6 +176,12 @@ export function renderScenarioTab(projectData) {
         container.innerHTML = '<p>시나리오 데이터를 불러오지 못했습니다.</p>';
         return;
     }
+
+    const form = container.querySelector('#scenario-details-form');
+    form.elements.summary.value = mainScenario.summary || '';
+    form.elements.prologue.value = mainScenario.prologue || '';
+    form.elements.title.value = mainScenario.title || '';
+    form.elements.themes.value = (mainScenario.themes || []).join(', ');
 
     let plotPointsHTML = '';
     if (mainScenario.plot_points && mainScenario.plot_points.length > 0) {
@@ -164,69 +200,35 @@ export function renderScenarioTab(projectData) {
     } else {
         plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
     }
+    container.querySelector('#plot-list').innerHTML = plotPointsHTML;
 
-    container.innerHTML = `
-        <article>
-            <hgroup>
-                <h4>메인 스토리 로드맵</h4>
-                <p>이야기의 전체적인 흐름을 설계하고 AI와 함께 플롯을 발전시켜 보세요.</p>
-            </hgroup>
-            <form id="scenario-details-form">
-                <div class="grid">
-                    <label for="scenario-title">
-                        시나리오 제목
-                        <input type="text" id="scenario-title" name="title" value="${mainScenario.title || ''}" placeholder="시나리오의 제목">
-                    </label>
-                    <label for="scenario-themes">
-                        핵심 테마 (쉼표로 구분)
-                        <input type="text" id="scenario-themes" name="themes" value="${(mainScenario.themes || []).join(', ')}" placeholder="예: 복수, 희생, 구원">
-                    </label>
-                </div>
-                <label for="scenario-summary">이야기 핵심 컨셉 (한 줄 요약)</label>
-                <textarea id="scenario-summary" name="summary" rows="2" placeholder="이 이야기의 핵심 내용을 한두 문장으로 요약합니다. AI 초안 생성 시 이 내용을 참고합니다.">${mainScenario.summary || ''}</textarea>
-                
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; margin-top: 1rem;">
-                    <button type="button" id="refine-concept-btn" class="secondary" style="width: auto; flex-grow: 0;">✨ 컨셉 다듬기 (AI)</button>
-                    <div style="flex-grow: 1;"></div>
-                    <button type="button" id="ai-draft-btn" class="contrast" style="width: auto;">✨ AI로 전체 스토리 초안 생성</button>
-                    <button type="submit" style="width: auto;">시나리오 정보 저장</button>
-                </div>
-            </form>
-        </article>
-        <hr>
-        <div id="plot-points-container">
-            <h4>플롯 포인트</h4>
-            <div id="plot-list">
-                ${plotPointsHTML}
-            </div>
-            
-            <form id="add-plot-point-form" style="margin-top: 1.5rem; border-top: 1px solid var(--pico-muted-border-color); padding-top: 1.5rem;">
-                <label for="new-plot-title"><strong>새 플롯 추가</strong></label>
-                <input type="text" id="new-plot-title" name="title" placeholder="플롯 제목 (예: 주인공의 각성)" required>
-                <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
-                <button type="submit" style="width: auto;">+ 플롯 추가</button>
-            </form>
-        </div>
-    `;
-
-    document.getElementById('scenario-details-form').addEventListener('submit', (e) => {
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    newForm.addEventListener('submit', (e) => {
         handleSaveScenario(e, projectData.id, mainScenario.id);
     });
 
-    document.getElementById('add-plot-point-form').addEventListener('submit', (e) => {
+    const addPlotForm = container.querySelector('#add-plot-point-form');
+    const newAddPlotForm = addPlotForm.cloneNode(true);
+    addPlotForm.parentNode.replaceChild(newAddPlotForm, addPlotForm);
+    newAddPlotForm.addEventListener('submit', (e) => {
         handleCreatePlotPoint(e, projectData.id, mainScenario.id);
     });
 
-    document.getElementById('ai-draft-btn').addEventListener('click', () => {
-        openAiScenarioDraftModal(projectData, mainScenario.id);
-    });
-    
-    // [신규] '컨셉 다듬기' 버튼에 이벤트 리스너 추가
-    document.getElementById('refine-concept-btn').addEventListener('click', () => {
-        handleRefineConcept();
-    });
+    const setupButtonListener = (id, handler) => {
+        const button = container.querySelector(`#${id}`);
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', handler);
+    };
 
-    document.getElementById('plot-list').addEventListener('click', (e) => {
+    setupButtonListener('ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
+    setupButtonListener('refine-concept-btn', () => handleRefineConcept());
+
+    const plotList = container.querySelector('#plot-list');
+    const newPlotList = plotList.cloneNode(true);
+    plotList.parentNode.replaceChild(newPlotList, plotList);
+    newPlotList.addEventListener('click', (e) => {
         const plotItem = e.target.closest('.plot-point-item');
         if (plotItem) {
             const plotData = JSON.parse(plotItem.dataset.plotPoint);
@@ -241,15 +243,12 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
     const charactersContainer = document.getElementById('scenario-characters-container');
     const modalBackdrop = document.getElementById('modal-backdrop');
 
-    // [수정] 슬라이더 값 표시를 위한 요소 가져오기
     const slider = form.querySelector('#plot-point-count');
     const sliderValueDisplay = form.querySelector('#plot-point-count-value');
 
-    // [수정] 슬라이더 이벤트 리스너 추가
     slider.addEventListener('input', () => {
         sliderValueDisplay.textContent = slider.value;
     });
-
 
     const allCharacters = projectData.groups.flatMap(g => g.cards);
     if (allCharacters.length > 0) {
@@ -266,12 +265,13 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
 
-    // [수정] 복제된 폼에서도 슬라이더 이벤트 리스너를 다시 연결해야 함
     const newSlider = newForm.querySelector('#plot-point-count');
     const newSliderValueDisplay = newForm.querySelector('#plot-point-count-value');
     newSlider.addEventListener('input', () => {
         newSliderValueDisplay.textContent = newSlider.value;
     });
+    newSliderValueDisplay.textContent = newSlider.value;
+
 
     newForm.addEventListener('submit', (e) => {
         e.preventDefault();

@@ -16,8 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
         handleDeleteGroup,
         setupSortable,
         handleSaveWorldview,
-        handleAiGenerateNewWorldview,
-        handleAiEditWorldview,
         handleCreateWorldviewGroup,
         handleDeleteWorldviewGroup,
         handleDeleteCard,
@@ -201,10 +199,6 @@ async function showProjectDetails(projectId) {
             newTabContainer.querySelector('.tab-link[data-tab="characters"]').classList.add('active');
             detailView.querySelector('#tab-content-characters').classList.add('active');
         }
-
-        document.getElementById('card-list-container').innerHTML = '<p aria-busy="true">캐릭터 목록을 불러오는 중...</p>';
-        document.getElementById('worldview-card-list-container').innerHTML = '<p aria-busy="true">세계관 카드 목록을 불러오는 중...</p>';
-        document.getElementById('tab-content-scenario').innerHTML = '<p aria-busy="true">시나리오 정보를 불러오는 중...</p>';
 
         const projectData = await api.fetchProjectDetails(projectId);
         const projectIndex = projects.findIndex(p => p.id === projectId);
@@ -392,66 +386,34 @@ async function handleDeleteCard(event, projectId, groupId, cardId) {
     }
 }
 
+// [개선] handleSaveWorldview 함수를 동적 필드 UI에 맞게 수정
 async function handleSaveWorldview(projectId) {
-    const content = document.getElementById('worldview-content').value;
+    const form = document.getElementById('worldview-form');
     const button = document.getElementById('save-worldview-btn');
+    
+    // 동적으로 추가된 모든 'rules' input 필드의 값을 읽어옴
+    const rules = Array.from(form.querySelectorAll('#worldview-rules-container input[name="rules"]'))
+        .map(input => input.value.trim())
+        .filter(Boolean);
+
+    const worldviewData = {
+        logline: form.elements.logline.value.trim(),
+        genre: form.elements.genre.value.trim(),
+        rules: rules
+    };
+
     button.setAttribute('aria-busy', 'true');
     try {
-        await api.saveWorldview(projectId, content);
+        await api.saveWorldview(projectId, worldviewData);
         alert('세계관 설정이 성공적으로 저장되었습니다.');
+        
         const projectIndex = projects.findIndex(p => p.id === projectId);
-        if (projectIndex > -1) projects[projectIndex].worldview.content = content;
+        if (projectIndex > -1) {
+            projects[projectIndex].worldview = worldviewData;
+        }
     } catch (error) {
         console.error('세계관 저장 실패:', error);
         alert(error.message);
-    } finally {
-        button.setAttribute('aria-busy', 'false');
-    }
-}
-
-async function handleAiGenerateNewWorldview(projectId) {
-    const keywords = prompt("새로운 세계관의 핵심 키워드를 입력해주세요.\n예: 사이버펑크, 동양 신화, 인공지능 신");
-    if (!keywords) return;
-
-    const button = document.getElementById('ai-generate-new-btn');
-    const worldviewContent = document.getElementById('worldview-content');
-    button.setAttribute('aria-busy', 'true');
-    worldviewContent.value = "AI가 새로운 세계관을 생성하는 중입니다...";
-    try {
-        const data = await api.generateNewWorldview({
-            keywords, model_name: document.getElementById('ai-model-select').value
-        });
-        worldviewContent.value = data.worldview_text;
-        alert('새로운 세계관이 생성되었습니다! "메인 세계관 저장" 버튼을 눌러야 최종 반영됩니다.');
-    } catch (error) {
-        console.error('AI 세계관 생성 실패:', error);
-        alert(error.message);
-        worldviewContent.value = "오류가 발생했습니다.";
-    } finally {
-        button.setAttribute('aria-busy', 'false');
-    }
-}
-
-async function handleAiEditWorldview(projectId) {
-    const existingContent = document.getElementById('worldview-content').value;
-    if (!existingContent) { alert('먼저 기존 세계관 내용을 입력하거나 생성해야 합니다.'); return; }
-    const keywords = prompt("기존 세계관에 추가하거나 변경하고 싶은 내용을 입력해주세요.\n예: '기계 교단'에 대한 자세한 설명 추가");
-    if (!keywords) return;
-
-    const button = document.getElementById('ai-work-on-existing-btn');
-    const worldviewContent = document.getElementById('worldview-content');
-    button.setAttribute('aria-busy', 'true');
-    worldviewContent.value += "\n\nAI가 기존 세계관을 바탕으로 작업 중입니다...";
-    try {
-        const data = await api.editWorldview({
-            keywords, existing_content: existingContent, model_name: document.getElementById('ai-model-select').value
-        });
-        worldviewContent.value = data.worldview_text;
-        alert('세계관 수정이 완료되었습니다! "메인 세계관 저장" 버튼을 눌러야 최종 반영됩니다.');
-    } catch (error) {
-        console.error('AI 세계관 수정 실패:', error);
-        alert(error.message);
-        worldviewContent.value = existingContent;
     } finally {
         button.setAttribute('aria-busy', 'false');
     }
@@ -519,6 +481,7 @@ async function handleSaveScenario(event, projectId, scenarioId) {
     const scenarioData = {
         title: form.elements.title.value,
         summary: form.elements.summary.value,
+        prologue: form.elements.prologue.value,
         themes: themes
     };
     
@@ -672,7 +635,6 @@ async function handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
     }
 }
 
-// [수정] '컨셉 다듬기' 핸들러, 버그 수정 완료
 async function handleRefineConcept() {
     const conceptTextarea = document.getElementById('scenario-summary');
     const originalConcept = conceptTextarea.value.trim();
@@ -715,7 +677,6 @@ async function handleRefineConcept() {
 
             try {
                 const newResult = await fetchRefinedConcept();
-                // modals.js에 있는 업데이트 함수를 호출하여 제안 내용과 '적용' 버튼의 동작을 갱신
                 modals.updateRefineConceptSuggestion(newResult.refined_concept, onAccept);
             } catch (error) {
                 alert(`새로운 제안을 가져오는 데 실패했습니다: ${error.message}`);

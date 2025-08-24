@@ -19,7 +19,7 @@ from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotP
 from .projects import get_project_if_accessible
 
 # --- Gemini API 설정 ---
-AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"]
+AVAILABLE_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"]
 api_key = os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -43,6 +43,7 @@ class ScenarioBase(BaseModel):
     title: str
     summary: Optional[str] = None
     themes: Optional[List[str]] = None
+    prologue: Optional[str] = None # [수정] prologue 필드 추가
 
 class Scenario(ScenarioBase):
     id: str
@@ -99,6 +100,7 @@ def update_scenario_details(scenario_id: str, scenario_data: ScenarioBase, proje
 
     scenario.title = scenario_data.title
     scenario.summary = scenario_data.summary
+    scenario.prologue = scenario_data.prologue # [수정] prologue 저장 로직 추가
     if scenario_data.themes is not None:
         scenario.themes = json.dumps(scenario_data.themes, ensure_ascii=False)
 
@@ -115,38 +117,51 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
 
-    main_worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == project.id).first()
+    # [수정] 구조화된 세계관 데이터 파싱
+    worldview_data = {"logline": "", "genre": "", "rules": []}
+    if project.worldview and project.worldview.content:
+        try:
+            worldview_data = json.loads(project.worldview.content)
+        except json.JSONDecodeError:
+            pass # 파싱 실패 시 기본값 사용
+
+    worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(worldview_data.get("rules", [])) if worldview_data.get("rules") else ""
+    story_genre_context = f"### 이야기 장르 및 분위기\n{worldview_data.get('genre', '정의되지 않음')}"
+    
     selected_characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
 
-    worldview_context = f"### 메인 세계관\n{main_worldview.content if main_worldview else '정의되지 않음'}"
     themes_list = json.loads(scenario.themes) if scenario.themes and scenario.themes != "[]" else []
     scenario_themes = f"### 핵심 테마\n{', '.join(themes_list)}" if themes_list else ""
     characters_context = "### 주요 등장인물\n" + "\n".join([f"- {c.name}: {c.description}" for c in selected_characters])
     story_concept = f"### 이야기 핵심 컨셉\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
+    prologue_context = f"### 프롤로그 / 도입부 스토리\n{scenario.prologue}" if scenario.prologue and scenario.prologue.strip() else ""
 
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
 
+    # [수정] AI 프롬프트를 새로운 데이터 구조에 맞게 전면 수정
     prompt = f"""[SYSTEM INSTRUCTION]
 당신은 'Universe Builder' 시스템의 일부로 동작하는, JSON 형식의 플롯 생성 전문 AI입니다.
 당신의 유일한 임무는 주어진 [CONTEXT]를 바탕으로, [TASK]에 명시된 규칙을 완벽하게 준수하여 JSON 응답을 생성하는 것입니다.
 절대로 설명, 사과, 추가 텍스트를 포함해서는 안 됩니다. 오직 유효한 JSON 객체만을 출력해야 합니다.
 
 [CONTEXT]
-{worldview_context}
+{worldview_rules_context}
+{story_genre_context}
 {scenario_themes}
 {characters_context}
 {story_concept}
+{prologue_context}
 ---
 
 [TASK]
-1. [CONTEXT]를 바탕으로, 고전적인 3막 구조를 따르는 흥미로운 플롯 아웃라인을 생성하세요.
+1. [CONTEXT]의 모든 정보를 종합하여, 고전적인 3막 구조를 따르는 흥미로운 플롯 아웃라인을 생성하세요.
 2. 플롯은 정확히 {request.plot_point_count}개의 포인트로 구성되어야 합니다.
 3. 최종 결과물은 반드시 아래 JSON 스키마를 따르는 단 하나의 JSON 객체여야 합니다.
 4. 만약 어떤 이유로든 생성이 불가능하다면, `{{ "plot_points": [] }}` 를 출력하세요.
 
 [CONTENT GUIDELINE]
-- 스토리는 전개상 필요하다면 복잡하고 성숙한 주제(예: 사랑, 복수, 갈등, 배신, 희생, 기타등등)를 얼마든지 다룰 수 있습니다. 다만, 반드시 해당 주제를 넣어야한 하는건 아닙니다. 불필요하게 잔인하거나 노골적인 성적 묘사는 피하고, 주제를 상징적이고 은유적으로 표현해주세요.
+- 스토리는 전개상 필요하다면 복잡하고 성숙한 주제(예: 사랑, 복수, 갈등, 배신, 희생 등)를 다룰 수 있습니다. 불필요하게 잔인하거나 노골적인 성적 묘사는 피하고, 주제를 상징적이고 은유적으로 표현해주세요.
 
 **JSON 스키마:**
 {{
@@ -325,13 +340,16 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
     characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
     characters_context = "[주요 등장인물]\n" + "\n".join([f"- {c.name}: {c.description}" for c in characters])
     story_concept = f"[이야기 핵심 컨셉]\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
+    # [수정] 프롤로그 컨텍스트 추가
+    prologue_context = f"[프롤로그 / 도입부]\n{scenario.prologue}" if scenario.prologue and scenario.prologue.strip() else ""
 
+
+    # [수정] AI 프롬프트를 새로운 컨텍스트(prologue)를 포함하도록 수정
     prompt = f"""당신은 이야기의 전체적인 일관성을 유지하며 특정 부분을 섬세하게 수정하는 전문 스토리 편집자입니다.
-아래 제공된 '전체 스토리 흐름'을 참고하여, '수정 대상 플롯 포인트'를 사용자의 '수정 요청사항'에 맞게 수정해주세요.
+아래 제공된 '전체 스토리 흐름'과 컨텍스트를 참고하여, '수정 대상 플롯 포인트'를 사용자의 '수정 요청사항'에 맞게 수정해주세요.
 
-[이야기 핵심 컨셉]
 {story_concept}
-
+{prologue_context}
 [주요 등장인물]
 {characters_context}
 
