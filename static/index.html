@@ -147,15 +147,10 @@
                 <h3>✨ AI 스토리 초안 생성</h3>
             </header>
             <form id="ai-scenario-draft-form">
-                <div class="grid">
-                    <label for="plot-point-count">
-                        생성할 플롯 개수
-                        <input type="number" id="plot-point-count" name="plot_point_count" value="10" min="5" max="25" required>
-                    </label>
-                    <div></div>
-                </div>
+                <label for="plot-point-count">생성할 플롯 개수: <strong id="plot-point-count-value">10</strong>개</label>
+                <input type="range" id="plot-point-count" name="plot_point_count" value="10" min="5" max="25" step="1">
                 
-                <label for="scenario-characters">주요 등장인물 선택</label>
+                <label for="scenario-characters" style="margin-top: 1rem;">주요 등장인물 선택</label>
                 <div id="scenario-characters-container" class="checkbox-container" style="max-height: 200px;">
                     <p>캐릭터 정보 로딩 중...</p>
                 </div>

@@ -241,6 +241,16 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
     const charactersContainer = document.getElementById('scenario-characters-container');
     const modalBackdrop = document.getElementById('modal-backdrop');
 
+    // [수정] 슬라이더 값 표시를 위한 요소 가져오기
+    const slider = form.querySelector('#plot-point-count');
+    const sliderValueDisplay = form.querySelector('#plot-point-count-value');
+
+    // [수정] 슬라이더 이벤트 리스너 추가
+    slider.addEventListener('input', () => {
+        sliderValueDisplay.textContent = slider.value;
+    });
+
+
     const allCharacters = projectData.groups.flatMap(g => g.cards);
     if (allCharacters.length > 0) {
         charactersContainer.innerHTML = allCharacters.map(char => `
@@ -255,6 +265,14 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
 
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
+
+    // [수정] 복제된 폼에서도 슬라이더 이벤트 리스너를 다시 연결해야 함
+    const newSlider = newForm.querySelector('#plot-point-count');
+    const newSliderValueDisplay = newForm.querySelector('#plot-point-count-value');
+    newSlider.addEventListener('input', () => {
+        newSliderValueDisplay.textContent = newSlider.value;
+    });
+
     newForm.addEventListener('submit', (e) => {
         e.preventDefault();
         handleAiDraftGeneration(e, projectData.id, scenarioId);
