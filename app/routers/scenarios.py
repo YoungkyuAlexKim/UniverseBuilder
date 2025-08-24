@@ -4,12 +4,14 @@ from sqlalchemy import func
 import time
 import json
 import os
+import asyncio # [신규] 비동기 sleep을 위해 asyncio 임포트
 from pydantic import BaseModel
 from typing import List, Optional
 
 # --- Gemini AI 관련 임포트 ---
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockThreshold
+from google.api_core import exceptions as google_exceptions # [신규] Google API 예외 처리를 위해 임포트
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
@@ -125,24 +127,26 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
 
-    prompt = f"""당신은 JSON 형식으로 시나리오 플롯을 생성하는 고도로 훈련된 AI 시나리오 작가입니다. 당신의 유일한 임무는 주어진 스토리 요소를 바탕으로 구조화된 플롯 아웃라인을 생성하는 것입니다. 모든 규칙을 예외 없이 준수해야 합니다.
+    prompt = f"""[SYSTEM INSTRUCTION]
+당신은 'Universe Builder' 시스템의 일부로 동작하는, JSON 형식의 플롯 생성 전문 AI입니다.
+당신의 유일한 임무는 주어진 [CONTEXT]를 바탕으로, [TASK]에 명시된 규칙을 완벽하게 준수하여 JSON 응답을 생성하는 것입니다.
+절대로 설명, 사과, 추가 텍스트를 포함해서는 안 됩니다. 오직 유효한 JSON 객체만을 출력해야 합니다.
 
-**스토리 요소:**
----
+[CONTEXT]
 {worldview_context}
 {scenario_themes}
 {characters_context}
 {story_concept}
 ---
 
-**당신의 임무:**
-위의 스토리 요소를 바탕으로, 정확히 {request.plot_point_count}개의 포인트로 구성된 플롯 아웃라인을 만드세요. 플롯은 고전적인 3막 구조(시작, 중간, 끝)와 유사한 논리적 진행을 따라야 합니다.
+[TASK]
+1. [CONTEXT]를 바탕으로, 고전적인 3막 구조를 따르는 흥미로운 플롯 아웃라인을 생성하세요.
+2. 플롯은 정확히 {request.plot_point_count}개의 포인트로 구성되어야 합니다.
+3. 최종 결과물은 반드시 아래 JSON 스키마를 따르는 단 하나의 JSON 객체여야 합니다.
+4. 만약 어떤 이유로든 생성이 불가능하다면, `{{ "plot_points": [] }}` 를 출력하세요.
 
-**매우 중요한 출력 규칙:**
-1.  당신의 응답은 **반드시 단 하나의 유효한 JSON 객체**여야 합니다.
-2.  JSON 객체는 아래에 제공된 스키마를 **정확하게** 준수해야 합니다.
-3.  JSON 객체 앞이나 뒤에 텍스트, 설명 또는 마크다운 형식(예: ```json)을 포함하지 마세요.
-4.  **만약 어떤 이유로든 플롯 생성에 실패할 경우, 오류 메시지 대신 `{{ "plot_points": [] }}` 와 같이 비어 있는 유효한 JSON을 반환해야 합니다.** 이 규칙은 절대적입니다.
+[CONTENT GUIDELINE]
+- 생성되는 모든 내용은 모든 연령대에 적합해야 합니다. 과도하게 폭력적이거나 논란의 여지가 있는 주제는 피해주세요. 이 가이드라인은 스토리의 갈등이나 긴장감을 없애라는 의미가 아니라, 표현의 수위를 조절하라는 의미입니다.
 
 **JSON 스키마:**
 {{
@@ -153,6 +157,10 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     }}
   ]
 }}
+
+---
+[CRITICAL FINAL INSTRUCTION]
+Your entire response must start with `{{` and end with `}}`. No other text, explanation, or formatting is permitted.
 """
     try:
         generation_config = GenerationConfig(response_mime_type="application/json")
@@ -162,12 +170,44 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
         }
-        response = await model.generate_content_async(
-            prompt, 
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
         
+        response = None
+        max_retries = 3
+        delay = 1.0
+        for attempt in range(max_retries):
+            try:
+                response = await model.generate_content_async(
+                    prompt, 
+                    generation_config=generation_config,
+                    safety_settings=safety_settings
+                )
+                break
+            except (google_exceptions.InternalServerError, google_exceptions.ServiceUnavailable) as e:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
+                    delay *= 2
+                else:
+                    raise e
+
+        if response is None:
+            raise HTTPException(status_code=500, detail="AI 모델 호출에 실패했습니다. (최대 재시도 횟수 초과)")
+
+        if not response.parts:
+            finish_reason_name = "UNKNOWN"
+            if response.candidates and response.candidates[0].finish_reason:
+                finish_reason_name = response.candidates[0].finish_reason.name
+
+            if finish_reason_name == "SAFETY":
+                raise HTTPException(
+                    status_code=400,
+                    detail="AI가 생성한 내용이 안전 필터에 의해 차단되었습니다. 컨셉이나 테마에 갈등 요소가 너무 직접적으로 묘사되었을 수 있습니다. 내용을 조금 수정 후 다시 시도해 주세요."
+                )
+            else:
+                 raise HTTPException(
+                    status_code=500,
+                    detail=f"AI로부터 유효한 응답을 받지 못했습니다. (종료 사유: {finish_reason_name})"
+                )
+
         try:
             cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
             ai_result = json.loads(cleaned_response_text)
@@ -200,9 +240,15 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
         db.rollback()
         if isinstance(e, HTTPException):
             raise e
-        error_detail = f"AI 플롯 생성에 실패했습니다. 오류: {e}"
-        if 'response' in locals() and hasattr(response, 'text'):
-            error_detail += f" | AI 응답: {response.text[:200]}"
+        
+        error_detail = f"AI 플롯 생성 중 서버 오류 발생: {e}"
+        if 'response' in locals() and response:
+            try:
+                feedback = response.prompt_feedback
+                error_detail += f" | Prompt Feedback: {feedback}"
+            except Exception:
+                error_detail += " | (AI 응답 객체에서 추가 정보를 가져오는 데 실패)"
+        
         raise HTTPException(status_code=500, detail=error_detail)
 
 
