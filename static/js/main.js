@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         handleDeletePlotPoint,
         handleAiEditPlotPoint,
         handleRefineConcept,
+        handleRefineWorldviewRule, // [신규] 핸들러 추가
     };
 
     ui.initializeUI(mainHandlers);
@@ -386,12 +387,10 @@ async function handleDeleteCard(event, projectId, groupId, cardId) {
     }
 }
 
-// [개선] handleSaveWorldview 함수를 동적 필드 UI에 맞게 수정
 async function handleSaveWorldview(projectId) {
     const form = document.getElementById('worldview-form');
     const button = document.getElementById('save-worldview-btn');
     
-    // 동적으로 추가된 모든 'rules' input 필드의 값을 읽어옴
     const rules = Array.from(form.querySelectorAll('#worldview-rules-container input[name="rules"]'))
         .map(input => input.value.trim())
         .filter(Boolean);
@@ -691,6 +690,62 @@ async function handleRefineConcept() {
 
     } catch(error) {
         alert(`AI 컨셉 다듬기 실패: ${error.message}`);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+// [신규] 세계관 핵심 설정 다듬기 핸들러
+async function handleRefineWorldviewRule(event, projectId, inputField) {
+    const originalRule = inputField.value.trim();
+    if (!originalRule) {
+        alert('먼저 다듬을 설정 내용을 입력해주세요.');
+        return;
+    }
+
+    const button = event.currentTarget;
+    button.setAttribute('aria-busy', 'true');
+
+    const fetchRefinedRule = async (rule) => {
+        const requestBody = {
+            existing_rule: rule,
+            project_id: projectId,
+            model_name: document.getElementById('ai-model-select').value
+        };
+        return await api.refineWorldviewRule(requestBody);
+    };
+
+    try {
+        const result = await fetchRefinedRule(originalRule);
+        
+        const onAccept = (acceptedRule) => {
+            inputField.value = acceptedRule;
+            alert('AI의 제안이 적용되었습니다! "메인 세계관 저장" 버튼을 눌러 변경사항을 최종 저장하세요.');
+            modals.closeModal();
+        };
+
+        const onReroll = async () => {
+            const currentRule = document.getElementById('refine-rule-original').textContent;
+            const rerollBtn = document.getElementById('refine-rule-reroll-btn');
+            rerollBtn.setAttribute('aria-busy', 'true');
+            rerollBtn.disabled = true;
+
+            try {
+                const newResult = await fetchRefinedRule(currentRule);
+                modals.updateRefineWorldviewRuleSuggestion(newResult.refined_rule, onAccept);
+            } catch (error) {
+                alert(`새로운 제안을 가져오는 데 실패했습니다: ${error.message}`);
+                document.getElementById('refine-rule-suggestion').textContent = '오류가 발생했습니다.';
+            } finally {
+                rerollBtn.setAttribute('aria-busy', 'false');
+                rerollBtn.disabled = false;
+            }
+        };
+
+        modals.openRefineWorldviewRuleModal(originalRule, result.refined_rule, onAccept, onReroll);
+
+    } catch(error) {
+        alert(`AI 설정 다듬기 실패: ${error.message}`);
     } finally {
         button.setAttribute('aria-busy', 'false');
     }

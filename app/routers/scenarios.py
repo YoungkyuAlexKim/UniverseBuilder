@@ -19,7 +19,7 @@ from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotP
 from .projects import get_project_if_accessible
 
 # --- Gemini API 설정 ---
-AVAILABLE_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"]
+AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"]
 api_key = os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)

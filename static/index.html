@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scenario Universe Builder</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
-    <link rel="stylesheet" href="/static/css/main.css?v=1.5"> 
+    <link rel="stylesheet" href="/static/css/main.css?v=1.6"> 
     
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
     
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     
-    <script type="module" src="/static/js/main.js?v=1.6"></script>
+    <script type="module" src="/static/js/main.js?v=1.7"></script>
 </head>
 <body>
     <div class="grid-container">
@@ -30,8 +30,9 @@
                 <form>
                     <label for="ai-model-select">사용할 모델 선택</label>
                     <select id="ai-model-select">
-                        <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (빠름)</option>
-                        <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (고품질)</option>
+                        <option value="gemini-2.5-flash-lite">Gemini-2.5 Flash Lite (빠름)</option>
+                        <option value="gemini-2.5-flash">Gemini-2.5 Flash (보통)</option>
+                        <option value="gemini-2.5-pro">Gemini-2.5 Pro (고품질)</option>
                     </select>
                 </form>
             </div>
@@ -57,7 +58,6 @@
                     <div id="card-list-container"></div> 
                 </div>
 
-                <!-- [개선] 세계관 탭 UI를 동적 필드로 변경 -->
                 <div id="tab-content-worldview" class="tab-content">
                     <article>
                         <hgroup>
@@ -71,7 +71,6 @@
                             <label for="worldview-genre">장르 및 분위기 (Genre & Tone)</label>
                             <input type="text" id="worldview-genre" name="genre" placeholder="이 세계의 장르와 전반적인 분위기를 설명합니다. (예: 다크 판타지, 희망적인 디스토피아)">
 
-                            <!-- [개선] 동적 필드 컨테이너로 변경 -->
                             <label>세계관 핵심 설정</label>
                             <div id="worldview-rules-container" class="dynamic-input-container" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <!-- 핵심 설정 필드가 여기에 동적으로 추가됩니다. -->
@@ -261,6 +260,33 @@
                     <button id="refine-concept-reject-btn" class="secondary outline" style="width: auto;">반려</button>
                     <button id="refine-concept-reroll-btn" class="secondary" style="width: auto;">다시 시도 (Re-roll)</button>
                     <button id="refine-concept-accept-btn" style="width: auto;">이 내용으로 적용</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
+    <!-- [신규] 세계관 핵심 설정 다듬기 모달 -->
+    <div id="refine-worldview-rule-modal" class="modal-container">
+        <article style="max-width: 90vw; width: 1000px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✨ AI 핵심 설정 다듬기 제안</h3>
+            </header>
+            <div class="grid">
+                <article>
+                    <header><strong>원본 설정</strong></header>
+                    <div id="refine-rule-original" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px;"></div>
+                </article>
+                <article>
+                    <header><strong>AI 제안</strong></header>
+                    <div id="refine-rule-suggestion" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px;"></div>
+                </article>
+            </div>
+            <footer>
+                <div class="grid" style="justify-content: flex-end; grid-template-columns: repeat(3, auto); gap: 0.5rem;">
+                    <button id="refine-rule-reject-btn" class="secondary outline" style="width: auto;">반려</button>
+                    <button id="refine-rule-reroll-btn" class="secondary" style="width: auto;">다시 시도 (Re-roll)</button>
+                    <button id="refine-rule-accept-btn" style="width: auto;">이 내용으로 적용</button>
                 </div>
             </footer>
         </article>

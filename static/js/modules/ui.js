@@ -3,7 +3,7 @@
  */
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
-let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept;
+let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
 
 export function initializeUI(handlers) {
     showCharacterGeneratorUI = handlers.showCharacterGeneratorUI;
@@ -20,6 +20,7 @@ export function initializeUI(handlers) {
     handleCreatePlotPoint = handlers.handleCreatePlotPoint;
     handleAiDraftGeneration = handlers.handleAiDraftGeneration;
     handleRefineConcept = handlers.handleRefineConcept;
+    handleRefineWorldviewRule = handlers.handleRefineWorldviewRule;
 }
 
 
@@ -73,40 +74,41 @@ function createCardElement(card, projectId, groupId) {
     return cardEl;
 }
 
+// [오류 수정] 이벤트 리스너 유실 문제를 해결하기 위해 로직 순서 변경
 export function renderWorldviewTab(projectData) {
     const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
     
-    document.getElementById('worldview-logline').value = worldview.logline || '';
-    document.getElementById('worldview-genre').value = worldview.genre || '';
-    
-    const rulesContainer = document.getElementById('worldview-rules-container');
-    rulesContainer.innerHTML = ''; 
-
-    if (worldview.rules && worldview.rules.length > 0) {
-        worldview.rules.forEach(ruleText => {
-            addWorldviewRuleInput(ruleText);
-        });
-    } else {
-        addWorldviewRuleInput('');
-        addWorldviewRuleInput('');
-        addWorldviewRuleInput('');
-    }
-
     const form = document.getElementById('worldview-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
 
-    // [오류 수정] 이벤트 리스너를 복제된 newForm 내부의 버튼에 연결하도록 순서 변경
+    const loglineInput = newForm.querySelector('#worldview-logline');
+    const genreInput = newForm.querySelector('#worldview-genre');
+    const rulesContainer = newForm.querySelector('#worldview-rules-container');
+    const addRuleBtn = newForm.querySelector('#add-worldview-rule-btn');
+
+    loglineInput.value = worldview.logline || '';
+    genreInput.value = worldview.genre || '';
+    rulesContainer.innerHTML = '';
+
+    if (worldview.rules && worldview.rules.length > 0) {
+        worldview.rules.forEach(ruleText => {
+            addWorldviewRuleInput(ruleText, projectData.id, rulesContainer);
+        });
+    } else {
+        addWorldviewRuleInput('', projectData.id, rulesContainer);
+        addWorldviewRuleInput('', projectData.id, rulesContainer);
+        addWorldviewRuleInput('', projectData.id, rulesContainer);
+    }
+
     newForm.addEventListener('submit', (e) => {
         e.preventDefault();
         handleSaveWorldview(projectData.id);
     });
     
-    const addRuleBtn = newForm.querySelector('#add-worldview-rule-btn');
-    addRuleBtn.addEventListener('click', () => addWorldviewRuleInput(''));
+    addRuleBtn.addEventListener('click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
 
-
-    // --- 서브 설정 카드 렌더링 로직 (기존과 동일) ---
+    // --- 서브 설정 카드 렌더링 로직 ---
     const container = document.getElementById('worldview-card-list-container');
     const groupsContainer = document.createElement('div');
     groupsContainer.className = 'groups-container';
@@ -144,18 +146,25 @@ export function renderWorldviewTab(projectData) {
     setupSortable(container.querySelectorAll('.worldview-cards-list'), projectData.id, 'worldview');
 }
 
-function addWorldviewRuleInput(value = '') {
-    const container = document.getElementById('worldview-rules-container');
+// [오류 수정] 함수가 컨테이너를 인자로 받도록 수정
+function addWorldviewRuleInput(value = '', projectId, container) {
     const wrapper = document.createElement('div');
     wrapper.className = 'dynamic-input-wrapper';
     wrapper.innerHTML = `
         <input type="text" name="rules" placeholder="세계관의 핵심 전제, 설정, 규칙..." value="${value}">
+        <button type="button" class="secondary outline refine-rule-btn" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; line-height: 1;">✨</button>
         <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
     `;
     container.appendChild(wrapper);
 
+    const inputField = wrapper.querySelector('input[name="rules"]');
+
     wrapper.querySelector('.remove-dynamic-input-btn').addEventListener('click', () => {
         wrapper.remove();
+    });
+
+    wrapper.querySelector('.refine-rule-btn').addEventListener('click', (e) => {
+        handleRefineWorldviewRule(e, projectId, inputField);
     });
 }
 

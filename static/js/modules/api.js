@@ -165,7 +165,6 @@ export async function updateCardOrder(projectId, groupId, cardIds) {
 // 세계관 (Worldview)
 // -------------------------
 
-// [수정] saveWorldview가 구조화된 데이터를 보내도록 변경
 export async function saveWorldview(projectId, worldviewData) {
     const response = await fetch(`/api/v1/projects/${projectId}/worldview`, {
         method: 'PUT',
@@ -305,12 +304,18 @@ export async function generateCharacter(projectId, requestBody) {
     return handleResponse(response);
 }
 
-// [삭제] UI에서 관련 기능이 사라졌으므로 API 함수도 제거
-// export async function generateNewWorldview(requestBody) { ... }
-// export async function editWorldview(requestBody) { ... }
-
 export async function refineScenarioConcept(requestBody) {
     const response = await fetch('/api/v1/generate/scenario-concept', {
+       method: 'POST',
+       headers: getAuthHeaders(requestBody.project_id),
+       body: JSON.stringify(requestBody)
+   });
+   return handleResponse(response);
+}
+
+// [신규] 세계관 핵심 설정 다듬기 API 호출 함수
+export async function refineWorldviewRule(requestBody) {
+    const response = await fetch('/api/v1/generate/worldview-rule', {
        method: 'POST',
        headers: getAuthHeaders(requestBody.project_id),
        body: JSON.stringify(requestBody)

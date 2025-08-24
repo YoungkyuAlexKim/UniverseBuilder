@@ -13,6 +13,7 @@ const modalBackdrop = document.getElementById('modal-backdrop');
 const aiScenarioDraftModal = document.getElementById('ai-scenario-draft-modal');
 const plotPointEditModal = document.getElementById('plot-point-edit-modal');
 const refineConceptModal = document.getElementById('refine-concept-modal'); 
+const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal'); // [신규] 모달 요소 추가
 
 // Handlers from main.js
 let handleManualEditCard, handleEditCardAI, handleDeleteCard, handleEditWorldviewCardAI, handleDeleteWorldviewCard, showProjectDetails, showRelationshipPanel, handleUpdatePlotPoint, handleDeletePlotPoint, handleAiEditPlotPoint;
@@ -32,7 +33,8 @@ export function initializeModals(handlers) {
 }
 
 export function closeModal() {
-    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal].forEach(el => el.classList.remove('active'));
+    // [개선] 닫을 모달 목록에 새 모달 추가
+    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal].forEach(el => el.classList.remove('active'));
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
@@ -392,7 +394,6 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
 
 export function openRefineConceptModal(originalConcept, suggestedConcept, onAcceptCallback, onRerollCallback) {
     document.getElementById('refine-concept-original').textContent = originalConcept;
-    // [수정] updateRefineConceptSuggestion 함수를 호출하여 초기 상태 설정
     updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback);
 
     const rejectBtn = document.getElementById('refine-concept-reject-btn');
@@ -410,7 +411,6 @@ export function openRefineConceptModal(originalConcept, suggestedConcept, onAcce
     modalBackdrop.classList.add('active');
 }
 
-// [신규] '컨셉 비교' 모달의 제안 내용과 '적용' 버튼의 동작을 업데이트하는 함수
 export function updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback) {
     document.getElementById('refine-concept-suggestion').textContent = suggestedConcept;
 
@@ -420,5 +420,38 @@ export function updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback
 
     newAcceptBtn.addEventListener('click', () => {
         onAcceptCallback(suggestedConcept);
+    });
+}
+
+// [신규] 세계관 핵심 설정 다듬기 모달 열기 함수
+export function openRefineWorldviewRuleModal(originalRule, suggestedRule, onAcceptCallback, onRerollCallback) {
+    document.getElementById('refine-rule-original').textContent = originalRule;
+    updateRefineWorldviewRuleSuggestion(suggestedRule, onAcceptCallback);
+
+    const rejectBtn = document.getElementById('refine-rule-reject-btn');
+    const rerollBtn = document.getElementById('refine-rule-reroll-btn');
+
+    const newRejectBtn = rejectBtn.cloneNode(true);
+    rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
+    newRejectBtn.addEventListener('click', () => closeModal());
+
+    const newRerollBtn = rerollBtn.cloneNode(true);
+    rerollBtn.parentNode.replaceChild(newRerollBtn, rerollBtn);
+    newRerollBtn.addEventListener('click', () => onRerollCallback());
+    
+    refineWorldviewRuleModal.classList.add('active');
+    modalBackdrop.classList.add('active');
+}
+
+// [신규] 세계관 핵심 설정 다듬기 모달 제안 내용 업데이트 함수
+export function updateRefineWorldviewRuleSuggestion(suggestedRule, onAcceptCallback) {
+    document.getElementById('refine-rule-suggestion').textContent = suggestedRule;
+
+    const acceptBtn = document.getElementById('refine-rule-accept-btn');
+    const newAcceptBtn = acceptBtn.cloneNode(true);
+    acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
+
+    newAcceptBtn.addEventListener('click', () => {
+        onAcceptCallback(suggestedRule);
     });
 }
