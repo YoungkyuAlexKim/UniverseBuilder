@@ -4,14 +4,14 @@ from sqlalchemy import func
 import time
 import json
 import os
-import asyncio # [신규] 비동기 sleep을 위해 asyncio 임포트
+import asyncio
 from pydantic import BaseModel
 from typing import List, Optional
 
 # --- Gemini AI 관련 임포트 ---
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockThreshold
-from google.api_core import exceptions as google_exceptions # [신규] Google API 예외 처리를 위해 임포트
+from google.api_core import exceptions as google_exceptions
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
@@ -146,14 +146,14 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
 4. 만약 어떤 이유로든 생성이 불가능하다면, `{{ "plot_points": [] }}` 를 출력하세요.
 
 [CONTENT GUIDELINE]
-- 생성되는 모든 내용은 모든 연령대에 적합해야 합니다. 과도하게 폭력적이거나 논란의 여지가 있는 주제는 피해주세요. 이 가이드라인은 스토리의 갈등이나 긴장감을 없애라는 의미가 아니라, 표현의 수위를 조절하라는 의미입니다.
+- 스토리는 전개상 필요하다면 복잡하고 성숙한 주제(예: 사랑, 복수, 갈등, 배신, 희생, 기타등등)를 얼마든지 다룰 수 있습니다. 다만, 반드시 해당 주제를 넣어야한 하는건 아닙니다. 불필요하게 잔인하거나 노골적인 성적 묘사는 피하고, 주제를 상징적이고 은유적으로 표현해주세요.
 
 **JSON 스키마:**
 {{
   "plot_points": [
     {{
       "title": "플롯 포인트의 간결한 제목",
-      "content": "이 플롯 포인트에서 발생하는 사건에 대한 2~3 문장의 설명."
+      "content": "이 플롯 포인트에서 발생하는 핵심 사건, 등장인물의 감정 변화, 그리고 다음 사건으로 이어지는 단서를 포함한 상세한 설명."
     }}
   ]
 }}
