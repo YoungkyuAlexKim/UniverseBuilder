@@ -44,7 +44,7 @@ class AIEditRequest(BaseModel):
     prompt_text: str
     model_name: Optional[str] = None
     selected_card_ids: Optional[List[str]] = None
-    selected_group_ids: Optional[List[str]] = None # 이 필드는 현재 사용되지 않음
+    selected_group_ids: Optional[List[str]] = None
     worldview_level: Optional[str] = 'none'
     edit_related_characters: bool = False
 
@@ -72,13 +72,19 @@ class SuggestRelationshipRequest(BaseModel):
     tendency: Optional[int] = 0
     keyword: Optional[str] = None
 
+# [수정] 컨셉 다듬기 요청 모델에 project_id 추가
+class RefineConceptRequest(BaseModel):
+    existing_concept: str
+    project_id: str
+    model_name: Optional[str] = None
+
 # --- 라우터 및 설정 ---
 router = APIRouter(
     prefix="/api/v1",
     tags=["Generators & Cards"]
 )
 
-AVAILABLE_MODELS = ["gemini-1.5-flash", "gemini-pro"]
+AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"]
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 if api_key:
@@ -86,7 +92,6 @@ if api_key:
 
 # --- 유틸리티 함수 ---
 def parse_card_fields(card_obj):
-    """DB에서 가져온 Card 객체의 JSON 문자열 필드를 리스트로 변환"""
     for field in ['quote', 'personality', 'abilities', 'goal']:
         field_value = getattr(card_obj, field, None)
         if field_value and isinstance(field_value, str):
@@ -185,7 +190,7 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
             level_instruction = "\n- 캐릭터는 메인 세계관 및 서브 설정의 사회, 문화적 배경에 자연스럽게 녹아들어야 합니다."
         elif request.worldview_level == 'low':
              level_instruction = "\n- 캐릭터의 개인적인 서사 중심으로 서술하되, 세계관의 큰 흐름과는 무관하게 설정해주세요."
-        else: 
+        else:
             level_instruction = "\n- 세계관의 고유 설정(지명, 특정 사건 등)은 언급하지 말고, 장르와 분위기만 참고하세요."
         worldview_context_prompt = base_worldview_prompt + level_instruction
 
@@ -546,3 +551,44 @@ async def suggest_relationship(project_id: str, request: SuggestRelationshipRequ
         return suggestion
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 관계 추천 중 오류가 발생했습니다: {e}")
+
+# [수정] 이야기 핵심 컨셉 다듬기 - 메인 세계관 참고 로직 추가
+@router.post("/generate/scenario-concept")
+async def refine_scenario_concept(request: RefineConceptRequest, db: Session = Depends(database.get_db)):
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
+    
+    # 메인 세계관 정보 조회
+    worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == request.project_id).first()
+    worldview_context = ""
+    if worldview and worldview.content and worldview.content.strip():
+        worldview_context = f"""
+[참고할 메인 세계관]
+{worldview.content}
+"""
+
+    try:
+        chosen_model = request.model_name or AVAILABLE_MODELS[0]
+        model = genai.GenerativeModel(chosen_model)
+        prompt = f"""당신은 사용자의 아이디어를 존중하며 글을 다듬는 전문 스토리 에디터입니다.
+아래 정보를 바탕으로, '기존 컨셉'의 핵심 아이디어와 뉘앙스를 **반드시 유지**하면서, 문장을 더욱 생생하고 구체적으로 다듬어 주세요.
+
+{worldview_context}
+
+**매우 중요한 규칙:**
+1.  **세계관 일관성:** 다듬어진 문장은 반드시 '메인 세계관'의 설정과 충돌해서는 안 됩니다.
+2.  **핵심 의도와 감성 유지:** 원본 문장이 가진 고유의 감성(예: 희망, 비극, 유머 등)과 핵심 의도를 변경해서는 안 됩니다. 문장을 확장하고 구체화하되, 완전히 다른 이야기로 바꾸지 마세요.
+3.  추상적인 표현을 구체적인 상황이나 감정이 드러나도록 풍부하게 만들어 주세요.
+4.  최종 결과는 **오직 다듬어진 한두 문장, 혹은 두세 문장의 컨셉 텍스트**여야 합니다. 다른 설명을 붙이지 마세요.
+
+---
+[기존 컨셉]
+{request.existing_concept}
+---
+[출력]
+(AI가 핵심 뉘앙스와 세계관을 유지하며 다듬은 새로운 컨셉)
+"""
+        response = await model.generate_content_async(prompt)
+        return {"refined_concept": response.text.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 컨셉 생성에 실패했습니다. 오류: {e}")

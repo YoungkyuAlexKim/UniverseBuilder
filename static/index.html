@@ -140,5 +140,58 @@
         </article>
     </div>
 
+    <div id="ai-scenario-draft-modal" class="modal-container">
+        <article>
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✨ AI 스토리 초안 생성</h3>
+            </header>
+            <form id="ai-scenario-draft-form">
+                <div class="grid">
+                    <label for="plot-point-count">
+                        생성할 플롯 개수
+                        <input type="number" id="plot-point-count" name="plot_point_count" value="10" min="5" max="25" required>
+                    </label>
+                    <div></div>
+                </div>
+                
+                <label for="scenario-characters">주요 등장인물 선택</label>
+                <div id="scenario-characters-container" class="checkbox-container" style="max-height: 200px;">
+                    <p>캐릭터 정보 로딩 중...</p>
+                </div>
+                <footer>
+                    <button type="submit" id="generate-ai-draft-btn">생성하기</button>
+                </footer>
+            </form>
+        </article>
+    </div>
+
+    <div id="plot-point-edit-modal" class="modal-container">
+        <article>
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>플롯 포인트 편집</h3>
+            </header>
+            <form id="plot-point-edit-form">
+                <input type="hidden" name="plot_point_id">
+                <label for="plot-point-title">
+                    제목
+                    <input type="text" id="plot-point-title" name="title" required>
+                </label>
+                <label for="plot-point-content">
+                    내용
+                    <textarea id="plot-point-content" name="content" rows="8"></textarea>
+                </label>
+            </form>
+            <footer>
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                    <button id="plot-point-delete-btn" class="secondary outline">삭제</button>
+                    <button id="plot-point-ai-edit-btn" class="secondary">✨ AI로 수정</button>
+                    <button id="plot-point-save-btn">수동으로 저장</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
 </body>
 </html>

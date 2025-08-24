@@ -27,10 +27,16 @@ document.addEventListener('DOMContentLoaded', () => {
         handleEditWorldviewCardAI: panels.handleEditWorldviewCardAI,
         openCardModal: modals.openCardModal,
         openWorldviewCardModal: modals.openWorldviewCardModal,
+        openPlotPointEditModal: modals.openPlotPointEditModal,
         showCharacterGeneratorUI: panels.showCharacterGeneratorUI,
         showRelationshipPanel: panels.showRelationshipPanel,
         handleSaveScenario,
-        handleCreatePlotPoint, // 핸들러 추가
+        handleCreatePlotPoint,
+        handleAiDraftGeneration,
+        handleUpdatePlotPoint,
+        handleDeletePlotPoint,
+        handleAiEditPlotPoint,
+        handleRefineConcept,
     };
 
     ui.initializeUI(mainHandlers);
@@ -559,6 +565,142 @@ async function handleCreatePlotPoint(event, projectId, scenarioId) {
     } catch (error) {
         console.error('플롯 포인트 생성 실패:', error);
         alert(error.message);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+async function handleAiDraftGeneration(event, projectId, scenarioId) {
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    const selectedCharacterIds = Array.from(form.querySelectorAll('input[name="character_ids"]:checked')).map(cb => cb.value);
+    const plotPointCount = parseInt(form.elements.plot_point_count.value, 10);
+
+    if (selectedCharacterIds.length === 0) {
+        alert('주요 등장인물을 1명 이상 선택해주세요.');
+        return;
+    }
+    
+    if (!plotPointCount || plotPointCount < 5 || plotPointCount > 25) {
+        alert('플롯 개수는 5에서 25 사이의 숫자여야 합니다.');
+        return;
+    }
+
+    button.setAttribute('aria-busy', 'true');
+    try {
+        const requestBody = {
+            character_ids: selectedCharacterIds,
+            plot_point_count: plotPointCount,
+            model_name: document.getElementById('ai-model-select').value
+        };
+
+        await api.generateAiScenarioDraft(projectId, scenarioId, requestBody);
+        alert('AI가 새로운 스토리 초안을 성공적으로 생성했습니다!');
+        
+        modals.closeModal();
+        await showProjectDetails(projectId);
+
+    } catch (error) {
+        console.error('AI 시나리오 초안 생성 실패:', error);
+        alert(error.message);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+async function handleUpdatePlotPoint(form, projectId, scenarioId) {
+    const button = document.getElementById('plot-point-save-btn');
+    const plotPointId = form.elements.plot_point_id.value;
+    const plotData = {
+        title: form.elements.title.value,
+        content: form.elements.content.value
+    };
+
+    button.setAttribute('aria-busy', 'true');
+    try {
+        await api.updatePlotPoint(projectId, scenarioId, plotPointId, plotData);
+        alert('플롯 포인트가 성공적으로 저장되었습니다.');
+        modals.closeModal();
+        await showProjectDetails(projectId);
+    } catch(error) {
+        alert(`저장 실패: ${error.message}`);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+async function handleDeletePlotPoint(plotPointId, projectId, scenarioId) {
+    if (!confirm("정말로 이 플롯 포인트를 삭제하시겠습니까?")) return;
+    
+    const button = document.getElementById('plot-point-delete-btn');
+    button.setAttribute('aria-busy', 'true');
+    try {
+        await api.deletePlotPoint(projectId, scenarioId, plotPointId);
+        alert('플롯 포인트가 삭제되었습니다.');
+        modals.closeModal();
+        await showProjectDetails(projectId);
+    } catch(error) {
+        alert(`삭제 실패: ${error.message}`);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+async function handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
+    const userPrompt = prompt("이 플롯을 어떻게 수정하고 싶으신가요?\n(예: '주인공이 더 극적으로 승리하는 장면으로 바꿔줘')");
+    if (!userPrompt) return;
+
+    const project = projects.find(p => p.id === projectId);
+    const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
+    
+    const button = document.getElementById('plot-point-ai-edit-btn');
+    button.setAttribute('aria-busy', 'true');
+    try {
+        const requestBody = {
+            user_prompt: userPrompt,
+            character_ids: allCharacterIds,
+            model_name: document.getElementById('ai-model-select').value
+        };
+        await api.editPlotPointWithAi(projectId, scenarioId, plotPoint.id, requestBody);
+        alert('AI가 플롯 포인트를 성공적으로 수정했습니다.');
+        modals.closeModal();
+        await showProjectDetails(projectId);
+    } catch(error) {
+        alert(`AI 수정 실패: ${error.message}`);
+    } finally {
+        button.setAttribute('aria-busy', 'false');
+    }
+}
+
+// [수정] 이야기 핵심 컨셉 다듬기 핸들러 - projectId 전달 로직 추가
+async function handleRefineConcept() {
+    const conceptTextarea = document.getElementById('scenario-summary');
+    const existingConcept = conceptTextarea.value.trim();
+    const projectId = document.getElementById('project-title-display').dataset.currentProjectId;
+    
+    if (!existingConcept) {
+        alert('먼저 다듬을 컨셉을 입력해주세요.');
+        return;
+    }
+    if (!projectId) {
+        alert('현재 활성화된 프로젝트를 찾을 수 없습니다.');
+        return;
+    }
+    
+    const button = document.getElementById('refine-concept-btn');
+    button.setAttribute('aria-busy', 'true');
+    
+    try {
+        const requestBody = {
+            existing_concept: existingConcept,
+            project_id: projectId, // project_id 추가
+            model_name: document.getElementById('ai-model-select').value
+        };
+        const result = await api.refineScenarioConcept(requestBody);
+        conceptTextarea.value = result.refined_concept;
+        alert('AI가 컨셉을 새롭게 다듬었습니다! "시나리오 정보 저장" 버튼을 눌러 변경사항을 저장하세요.');
+    } catch(error) {
+        alert(`AI 컨셉 다듬기 실패: ${error.message}`);
     } finally {
         button.setAttribute('aria-busy', 'false');
     }

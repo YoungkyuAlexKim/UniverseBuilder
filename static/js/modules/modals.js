@@ -10,9 +10,11 @@ const cardDetailsModal = document.getElementById('card-details-modal');
 const worldviewCardModal = document.getElementById('worldview-card-modal');
 const diffModal = document.getElementById('ai-diff-modal');
 const modalBackdrop = document.getElementById('modal-backdrop');
+const aiScenarioDraftModal = document.getElementById('ai-scenario-draft-modal');
+const plotPointEditModal = document.getElementById('plot-point-edit-modal'); // [신규]
 
 // Handlers from main.js
-let handleManualEditCard, handleEditCardAI, handleDeleteCard, handleEditWorldviewCardAI, handleDeleteWorldviewCard, showProjectDetails, showRelationshipPanel;
+let handleManualEditCard, handleEditCardAI, handleDeleteCard, handleEditWorldviewCardAI, handleDeleteWorldviewCard, showProjectDetails, showRelationshipPanel, handleUpdatePlotPoint, handleDeletePlotPoint, handleAiEditPlotPoint;
 
 // Public Functions
 export function initializeModals(handlers) {
@@ -22,13 +24,17 @@ export function initializeModals(handlers) {
     handleEditWorldviewCardAI = handlers.handleEditWorldviewCardAI;
     handleDeleteWorldviewCard = handlers.handleDeleteWorldviewCard;
     showProjectDetails = handlers.showProjectDetails;
-    showRelationshipPanel = handlers.showRelationshipPanel; // [신규] 관계도 패널 핸들러 추가
+    showRelationshipPanel = handlers.showRelationshipPanel;
+    // [신규] 플롯 포인트 핸들러 추가
+    handleUpdatePlotPoint = handlers.handleUpdatePlotPoint;
+    handleDeletePlotPoint = handlers.handleDeletePlotPoint;
+    handleAiEditPlotPoint = handlers.handleAiEditPlotPoint;
 }
 
 export function closeModal() {
-    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop].forEach(el => el.classList.remove('active'));
+    // [수정] plotPointEditModal 추가
+    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal].forEach(el => el.classList.remove('active'));
     cardDetailsModal.classList.remove('shifted');
-    // [수정] 관계도 패널도 닫히도록 클래스 추가
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
 }
@@ -50,7 +56,6 @@ export function openCardModal(card, projectId) {
     };
 
     contentEl.innerHTML = `
-        <!-- [신규] 관계도 보기 버튼 추가 -->
         <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--pico-muted-border-color); padding-bottom: 1rem;">
             <button class="secondary outline" id="show-relationship-btn">📊 관계도 보기</button>
         </div>
@@ -83,7 +88,6 @@ export function openCardModal(card, projectId) {
         ` : ''}
     `;
 
-    // [신규] 관계도 보기 버튼 이벤트 리스너 추가
     contentEl.querySelector('#show-relationship-btn').addEventListener('click', (e) => {
         e.preventDefault();
         showRelationshipPanel(projectId, card);
@@ -358,4 +362,33 @@ function handleCancelHighlight(fieldName, originalContent) {
     
     textContainer.innerHTML = originalContent;
     toggleHighlightActions(fieldName, false);
+}
+
+// [신규] 플롯 포인트 편집 모달 열기 함수
+export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
+    const form = document.getElementById('plot-point-edit-form');
+    form.reset();
+    form.elements.plot_point_id.value = plotPoint.id;
+    form.elements.title.value = plotPoint.title || '';
+    form.elements.content.value = plotPoint.content || '';
+    
+    const saveBtn = document.getElementById('plot-point-save-btn');
+    const deleteBtn = document.getElementById('plot-point-delete-btn');
+    const aiEditBtn = document.getElementById('plot-point-ai-edit-btn');
+    
+    // 이벤트 리스너 중복 방지를 위해 버튼 복제 후 재생성
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    newSaveBtn.addEventListener('click', () => handleUpdatePlotPoint(form, projectId, scenarioId));
+    
+    const newDeleteBtn = deleteBtn.cloneNode(true);
+    deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+    newDeleteBtn.addEventListener('click', () => handleDeletePlotPoint(plotPoint.id, projectId, scenarioId));
+
+    const newAiEditBtn = aiEditBtn.cloneNode(true);
+    aiEditBtn.parentNode.replaceChild(newAiEditBtn, aiEditBtn);
+    newAiEditBtn.addEventListener('click', () => handleAiEditPlotPoint(plotPoint, projectId, scenarioId));
+    
+    plotPointEditModal.classList.add('active');
+    modalBackdrop.classList.add('active');
 }

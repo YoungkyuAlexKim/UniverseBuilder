@@ -14,16 +14,14 @@ async function handleResponse(response) {
     if (contentType && contentType.indexOf("application/json") !== -1) {
         return response.json();
     }
-    return {}; 
+    return {};
 }
 
-// [신규] API 요청 시 인증 헤더를 생성하는 헬퍼 함수
+// API 요청 시 인증 헤더를 생성하는 헬퍼 함수
 function getAuthHeaders(projectId) {
     const headers = { 'Content-Type': 'application/json' };
-    // sessionStorage에서 현재 프로젝트의 비밀번호를 가져옵니다.
     const password = sessionStorage.getItem(`project-password-${projectId}`);
     if (password) {
-        // 백엔드에서 받을 헤더 이름('X-Project-Password')과 일치시킵니다.
         headers['X-Project-Password'] = password;
     }
     return headers;
@@ -34,13 +32,11 @@ function getAuthHeaders(projectId) {
 // 프로젝트 (Projects)
 // -------------------------
 
-// 프로젝트 목록 조회는 비밀번호가 필요 없으므로 수정하지 않습니다.
 export async function fetchProjects() {
     const response = await fetch('/api/v1/projects');
     return handleResponse(response);
 }
 
-// [수정] 프로젝트 상세 정보 조회 시 인증 헤더 추가
 export async function fetchProjectDetails(projectId) {
     const response = await fetch(`/api/v1/projects/${projectId}`, {
         headers: getAuthHeaders(projectId)
@@ -48,7 +44,6 @@ export async function fetchProjectDetails(projectId) {
     return handleResponse(response);
 }
 
-// [수정] 프로젝트 생성 시 비밀번호 데이터 추가
 export async function createProject(projectName, password) {
     const response = await fetch('/api/v1/projects', {
         method: 'POST',
@@ -58,7 +53,6 @@ export async function createProject(projectName, password) {
     return handleResponse(response);
 }
 
-// [수정] 프로젝트 삭제 시 인증 헤더 추가
 export async function deleteProject(projectId) {
     const response = await fetch(`/api/v1/projects/${projectId}`, {
         method: 'DELETE',
@@ -67,7 +61,6 @@ export async function deleteProject(projectId) {
     return handleResponse(response);
 }
 
-// [수정] 프로젝트 수정 시 인증 헤더 추가
 export async function updateProject(projectId, newName) {
     const response = await fetch(`/api/v1/projects/${projectId}`, {
         method: 'PUT',
@@ -77,7 +70,6 @@ export async function updateProject(projectId, newName) {
     return handleResponse(response);
 }
 
-// [신규] 비밀번호 관련 API 함수들
 export async function checkPasswordStatus(projectId) {
     const response = await fetch(`/api/v1/projects/${projectId}/status`);
     return handleResponse(response);
@@ -95,7 +87,7 @@ export async function verifyPassword(projectId, password) {
 export async function setPassword(projectId, password) {
     const response = await fetch(`/api/v1/projects/${projectId}/password`, {
         method: 'PUT',
-        headers: getAuthHeaders(projectId), // 기존 비밀번호가 있다면 인증 후 변경 가능
+        headers: getAuthHeaders(projectId),
         body: JSON.stringify({ password })
     });
     return handleResponse(response);
@@ -106,7 +98,6 @@ export async function setPassword(projectId, password) {
 // 캐릭터 그룹 & 카드 (Character Groups & Cards)
 // -------------------------
 
-// [수정] 이후 모든 API 호출에 인증 헤더를 추가합니다.
 export async function createGroup(projectId, groupName) {
     const response = await fetch(`/api/v1/projects/${projectId}/groups`, {
         method: 'POST',
@@ -255,12 +246,46 @@ export async function updateScenario(projectId, scenarioId, scenarioData) {
     return handleResponse(response);
 }
 
-// [신규] 플롯 포인트 생성 함수
 export async function createPlotPoint(projectId, scenarioId, plotPointData) {
     const response = await fetch(`/api/v1/projects/${projectId}/scenarios/${scenarioId}/plot_points`, {
         method: 'POST',
         headers: getAuthHeaders(projectId),
         body: JSON.stringify(plotPointData)
+    });
+    return handleResponse(response);
+}
+
+export async function generateAiScenarioDraft(projectId, scenarioId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/${scenarioId}/generate-draft`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
+export async function updatePlotPoint(projectId, scenarioId, plotPointId, plotPointData) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(plotPointData)
+    });
+    return handleResponse(response);
+}
+
+export async function deletePlotPoint(projectId, scenarioId, plotPointId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
+export async function editPlotPointWithAi(projectId, scenarioId, plotPointId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}/edit-with-ai`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
     });
     return handleResponse(response);
 }
@@ -295,6 +320,17 @@ export async function editWorldview(requestBody) {
         body: JSON.stringify(requestBody)
     });
     return handleResponse(response);
+}
+
+// [수정] 이야기 핵심 컨셉 다듬기 - requestBody에 projectId 추가되도록 수정
+export async function refineScenarioConcept(requestBody) {
+    const response = await fetch('/api/v1/generate/scenario-concept', {
+       method: 'POST',
+       // projectId가 필요하므로 인증 헤더를 사용 (인증 목적이 아닌 데이터 전달 목적)
+       headers: getAuthHeaders(requestBody.project_id),
+       body: JSON.stringify(requestBody)
+   });
+   return handleResponse(response);
 }
 
 export async function fetchAiCharacterEdit(projectId, cardId, requestBody) {

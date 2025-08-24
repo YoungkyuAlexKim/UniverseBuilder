@@ -3,7 +3,7 @@
  */
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
-let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, handleSaveWorldview, handleAiGenerateNewWorldview, handleAiEditWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint;
+let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleAiGenerateNewWorldview, handleAiEditWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept;
 
 export function initializeUI(handlers) {
     showCharacterGeneratorUI = handlers.showCharacterGeneratorUI;
@@ -11,6 +11,7 @@ export function initializeUI(handlers) {
     handleDeleteGroup = handlers.handleDeleteGroup;
     setupSortable = handlers.setupSortable;
     openCardModal = handlers.openCardModal;
+    openPlotPointEditModal = handlers.openPlotPointEditModal;
     handleSaveWorldview = handlers.handleSaveWorldview;
     handleAiGenerateNewWorldview = handlers.handleAiGenerateNewWorldview;
     handleAiEditWorldview = handlers.handleAiEditWorldview;
@@ -19,6 +20,8 @@ export function initializeUI(handlers) {
     openWorldviewCardModal = handlers.openWorldviewCardModal;
     handleSaveScenario = handlers.handleSaveScenario;
     handleCreatePlotPoint = handlers.handleCreatePlotPoint;
+    handleAiDraftGeneration = handlers.handleAiDraftGeneration;
+    handleRefineConcept = handlers.handleRefineConcept; // [신규] 핸들러 추가
 }
 
 
@@ -146,12 +149,18 @@ export function renderScenarioTab(projectData) {
 
     let plotPointsHTML = '';
     if (mainScenario.plot_points && mainScenario.plot_points.length > 0) {
-        plotPointsHTML = mainScenario.plot_points.map(plot => `
-            <article class="plot-point-item" data-plot-id="${plot.id}" style="padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; margin-bottom: 1rem;">
-                <h6>${plot.ordering + 1}. ${plot.title}</h6>
-                <p style="margin:0;">${plot.content || '세부 내용 없음'}</p>
-            </article>
-        `).join('');
+        plotPointsHTML = mainScenario.plot_points.map(plot => {
+            const plotDataString = JSON.stringify(plot);
+            const escapedPlotDataString = plotDataString.replace(/'/g, '&#39;');
+
+            return `
+            <button class="plot-point-item" data-plot-point='${escapedPlotDataString}' style="display:block; width:100%; text-align:left; margin-bottom: 1rem; padding:0;">
+                <article style="margin:0;">
+                    <h6>${plot.ordering + 1}. ${plot.title}</h6>
+                    <p style="margin:0;">${plot.content || '세부 내용 없음'}</p>
+                </article>
+            </button>
+        `}).join('');
     } else {
         plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
     }
@@ -173,9 +182,15 @@ export function renderScenarioTab(projectData) {
                         <input type="text" id="scenario-themes" name="themes" value="${(mainScenario.themes || []).join(', ')}" placeholder="예: 복수, 희생, 구원">
                     </label>
                 </div>
-                <label for="scenario-summary">한 줄 요약</label>
-                <textarea id="scenario-summary" name="summary" rows="2" placeholder="이 이야기의 핵심 내용을 한두 문장으로 요약합니다.">${mainScenario.summary || ''}</textarea>
-                <button type="submit" style="width: auto;">시나리오 정보 저장</button>
+                <label for="scenario-summary">이야기 핵심 컨셉 (한 줄 요약)</label>
+                <textarea id="scenario-summary" name="summary" rows="2" placeholder="이 이야기의 핵심 내용을 한두 문장으로 요약합니다. AI 초안 생성 시 이 내용을 참고합니다.">${mainScenario.summary || ''}</textarea>
+                
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; margin-top: 1rem;">
+                    <button type="button" id="refine-concept-btn" class="secondary" style="width: auto; flex-grow: 0;">✨ 컨셉 다듬기 (AI)</button>
+                    <div style="flex-grow: 1;"></div>
+                    <button type="button" id="ai-draft-btn" class="contrast" style="width: auto;">✨ AI로 전체 스토리 초안 생성</button>
+                    <button type="submit" style="width: auto;">시나리오 정보 저장</button>
+                </div>
             </form>
         </article>
         <hr>
@@ -191,20 +206,62 @@ export function renderScenarioTab(projectData) {
                 <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
                 <button type="submit" style="width: auto;">+ 플롯 추가</button>
             </form>
-
-            <button id="ai-draft-btn" class="contrast" style="margin-top: 1.5rem;">✨ AI로 전체 스토리 초안 생성</button>
         </div>
     `;
 
-    const scenarioForm = document.getElementById('scenario-details-form');
-    scenarioForm.addEventListener('submit', (e) => {
+    document.getElementById('scenario-details-form').addEventListener('submit', (e) => {
         handleSaveScenario(e, projectData.id, mainScenario.id);
     });
 
-    const addPlotForm = document.getElementById('add-plot-point-form');
-    addPlotForm.addEventListener('submit', (e) => {
+    document.getElementById('add-plot-point-form').addEventListener('submit', (e) => {
         handleCreatePlotPoint(e, projectData.id, mainScenario.id);
     });
+
+    document.getElementById('ai-draft-btn').addEventListener('click', () => {
+        openAiScenarioDraftModal(projectData, mainScenario.id);
+    });
+    
+    // [신규] '컨셉 다듬기' 버튼에 이벤트 리스너 추가
+    document.getElementById('refine-concept-btn').addEventListener('click', () => {
+        handleRefineConcept();
+    });
+
+    document.getElementById('plot-list').addEventListener('click', (e) => {
+        const plotItem = e.target.closest('.plot-point-item');
+        if (plotItem) {
+            const plotData = JSON.parse(plotItem.dataset.plotPoint);
+            openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
+        }
+    });
+}
+
+function openAiScenarioDraftModal(projectData, scenarioId) {
+    const modal = document.getElementById('ai-scenario-draft-modal');
+    const form = document.getElementById('ai-scenario-draft-form');
+    const charactersContainer = document.getElementById('scenario-characters-container');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+
+    const allCharacters = projectData.groups.flatMap(g => g.cards);
+    if (allCharacters.length > 0) {
+        charactersContainer.innerHTML = allCharacters.map(char => `
+            <label>
+                <input type="checkbox" name="character_ids" value="${char.id}">
+                ${char.name}
+            </label>
+        `).join('');
+    } else {
+        charactersContainer.innerHTML = '<p>이 프로젝트에는 캐릭터가 없습니다.</p>';
+    }
+
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    newForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleAiDraftGeneration(e, projectData.id, scenarioId);
+    });
+
+    modal.classList.add('active');
+    modalBackdrop.classList.add('active');
 }
 
 
