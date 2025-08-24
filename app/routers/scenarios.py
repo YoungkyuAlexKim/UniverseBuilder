@@ -9,7 +9,7 @@ from typing import List, Optional
 
 # --- Gemini AI 관련 임포트 ---
 import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
+from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockThreshold
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
@@ -50,10 +50,9 @@ class Scenario(ScenarioBase):
     class Config:
         orm_mode = True
 
-# [수정] AI 초안 생성을 위한 요청 모델에 plot_point_count 추가
 class GenerateDraftRequest(BaseModel):
     character_ids: List[str]
-    plot_point_count: int = 10  # 기본값 10으로 설정
+    plot_point_count: int = 10
     model_name: Optional[str] = None
 
 class AIEditPlotPointRequest(BaseModel):
@@ -117,44 +116,66 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     main_worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == project.id).first()
     selected_characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
 
-    worldview_context = f"[메인 세계관]\n{main_worldview.content if main_worldview else '정의되지 않음'}"
+    worldview_context = f"### 메인 세계관\n{main_worldview.content if main_worldview else '정의되지 않음'}"
     themes_list = json.loads(scenario.themes) if scenario.themes and scenario.themes != "[]" else []
-    scenario_themes = f"[핵심 테마]\n{', '.join(themes_list)}" if themes_list else ""
-    characters_context = "[주요 등장인물]\n" + "\n".join([f"- {c.name}: {c.description}" for c in selected_characters])
-    story_concept = f"[이야기 핵심 컨셉]\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
+    scenario_themes = f"### 핵심 테마\n{', '.join(themes_list)}" if themes_list else ""
+    characters_context = "### 주요 등장인물\n" + "\n".join([f"- {c.name}: {c.description}" for c in selected_characters])
+    story_concept = f"### 이야기 핵심 컨셉\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
 
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
 
-    # [수정] 프롬프트에 플롯 포인트 개수 반영
-    prompt = f"""당신은 3막 구조에 능숙한 전문 시나리오 작가입니다.
-아래에 제공된 모든 정보를 종합하여, 흥미로운 이야기의 흐름을 가진 플롯 포인트 초안을 생성해주세요.
+    prompt = f"""당신은 JSON 형식으로 시나리오 플롯을 생성하는 고도로 훈련된 AI 시나리오 작가입니다. 당신의 유일한 임무는 주어진 스토리 요소를 바탕으로 구조화된 플롯 아웃라인을 생성하는 것입니다. 모든 규칙을 예외 없이 준수해야 합니다.
 
+**스토리 요소:**
+---
 {worldview_context}
 {scenario_themes}
 {characters_context}
 {story_concept}
+---
 
-**매우 중요한 규칙:**
-1.  **HTML 태그는 절대 사용하지 말고, 순수한 텍스트로만 응답해야 합니다.**
-2.  이야기는 **발단-전개-위기-절정-결말**의 3막 구조를 따라야 합니다.
-3.  플롯은 **정확히 {request.plot_point_count}개**의 포인트로 나누어주세요.
-4.  결과는 반드시 아래 명시된 JSON 스키마를 따르는 JSON 객체로만 응답해야 합니다.
+**당신의 임무:**
+위의 스토리 요소를 바탕으로, 정확히 {request.plot_point_count}개의 포인트로 구성된 플롯 아웃라인을 만드세요. 플롯은 고전적인 3막 구조(시작, 중간, 끝)와 유사한 논리적 진행을 따라야 합니다.
 
-**출력 JSON 스키마:**
+**매우 중요한 출력 규칙:**
+1.  당신의 응답은 **반드시 단 하나의 유효한 JSON 객체**여야 합니다.
+2.  JSON 객체는 아래에 제공된 스키마를 **정확하게** 준수해야 합니다.
+3.  JSON 객체 앞이나 뒤에 텍스트, 설명 또는 마크다운 형식(예: ```json)을 포함하지 마세요.
+4.  **만약 어떤 이유로든 플롯 생성에 실패할 경우, 오류 메시지 대신 `{{ "plot_points": [] }}` 와 같이 비어 있는 유효한 JSON을 반환해야 합니다.** 이 규칙은 절대적입니다.
+
+**JSON 스키마:**
 {{
   "plot_points": [
     {{
-      "title": "플롯 포인트의 제목",
-      "content": "해당 플롯 포인트에서 발생하는 사건에 대한 2~3문장의 구체적인 설명."
+      "title": "플롯 포인트의 간결한 제목",
+      "content": "이 플롯 포인트에서 발생하는 사건에 대한 2~3 문장의 설명."
     }}
   ]
 }}
 """
     try:
         generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(prompt, generation_config=generation_config)
-        ai_result = json.loads(response.text)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        response = await model.generate_content_async(
+            prompt, 
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
+        try:
+            cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
+            ai_result = json.loads(cleaned_response_text)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 응답을 반환했습니다. 잠시 후 다시 시도하거나 다른 모델을 선택해 주세요. (응답: {response.text[:100]})")
+
+        if not ai_result.get("plot_points"):
+            raise HTTPException(status_code=400, detail="AI가 컨텍스트를 처리하지 못했습니다. 컨셉이나 테마를 조금 더 구체적으로 작성한 후 다시 시도해 주세요.")
 
         db.query(PlotPointModel).filter(PlotPointModel.scenario_id == scenario_id).delete()
 
@@ -177,6 +198,8 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
 
     except Exception as e:
         db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
         error_detail = f"AI 플롯 생성에 실패했습니다. 오류: {e}"
         if 'response' in locals() and hasattr(response, 'text'):
             error_detail += f" | AI 응답: {response.text[:200]}"
@@ -280,19 +303,36 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
 1.  **오직 '수정 대상 플롯 포인트'의 제목과 내용만** 수정해야 합니다.
 2.  수정된 내용은 '전체 스토리 흐름'의 맥락과 자연스럽게 연결되어야 합니다.
 3.  결과는 반드시 아래 명시된 JSON 스키마 형식으로만 응답해야 합니다.
+4.  **만약 어떤 이유로든 수정에 실패할 경우, 오류 메시지 대신 원본 제목과 내용을 담은 유효한 JSON을 반환해야 합니다.** 이 규칙은 절대적입니다.
 
 **출력 JSON 스키마:**
+```json
 {{
   "title": "새롭게 수정된 플롯 제목",
   "content": "새롭게 수정된 플롯 내용 (2~3 문장)"
 }}
+```
 """
     try:
         chosen_model = request.model_name or AVAILABLE_MODELS[0]
         model = genai.GenerativeModel(chosen_model)
         generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(prompt, generation_config=generation_config)
-        ai_result = json.loads(response.text)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        response = await model.generate_content_async(
+            prompt, 
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        try:
+            cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
+            ai_result = json.loads(cleaned_response_text)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 응답을 반환했습니다. (응답: {response.text[:100]})")
 
         plot_point_to_edit.title = ai_result.get("title", plot_point_to_edit.title)
         plot_point_to_edit.content = ai_result.get("content", plot_point_to_edit.content)
@@ -303,6 +343,8 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
 
     except Exception as e:
         db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
         error_detail = f"AI 플롯 수정에 실패했습니다. 오류: {e}"
         if 'response' in locals() and hasattr(response, 'text'):
             error_detail += f" | AI 응답: {response.text[:200]}"

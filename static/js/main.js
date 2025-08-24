@@ -672,13 +672,13 @@ async function handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
     }
 }
 
-// [수정] 이야기 핵심 컨셉 다듬기 핸들러 - projectId 전달 로직 추가
+// [수정] '컨셉 다듬기' 핸들러, 버그 수정 완료
 async function handleRefineConcept() {
     const conceptTextarea = document.getElementById('scenario-summary');
-    const existingConcept = conceptTextarea.value.trim();
+    const originalConcept = conceptTextarea.value.trim();
     const projectId = document.getElementById('project-title-display').dataset.currentProjectId;
     
-    if (!existingConcept) {
+    if (!originalConcept) {
         alert('먼저 다듬을 컨셉을 입력해주세요.');
         return;
     }
@@ -689,16 +689,45 @@ async function handleRefineConcept() {
     
     const button = document.getElementById('refine-concept-btn');
     button.setAttribute('aria-busy', 'true');
-    
-    try {
+
+    const fetchRefinedConcept = async () => {
         const requestBody = {
-            existing_concept: existingConcept,
-            project_id: projectId, // project_id 추가
+            existing_concept: originalConcept,
+            project_id: projectId,
             model_name: document.getElementById('ai-model-select').value
         };
-        const result = await api.refineScenarioConcept(requestBody);
-        conceptTextarea.value = result.refined_concept;
-        alert('AI가 컨셉을 새롭게 다듬었습니다! "시나리오 정보 저장" 버튼을 눌러 변경사항을 저장하세요.');
+        return await api.refineScenarioConcept(requestBody);
+    };
+
+    try {
+        const result = await fetchRefinedConcept();
+        
+        const onAccept = (acceptedConcept) => {
+            conceptTextarea.value = acceptedConcept;
+            alert('AI의 제안이 적용되었습니다! "시나리오 정보 저장" 버튼을 눌러 변경사항을 최종 저장하세요.');
+            modals.closeModal();
+        };
+
+        const onReroll = async () => {
+            const rerollBtn = document.getElementById('refine-concept-reroll-btn');
+            rerollBtn.setAttribute('aria-busy', 'true');
+            rerollBtn.disabled = true;
+
+            try {
+                const newResult = await fetchRefinedConcept();
+                // modals.js에 있는 업데이트 함수를 호출하여 제안 내용과 '적용' 버튼의 동작을 갱신
+                modals.updateRefineConceptSuggestion(newResult.refined_concept, onAccept);
+            } catch (error) {
+                alert(`새로운 제안을 가져오는 데 실패했습니다: ${error.message}`);
+                document.getElementById('refine-concept-suggestion').textContent = '오류가 발생했습니다.';
+            } finally {
+                rerollBtn.setAttribute('aria-busy', 'false');
+                rerollBtn.disabled = false;
+            }
+        };
+
+        modals.openRefineConceptModal(originalConcept, result.refined_concept, onAccept, onReroll);
+
     } catch(error) {
         alert(`AI 컨셉 다듬기 실패: ${error.message}`);
     } finally {

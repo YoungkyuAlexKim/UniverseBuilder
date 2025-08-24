@@ -11,7 +11,8 @@ const worldviewCardModal = document.getElementById('worldview-card-modal');
 const diffModal = document.getElementById('ai-diff-modal');
 const modalBackdrop = document.getElementById('modal-backdrop');
 const aiScenarioDraftModal = document.getElementById('ai-scenario-draft-modal');
-const plotPointEditModal = document.getElementById('plot-point-edit-modal'); // [신규]
+const plotPointEditModal = document.getElementById('plot-point-edit-modal');
+const refineConceptModal = document.getElementById('refine-concept-modal'); 
 
 // Handlers from main.js
 let handleManualEditCard, handleEditCardAI, handleDeleteCard, handleEditWorldviewCardAI, handleDeleteWorldviewCard, showProjectDetails, showRelationshipPanel, handleUpdatePlotPoint, handleDeletePlotPoint, handleAiEditPlotPoint;
@@ -25,15 +26,13 @@ export function initializeModals(handlers) {
     handleDeleteWorldviewCard = handlers.handleDeleteWorldviewCard;
     showProjectDetails = handlers.showProjectDetails;
     showRelationshipPanel = handlers.showRelationshipPanel;
-    // [신규] 플롯 포인트 핸들러 추가
     handleUpdatePlotPoint = handlers.handleUpdatePlotPoint;
     handleDeletePlotPoint = handlers.handleDeletePlotPoint;
     handleAiEditPlotPoint = handlers.handleAiEditPlotPoint;
 }
 
 export function closeModal() {
-    // [수정] plotPointEditModal 추가
-    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal].forEach(el => el.classList.remove('active'));
+    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal].forEach(el => el.classList.remove('active'));
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
@@ -364,7 +363,6 @@ function handleCancelHighlight(fieldName, originalContent) {
     toggleHighlightActions(fieldName, false);
 }
 
-// [신규] 플롯 포인트 편집 모달 열기 함수
 export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     const form = document.getElementById('plot-point-edit-form');
     form.reset();
@@ -376,7 +374,6 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     const deleteBtn = document.getElementById('plot-point-delete-btn');
     const aiEditBtn = document.getElementById('plot-point-ai-edit-btn');
     
-    // 이벤트 리스너 중복 방지를 위해 버튼 복제 후 재생성
     const newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
     newSaveBtn.addEventListener('click', () => handleUpdatePlotPoint(form, projectId, scenarioId));
@@ -391,4 +388,37 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     
     plotPointEditModal.classList.add('active');
     modalBackdrop.classList.add('active');
+}
+
+export function openRefineConceptModal(originalConcept, suggestedConcept, onAcceptCallback, onRerollCallback) {
+    document.getElementById('refine-concept-original').textContent = originalConcept;
+    // [수정] updateRefineConceptSuggestion 함수를 호출하여 초기 상태 설정
+    updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback);
+
+    const rejectBtn = document.getElementById('refine-concept-reject-btn');
+    const rerollBtn = document.getElementById('refine-concept-reroll-btn');
+
+    const newRejectBtn = rejectBtn.cloneNode(true);
+    rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
+    newRejectBtn.addEventListener('click', () => closeModal());
+
+    const newRerollBtn = rerollBtn.cloneNode(true);
+    rerollBtn.parentNode.replaceChild(newRerollBtn, rerollBtn);
+    newRerollBtn.addEventListener('click', () => onRerollCallback());
+    
+    refineConceptModal.classList.add('active');
+    modalBackdrop.classList.add('active');
+}
+
+// [신규] '컨셉 비교' 모달의 제안 내용과 '적용' 버튼의 동작을 업데이트하는 함수
+export function updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback) {
+    document.getElementById('refine-concept-suggestion').textContent = suggestedConcept;
+
+    const acceptBtn = document.getElementById('refine-concept-accept-btn');
+    const newAcceptBtn = acceptBtn.cloneNode(true);
+    acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
+
+    newAcceptBtn.addEventListener('click', () => {
+        onAcceptCallback(suggestedConcept);
+    });
 }

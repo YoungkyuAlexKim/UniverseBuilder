@@ -193,5 +193,31 @@
         </article>
     </div>
 
+    <div id="refine-concept-modal" class="modal-container">
+        <article style="max-width: 90vw; width: 1000px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✨ AI 컨셉 다듬기 제안</h3>
+            </header>
+            <div class="grid">
+                <article>
+                    <header><strong>원본 컨셉</strong></header>
+                    <div id="refine-concept-original" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px;"></div>
+                </article>
+                <article>
+                    <header><strong>AI 제안</strong></header>
+                    <div id="refine-concept-suggestion" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px;"></div>
+                </article>
+            </div>
+            <footer>
+                <div class="grid" style="justify-content: flex-end; grid-template-columns: repeat(3, auto); gap: 0.5rem;">
+                    <button id="refine-concept-reject-btn" class="secondary outline" style="width: auto;">반려</button>
+                    <button id="refine-concept-reroll-btn" class="secondary" style="width: auto;">다시 시도 (Re-roll)</button>
+                    <button id="refine-concept-accept-btn" style="width: auto;">이 내용으로 적용</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
 </body>
 </html>
