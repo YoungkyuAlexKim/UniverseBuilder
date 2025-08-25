@@ -11,21 +11,23 @@ import { showAiDiffModal, closeModal } from './modals.js';
 const cardDetailsModal = document.getElementById('card-details-modal');
 const worldviewCardModal = document.getElementById('worldview-card-modal');
 
-// Handlers from main.js
-let getProjects, showProjectDetails, getLastGeneratedCard, setLastGeneratedCard;
+// App 인스턴스를 저장할 변수
+let app;
 
-export function initializePanels(handlers) {
-    getProjects = handlers.getProjects;
-    showProjectDetails = handlers.showProjectDetails;
-    getLastGeneratedCard = handlers.getLastGeneratedCard;
-    setLastGeneratedCard = handlers.setLastGeneratedCard;
+/**
+ * 모듈을 초기화하고 App 인스턴스를 저장합니다.
+ * @param {App} appInstance - 애플리케이션의 메인 컨트롤러 인스턴스
+ */
+export function initializePanels(appInstance) {
+    app = appInstance;
 }
 
 export function showCharacterGeneratorUI(projectId, container) {
     const existingGenerator = container.querySelector('#character-generator-inline');
     if (existingGenerator) return;
 
-    const projects = getProjects();
+    // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
+    const { projects } = app.stateManager.getState();
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -140,7 +142,8 @@ async function handleGenerateClick(projectId, generatorContainer) {
     resultCard.style.display = 'none';
 
     try {
-        const projects = getProjects();
+        // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
+        const { projects } = app.stateManager.getState();
         const project = projects.find(p => p.id === projectId);
         const worldviewContext = project.worldview?.content || null;
 
@@ -158,7 +161,7 @@ async function handleGenerateClick(projectId, generatorContainer) {
         };
 
         const characterData = await api.generateCharacter(projectId, requestBody);
-        setLastGeneratedCard(characterData);
+        app.stateManager.setLastGeneratedCard(characterData);
 
         generatorContainer.querySelector('#char-card-name').innerHTML = characterData.name;
         generatorContainer.querySelector('#char-card-desc').innerHTML = characterData.description;
@@ -195,7 +198,7 @@ async function handleSaveClick(projectId, generatorContainer) {
     const saveGroupSelect = generatorContainer.querySelector('#save-to-group-select');
     const saveBtn = generatorContainer.querySelector('#save-character-btn');
     const selectedGroupId = saveGroupSelect.value;
-    const lastGeneratedCard = getLastGeneratedCard();
+    const lastGeneratedCard = app.stateManager.getLastGeneratedCard();
     
     if (!selectedGroupId) { alert('저장할 그룹을 선택해주세요.'); return; }
     if (!lastGeneratedCard) { alert('먼저 캐릭터를 생성해주세요.'); return; }
@@ -206,7 +209,8 @@ async function handleSaveClick(projectId, generatorContainer) {
         await api.saveCard(projectId, selectedGroupId, lastGeneratedCard);
         alert('캐릭터 카드가 성공적으로 저장되었습니다!');
         generatorContainer.remove();
-        await showProjectDetails(projectId);
+        // [수정] stateManager를 통해 상태 갱신 요청
+        await app.stateManager.refreshCurrentProject();
 
     } catch (error) {
         console.error('카드 저장 실패:', error);
@@ -238,7 +242,8 @@ export function showRelationshipPanel(projectId, currentCard) {
     if (existingPanel) existingPanel.remove();
     document.querySelectorAll('.shifted').forEach(view => view.classList.remove('shifted'));
 
-    const projects = getProjects();
+    // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
+    const { projects } = app.stateManager.getState();
     const project = projects.find(p => p.id === projectId);
     if (!project) { alert('프로젝트를 찾을 수 없습니다.'); return; }
 
@@ -550,7 +555,8 @@ export function showRelationshipPanel(projectId, currentCard) {
             }
             clearForm();
             closePanel();
-            await showProjectDetails(projectId);
+            // [수정] stateManager를 통해 상태 갱신 요청
+            await app.stateManager.refreshCurrentProject();
         } catch (error) {
             console.error('관계 저장 실패:', error);
             alert(`오류: ${error.message}`);
@@ -569,7 +575,8 @@ export function showRelationshipPanel(projectId, currentCard) {
                     await api.deleteRelationship(projectId, relationshipId);
                     alert('관계가 삭제되었습니다.');
                     closePanel();
-                    await showProjectDetails(projectId);
+                    // [수정] stateManager를 통해 상태 갱신 요청
+                    await app.stateManager.refreshCurrentProject();
                 } catch (error) {
                     console.error('관계 삭제 실패:', error);
                     alert(`오류: ${error.message}`);
@@ -600,7 +607,8 @@ export function handleEditCardAI(event, projectId, cardId) {
     if (existingPanel) existingPanel.remove();
     document.querySelectorAll('.shifted').forEach(view => view.classList.remove('shifted'));
 
-    const projects = getProjects();
+    // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
+    const { projects } = app.stateManager.getState();
     const project = projects.find(p => p.id === projectId);
     if (!project) { alert('프로젝트를 찾을 수 없습니다.'); return; }
     
@@ -692,7 +700,8 @@ export function handleManualEditCard(event, projectId, cardId) {
     if (existingPanel) existingPanel.remove();
     document.querySelectorAll('.shifted').forEach(view => view.classList.remove('shifted'));
 
-    const projects = getProjects();
+    // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
+    const { projects } = app.stateManager.getState();
     const project = projects.find(p => p.id === projectId);
     if (!project) { alert('프로젝트를 찾을 수 없습니다.'); return; }
 
@@ -798,8 +807,9 @@ export function handleManualEditCard(event, projectId, cardId) {
             await api.updateCard(projectId, cardId, updatedCardData);
             alert('캐릭터 정보가 성공적으로 업데이트되었습니다.');
             closePanel();
-            closeModal();
-            await showProjectDetails(projectId);
+            app.modals.closeModal(); // [수정] app.modals를 통해 호출
+            // [수정] stateManager를 통해 상태 갱신 요청
+            await app.stateManager.refreshCurrentProject();
 
         } catch (error) {
             console.error('수동 편집 저장 실패:', error);
@@ -820,7 +830,8 @@ export function handleEditWorldviewCardAI(card, projectId) {
     if (existingPanel) existingPanel.remove();
     document.querySelectorAll('.shifted').forEach(view => view.classList.remove('shifted'));
 
-    const projects = getProjects();
+    // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
+    const { projects } = app.stateManager.getState();
     const project = projects.find(p => p.id === projectId);
     if (!project) { alert('프로젝트를 찾을 수 없습니다.'); return; }
 

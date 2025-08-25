@@ -15,21 +15,15 @@ const plotPointEditModal = document.getElementById('plot-point-edit-modal');
 const refineConceptModal = document.getElementById('refine-concept-modal'); 
 const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal'); // [신규] 모달 요소 추가
 
-// Handlers from main.js
-let handleManualEditCard, handleEditCardAI, handleDeleteCard, handleEditWorldviewCardAI, handleDeleteWorldviewCard, showProjectDetails, showRelationshipPanel, handleUpdatePlotPoint, handleDeletePlotPoint, handleAiEditPlotPoint;
+// App 인스턴스를 저장할 변수
+let app;
 
-// Public Functions
-export function initializeModals(handlers) {
-    handleManualEditCard = handlers.handleManualEditCard;
-    handleEditCardAI = handlers.handleEditCardAI;
-    handleDeleteCard = handlers.handleDeleteCard;
-    handleEditWorldviewCardAI = handlers.handleEditWorldviewCardAI;
-    handleDeleteWorldviewCard = handlers.handleDeleteWorldviewCard;
-    showProjectDetails = handlers.showProjectDetails;
-    showRelationshipPanel = handlers.showRelationshipPanel;
-    handleUpdatePlotPoint = handlers.handleUpdatePlotPoint;
-    handleDeletePlotPoint = handlers.handleDeletePlotPoint;
-    handleAiEditPlotPoint = handlers.handleAiEditPlotPoint;
+/**
+ * 모듈을 초기화하고 App 인스턴스를 저장합니다.
+ * @param {App} appInstance - 애플리케이션의 메인 컨트롤러 인스턴스
+ */
+export function initializeModals(appInstance) {
+    app = appInstance;
 }
 
 export function closeModal() {
@@ -91,7 +85,7 @@ export function openCardModal(card, projectId) {
 
     contentEl.querySelector('#show-relationship-btn').addEventListener('click', (e) => {
         e.preventDefault();
-        showRelationshipPanel(projectId, card);
+        app.panels.showRelationshipPanel(projectId, card);
     });
 
     const footerEl = document.getElementById('modal-card-footer');
@@ -101,11 +95,12 @@ export function openCardModal(card, projectId) {
         <button class="secondary outline" id="modal-delete-btn">삭제</button>
     `;
 
-    footerEl.querySelector('#modal-manual-edit-btn').addEventListener('click', (e) => handleManualEditCard(e, projectId, card.id));
-    footerEl.querySelector('#modal-edit-ai-btn').addEventListener('click', (e) => handleEditCardAI(e, projectId, card.id));
+    footerEl.querySelector('#modal-manual-edit-btn').addEventListener('click', (e) => app.panels.handleManualEditCard(e, projectId, card.id));
+    footerEl.querySelector('#modal-edit-ai-btn').addEventListener('click', (e) => app.panels.handleEditCardAI(e, projectId, card.id));
     footerEl.querySelector('#modal-delete-btn').addEventListener('click', (e) => {
         closeModal();
-        handleDeleteCard(e, projectId, card.group_id, card.id);
+        // [수정] app.handleDeleteCard 호출
+        app.handleDeleteCard(projectId, card.group_id, card.id);
     });
     
     contentEl.querySelectorAll('.highlight-btn').forEach(button => {
@@ -143,11 +138,13 @@ export function openWorldviewCardModal(card, projectId, groupId) {
 
     footer.querySelector('#wv-ai-edit-btn').addEventListener('click', (e) => {
         e.preventDefault();
-        handleEditWorldviewCardAI(card, projectId);
+        // [수정] app.panels.handleEditWorldviewCardAI 호출
+        app.panels.handleEditWorldviewCardAI(card, projectId);
     });
     footer.querySelector('#wv-delete-btn').addEventListener('click', async (e) => {
         e.preventDefault();
-        await handleDeleteWorldviewCard(projectId, card.id);
+        // [수정] app.handleDeleteWorldviewCard 호출
+        await app.handleDeleteWorldviewCard(projectId, card.id);
     });
 
     worldviewCardModal.classList.add('active');
@@ -167,7 +164,8 @@ export function openWorldviewCardModal(card, projectId, groupId) {
             await api.saveWorldviewCard(projectId, groupId, cardData, cardId);
             alert('설정 카드가 저장되었습니다.');
             closeModal();
-            await showProjectDetails(projectId);
+            // [수정] stateManager를 통해 상태 갱신 요청
+            await app.stateManager.refreshCurrentProject();
         } catch (error) {
             alert(error.message);
         } finally {
@@ -225,7 +223,8 @@ export function showAiDiffModal(projectId, originalCard, aiResult, cardType) {
             alert('AI의 수정 제안이 성공적으로 적용되었습니다!');
             diffModal.classList.remove('active');
             closeModal();
-            await showProjectDetails(projectId);
+            // [수정] stateManager를 통해 상태 갱신 요청
+            await app.stateManager.refreshCurrentProject();
         } catch (error) {
             console.error("최종 적용 실패:", error);
             alert(error.message);
@@ -347,7 +346,8 @@ async function handleSaveHighlight(projectId, cardId, fieldName) {
         alert('변경사항이 성공적으로 저장되었습니다.');
         toggleHighlightActions(fieldName, false);
 
-        showProjectDetails(projectId);
+        // [수정] stateManager를 통해 상태 갱신 요청
+        app.stateManager.refreshCurrentProject();
 
     } catch (error) {
         console.error('하이라이트 저장 실패:', error);
@@ -378,15 +378,18 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     
     const newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-    newSaveBtn.addEventListener('click', () => handleUpdatePlotPoint(form, projectId, scenarioId));
+    // [수정] app.handleUpdatePlotPoint 호출
+    newSaveBtn.addEventListener('click', () => app.handleUpdatePlotPoint(form, projectId, scenarioId));
     
     const newDeleteBtn = deleteBtn.cloneNode(true);
     deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
-    newDeleteBtn.addEventListener('click', () => handleDeletePlotPoint(plotPoint.id, projectId, scenarioId));
+    // [수정] app.handleDeletePlotPoint 호출
+    newDeleteBtn.addEventListener('click', () => app.handleDeletePlotPoint(plotPoint.id, projectId, scenarioId));
 
     const newAiEditBtn = aiEditBtn.cloneNode(true);
     aiEditBtn.parentNode.replaceChild(newAiEditBtn, aiEditBtn);
-    newAiEditBtn.addEventListener('click', () => handleAiEditPlotPoint(plotPoint, projectId, scenarioId));
+    // [수정] app.handleAiEditPlotPoint 호출
+    newAiEditBtn.addEventListener('click', () => app.handleAiEditPlotPoint(plotPoint, projectId, scenarioId));
     
     plotPointEditModal.classList.add('active');
     modalBackdrop.classList.add('active');

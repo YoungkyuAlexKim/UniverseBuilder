@@ -4,30 +4,91 @@
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
 let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
+let app; // App 인스턴스를 저장할 변수
 
-export function initializeUI(handlers) {
-    showCharacterGeneratorUI = handlers.showCharacterGeneratorUI;
-    handleCreateGroup = handlers.handleCreateGroup;
-    handleDeleteGroup = handlers.handleDeleteGroup;
-    setupSortable = handlers.setupSortable;
-    openCardModal = handlers.openCardModal;
-    openPlotPointEditModal = handlers.openPlotPointEditModal;
-    handleSaveWorldview = handlers.handleSaveWorldview;
-    handleCreateWorldviewGroup = handlers.handleCreateWorldviewGroup;
-    handleDeleteWorldviewGroup = handlers.handleDeleteWorldviewGroup;
-    openWorldviewCardModal = handlers.openWorldviewCardModal;
-    handleSaveScenario = handlers.handleSaveScenario;
-    handleCreatePlotPoint = handlers.handleCreatePlotPoint;
-    handleAiDraftGeneration = handlers.handleAiDraftGeneration;
-    handleRefineConcept = handlers.handleRefineConcept;
-    handleRefineWorldviewRule = handlers.handleRefineWorldviewRule;
+/**
+ * 모듈을 초기화하고 App 인스턴스를 저장합니다.
+ * @param {App} appInstance - 애플리케이션의 메인 컨트롤러 인스턴스
+ */
+export function initializeUI(appInstance) {
+    app = appInstance;
+}
+
+/**
+ * 프로젝트 목록을 UI에 렌더링합니다.
+ * @param {Array} projects - 표시할 프로젝트 객체의 배열
+ */
+export function renderProjectList(projects) {
+    const projectList = document.querySelector('.project-list');
+    projectList.innerHTML = '';
+    if (projects.length === 0) {
+        projectList.innerHTML = '<li>생성된 프로젝트가 없습니다.</li>';
+    } else {
+        projects.forEach(project => {
+            const li = document.createElement('li');
+            // [수정] App.js의 이벤트 위임이 동작하도록 클래스와 데이터 속성 추가
+            li.innerHTML = `
+                <span class="project-name-span" data-id="${project.id}" title="${project.name}">${project.name}</span>
+                <div>
+                    <button class="secondary outline update-project-btn" data-project-id="${project.id}" data-current-name="${project.name}" style="padding: 0.1rem 0.4rem; font-size: 0.75rem; margin-right: 0.5rem;">수정</button>
+                    <button class="secondary outline delete-project-btn" data-project-id="${project.id}" data-project-name="${project.name}" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">삭제</button>
+                </div>
+            `;
+            projectList.appendChild(li);
+        });
+    }
+}
+
+/**
+ * 특정 프로젝트의 상세 내용을 메인 뷰에 렌더링합니다.
+ * @param {object} projectData - 표시할 프로젝트의 상세 데이터
+ */
+export function renderProjectDetail(projectData) {
+    document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('project-detail-view').classList.add('active');
+    
+    document.getElementById('project-title-display').textContent = projectData.name;
+    document.getElementById('project-title-display').dataset.currentProjectId = projectData.id;
+
+    // 각 탭의 내용을 렌더링
+    renderCharacterTab(projectData);
+    renderWorldviewTab(projectData);
+    renderScenarioTab(projectData);
+
+    // 활성화된 탭이 없다면 캐릭터 탭을 기본으로 활성화
+    if (!document.querySelector('.tab-link.active')) {
+        activateTab('characters');
+    }
+}
+
+/**
+ * 시작 화면(웰컴 뷰)을 표시합니다.
+ */
+export function showWelcomeView() {
+    document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
+    document.getElementById('welcome-view').classList.add('active');
+}
+
+/**
+ * 지정된 탭을 활성화합니다.
+ * @param {string} tabId - 활성화할 탭의 ID ('characters', 'worldview', 'scenario')
+ */
+export function activateTab(tabId) {
+    document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    document.querySelector(`.tab-link[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(`tab-content-${tabId}`).classList.add('active');
 }
 
 
-export function renderCharacterTab(projectData) {
+// --- 각 탭의 세부 렌더링 함수 ---
+
+function renderCharacterTab(projectData) {
     const container = document.getElementById('card-list-container');
     container.innerHTML = `<div style="margin-bottom: 1.5rem;"><button id="show-generator-btn">✨ 새 인물 AI 생성</button></div>`;
-    container.querySelector('#show-generator-btn').addEventListener('click', () => showCharacterGeneratorUI(projectData.id, container));
+    // [수정] app.panels.showCharacterGeneratorUI 호출
+    container.querySelector('#show-generator-btn').addEventListener('click', () => app.panels.showCharacterGeneratorUI(projectData.id, container));
 
     const groupsContainer = document.createElement('div');
     groupsContainer.className = 'groups-container';
@@ -56,10 +117,16 @@ export function renderCharacterTab(projectData) {
     addGroupColumn.innerHTML = `<h4>새 그룹 추가</h4><form id="create-group-form" style="margin-top: 1rem;"><input type="text" name="name" placeholder="새 그룹 이름" required autocomplete="off" style="margin-bottom: 0.5rem;"><button type="submit" class="contrast" style="width: 100%;">+ 새 그룹 추가</button></form>`;
     groupsContainer.appendChild(addGroupColumn);
 
-    document.getElementById('create-group-form')?.addEventListener('submit', (e) => handleCreateGroup(e, projectData.id));
-    container.querySelectorAll('.delete-group-btn').forEach(button => button.addEventListener('click', (e) => handleDeleteGroup(e, projectData.id)));
+    // [수정] app.handleCreateGroup 호출
+    document.getElementById('create-group-form')?.addEventListener('submit', (e) => app.handleCreateGroup(e, projectData.id));
+    // [수정] app.handleDeleteGroup 호출
+    container.querySelectorAll('.delete-group-btn').forEach(button => button.addEventListener('click', (e) => {
+        const { groupId, groupName } = e.currentTarget.dataset;
+        app.handleDeleteGroup(projectData.id, groupId, groupName);
+    }));
     
-    setupSortable(container.querySelectorAll('.cards-list'), projectData.id, 'character');
+    // [수정] setupSortable은 이제 App에서 관리
+    app.setupSortable(container.querySelectorAll('.cards-list'), projectData.id, 'character');
 }
 
 function createCardElement(card, projectId, groupId) {
@@ -69,16 +136,18 @@ function createCardElement(card, projectId, groupId) {
     cardEl.innerHTML = `<strong>${card.name || '이름 없는 카드'}</strong>`;
     cardEl.addEventListener('click', () => {
         const cardData = { ...card, group_id: groupId };
-        openCardModal(cardData, projectId);
+        // [수정] app.modals.openCardModal 호출
+        app.modals.openCardModal(cardData, projectId);
     });
     return cardEl;
 }
 
 // [오류 수정] 이벤트 리스너 유실 문제를 해결하기 위해 로직 순서 변경
-export function renderWorldviewTab(projectData) {
+function renderWorldviewTab(projectData) {
     const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
     
     const form = document.getElementById('worldview-form');
+    // 이벤트 리스너 중복을 막기 위해 폼을 복제하여 교체
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
 
@@ -103,7 +172,7 @@ export function renderWorldviewTab(projectData) {
 
     newForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        handleSaveWorldview(projectData.id);
+        app.handleSaveWorldview(projectData.id);
     });
     
     addRuleBtn.addEventListener('click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
@@ -139,11 +208,12 @@ export function renderWorldviewTab(projectData) {
     addGroupColumn.innerHTML = `<h4>새 설정 그룹</h4><form id="create-wv-group-form" style="margin-top: 1rem;"><input type="text" name="name" placeholder="새 설정 그룹 이름" required autocomplete="off" style="margin-bottom: 0.5rem;"><button type="submit" class="contrast" style="width: 100%;">+ 새 설정 그룹</button></form>`;
     groupsContainer.appendChild(addGroupColumn);
 
-    document.getElementById('create-wv-group-form')?.addEventListener('submit', (e) => handleCreateWorldviewGroup(e, projectData.id));
-    container.querySelectorAll('.delete-wv-group-btn').forEach(btn => btn.addEventListener('click', (e) => handleDeleteWorldviewGroup(e, projectData.id)));
-    container.querySelectorAll('.add-wv-card-btn').forEach(btn => btn.addEventListener('click', (e) => openWorldviewCardModal(null, projectData.id, e.currentTarget.dataset.groupId)));
+    document.getElementById('create-wv-group-form')?.addEventListener('submit', (e) => app.handleCreateWorldviewGroup(e, projectData.id));
+    container.querySelectorAll('.delete-wv-group-btn').forEach(btn => btn.addEventListener('click', (e) => app.handleDeleteWorldviewGroup(e, projectData.id)));
+    container.querySelectorAll('.add-wv-card-btn').forEach(btn => btn.addEventListener('click', (e) => app.modals.openWorldviewCardModal(null, projectData.id, e.currentTarget.dataset.groupId)));
     
-    setupSortable(container.querySelectorAll('.worldview-cards-list'), projectData.id, 'worldview');
+    // [수정] setupSortable은 이제 App에서 관리
+    app.setupSortable(container.querySelectorAll('.worldview-cards-list'), projectData.id, 'worldview');
 }
 
 // [오류 수정] 함수가 컨테이너를 인자로 받도록 수정
@@ -164,7 +234,7 @@ function addWorldviewRuleInput(value = '', projectId, container) {
     });
 
     wrapper.querySelector('.refine-rule-btn').addEventListener('click', (e) => {
-        handleRefineWorldviewRule(e, projectId, inputField);
+        app.handleRefineWorldviewRule(e, projectId, inputField);
     });
 }
 
@@ -174,7 +244,7 @@ function createWorldviewCardElement(card, projectId, groupId) {
     cardEl.className = 'card-item';
     cardEl.dataset.cardId = card.id;
     cardEl.innerHTML = `<strong>${card.title || '제목 없는 카드'}</strong>`;
-    cardEl.addEventListener('click', () => openWorldviewCardModal(card, projectId, groupId));
+    cardEl.addEventListener('click', () => app.modals.openWorldviewCardModal(card, projectId, groupId));
     return cardEl;
 }
 
@@ -214,14 +284,14 @@ export function renderScenarioTab(projectData) {
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
     newForm.addEventListener('submit', (e) => {
-        handleSaveScenario(e, projectData.id, mainScenario.id);
+        app.handleSaveScenario(e, projectData.id, mainScenario.id);
     });
 
     const addPlotForm = container.querySelector('#add-plot-point-form');
     const newAddPlotForm = addPlotForm.cloneNode(true);
     addPlotForm.parentNode.replaceChild(newAddPlotForm, addPlotForm);
     newAddPlotForm.addEventListener('submit', (e) => {
-        handleCreatePlotPoint(e, projectData.id, mainScenario.id);
+        app.handleCreatePlotPoint(e, projectData.id, mainScenario.id);
     });
 
     const setupButtonListener = (id, handler) => {
@@ -232,7 +302,7 @@ export function renderScenarioTab(projectData) {
     };
 
     setupButtonListener('ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
-    setupButtonListener('refine-concept-btn', () => handleRefineConcept());
+    setupButtonListener('refine-concept-btn', () => app.handleRefineConcept());
 
     const plotList = container.querySelector('#plot-list');
     const newPlotList = plotList.cloneNode(true);
@@ -241,7 +311,7 @@ export function renderScenarioTab(projectData) {
         const plotItem = e.target.closest('.plot-point-item');
         if (plotItem) {
             const plotData = JSON.parse(plotItem.dataset.plotPoint);
-            openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
+            app.modals.openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
         }
     });
 }
@@ -284,7 +354,7 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
 
     newForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        handleAiDraftGeneration(e, projectData.id, scenarioId);
+        app.handleAiDraftGeneration(e, projectData.id, scenarioId);
     });
 
     modal.classList.add('active');
