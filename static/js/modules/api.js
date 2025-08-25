@@ -399,7 +399,7 @@ export async function fetchAiWorldviewEdit(projectId, cardId, requestBody) {
 export async function applyAiSuggestion(projectId, updatedCards, cardType) {
     const updatePromises = updatedCards.map(cardToUpdate => {
         const apiPath = cardType === 'character'
-            ? `/api/v1/projects/${cardToUpdate.id}`
+            ? `/api/v1/projects/${projectId}/cards/${cardToUpdate.id}`
             : `/api/v1/projects/${projectId}/worldview_cards/${cardToUpdate.id}/details`;
 
         return fetch(apiPath, {

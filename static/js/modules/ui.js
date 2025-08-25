@@ -89,11 +89,11 @@ export function activateTab(tabId) {
 function renderCharacterTab(projectData) {
     const container = document.getElementById('card-list-container');
 
-    // 안전하게 내용 교체 및 이벤트 리스너 설정
+    // [업그레이드] 새로운 공통 AI 모달 방식으로 변경
     eventManager.replaceContentSafely(container, `<div style="margin-bottom: 1.5rem;"><button id="show-generator-btn">✨ 새 인물 AI 생성</button></div>`, (container) => {
         const generatorBtn = container.querySelector('#show-generator-btn');
         if (generatorBtn) {
-            eventManager.addEventListener(generatorBtn, 'click', () => app.panels.showCharacterGeneratorUI(projectData.id, container));
+            eventManager.addEventListener(generatorBtn, 'click', () => app.openCharacterGenerationModal(projectData.id));
         }
     });
 

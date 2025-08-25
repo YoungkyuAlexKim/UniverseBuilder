@@ -347,5 +347,63 @@
         </article>
     </div>
 
+    <!-- [신규] 공통 AI 컨텍스트 선택 모달 -->
+    <div id="common-ai-modal" class="modal-container">
+        <article style="max-width: 90vw; width: 1200px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3 id="common-ai-modal-title">✨ AI 기능</h3>
+            </header>
+            <div class="grid">
+                <article>
+                    <header><strong id="common-ai-original-label">현재 내용</strong></header>
+                    <div id="common-ai-original" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px; max-height: 200px; overflow-y: auto;"></div>
+                </article>
+                <article>
+                    <header><strong>AI 제안</strong></header>
+                    <div id="common-ai-suggestion" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px; max-height: 200px; overflow-y: auto;">결과가 여기에 표시됩니다...</div>
+                </article>
+            </div>
+            <div style="margin-top: 1rem;">
+                <label for="common-ai-user-prompt"><strong>AI에게 요청할 내용:</strong></label>
+                <div id="common-ai-presets" class="grid" style="margin-bottom: 0.5rem;">
+                    <!-- 프리셋 버튼들이 동적으로 생성됩니다 -->
+                </div>
+                <textarea id="common-ai-user-prompt" rows="3" placeholder="또는 직접 입력: 어떻게 수정하고 싶으신지 자유롭게 설명해주세요..."></textarea>
+            </div>
+            <details style="margin-top: 1rem;">
+                <summary>참조할 정보 선택 (선택사항)</summary>
+                <div class="grid">
+                    <div>
+                        <fieldset><legend><strong>참고할 캐릭터</strong></legend></fieldset>
+                        <div id="common-ai-characters-container" class="checkbox-container" style="max-height: 150px; overflow-y: auto;">
+                            <p>캐릭터 정보 로딩 중...</p>
+                        </div>
+                    </div>
+                    <div>
+                        <fieldset><legend><strong>참고할 서브 설정</strong></legend></fieldset>
+                        <div id="common-ai-worldview-cards-container" class="checkbox-container" style="max-height: 150px; overflow-y: auto;">
+                            <p>서브 설정 정보 로딩 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </details>
+            <div id="common-ai-group-selection" style="margin-top: 1rem; display: none;">
+                <label for="common-ai-group-select"><strong>저장할 그룹 선택:</strong></label>
+                <select id="common-ai-group-select" required>
+                    <option value="" disabled selected>그룹을 선택해주세요...</option>
+                    <!-- 그룹 옵션들이 동적으로 생성됩니다 -->
+                </select>
+            </div>
+            <footer>
+                <div class="grid" style="justify-content: flex-end; grid-template-columns: repeat(3, auto); gap: 0.5rem;">
+                    <button id="common-ai-reject-btn" class="secondary outline" style="width: auto;">반려</button>
+                    <button id="common-ai-generate-btn" style="width: auto;">AI 실행</button>
+                    <button id="common-ai-accept-btn" style="width: auto; display: none;">이 내용으로 적용</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
 </body>
 </html>

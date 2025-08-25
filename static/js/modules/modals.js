@@ -14,6 +14,7 @@ const aiScenarioDraftModal = document.getElementById('ai-scenario-draft-modal');
 const plotPointEditModal = document.getElementById('plot-point-edit-modal');
 const refineConceptModal = document.getElementById('refine-concept-modal'); 
 const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal'); // [신규] 모달 요소 추가
+const commonAiModal = document.getElementById('common-ai-modal'); // [신규] 공통 AI 모달 추가
 
 // App 인스턴스를 저장할 변수
 let app;
@@ -27,8 +28,8 @@ export function initializeModals(appInstance) {
 }
 
 export function closeModal() {
-    // [개선] 닫을 모달 목록에 새 모달 추가
-    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal].forEach(el => el.classList.remove('active'));
+    // [개선] 닫을 모달 목록에 공통 AI 모달 추가
+    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal].forEach(el => el.classList.remove('active'));
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
