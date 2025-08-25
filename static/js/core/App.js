@@ -4,6 +4,12 @@ import * as modals from '../modules/modals.js';
 import * as panels from '../modules/panels.js';
 import * as api from '../modules/api.js';
 
+// 개별 패널 모듈들을 import
+import { showCharacterGeneratorUI } from '../modules/panels/character-generator.js';
+import { showRelationshipPanel } from '../modules/panels/relationship-panel.js';
+import { handleEditCardAI, handleManualEditCard } from '../modules/panels/character-editor.js';
+import { handleEditWorldviewCardAI } from '../modules/panels/worldview-editor.js';
+
 /**
  * 애플리케이션의 메인 컨트롤러 클래스.
  * 모든 모듈을 초기화하고, 상태 변경을 감지하며, 이벤트에 따라 각 모듈의 동작을 조율합니다.
@@ -11,6 +17,14 @@ import * as api from '../modules/api.js';
 export class App {
     constructor() {
         this.stateManager = new StateManager();
+        this.panels = {
+            showCharacterGeneratorUI,
+            showRelationshipPanel,
+            handleEditCardAI,
+            handleManualEditCard,
+            handleEditWorldviewCardAI
+        };
+        this.modals = { ...modals };
         this.initializeModules();
         this.bindEventListeners();
         this.stateManager.loadProjects();
