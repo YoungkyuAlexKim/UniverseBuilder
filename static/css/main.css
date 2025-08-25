@@ -2,6 +2,18 @@ html { font-size: 90%; } /* [신규] 전체 UI 크기 조절 */
 
 body, html { height: 100%; margin: 0; overflow: hidden; }
 
+/* 타이핑 효과를 위한 커서 애니메이션 */
+.typing-cursor {
+    animation: blink 1s infinite;
+    color: var(--pico-primary);
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
 :root {
     --sidebar-width: 400px;
 }

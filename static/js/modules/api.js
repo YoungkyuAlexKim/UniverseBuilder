@@ -27,6 +27,61 @@ function getAuthHeaders(projectId) {
     return headers;
 }
 
+/**
+ * 스트리밍 방식으로 AI 캐릭터를 생성합니다.
+ * @param {Object} requestData - 생성 요청 데이터
+ * @param {Function} onChunk - 각 청크 수신 시 호출될 콜백
+ * @param {Function} onComplete - 완료 시 호출될 콜백
+ * @param {Function} onError - 오류 시 호출될 콜백
+ */
+export async function generateCharacterStream(requestData, onChunk, onComplete, onError) {
+    try {
+        const response = await fetch('/api/v1/generate/character/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail?.message || `서버 오류: ${response.statusText}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6).trim();
+                    if (data === '[DONE]') {
+                        onComplete();
+                        return;
+                    }
+
+                    try {
+                        const parsedData = JSON.parse(data);
+                        onChunk(parsedData);
+                    } catch (e) {
+                        // JSON이 아닌 경우 텍스트로 처리
+                        if (data) {
+                            onChunk(data);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        onError(error);
+    }
+}
+
 
 // -------------------------
 // 프로젝트 (Projects)

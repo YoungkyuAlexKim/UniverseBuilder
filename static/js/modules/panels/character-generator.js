@@ -128,6 +128,54 @@ export function showCharacterGeneratorUI(projectId, container) {
 }
 
 /**
+ * 스트리밍 중 실시간으로 텍스트를 표시합니다.
+ * @param {HTMLElement} generatorContainer - 생성기 컨테이너
+ * @param {string} currentText - 현재까지 생성된 텍스트
+ */
+function updateStreamingDisplay(generatorContainer, currentText) {
+    const resultCard = generatorContainer.querySelector('#character-result-card');
+    resultCard.style.display = 'block';
+
+    // 타이핑 효과를 위한 커서 표시
+    const typingText = currentText + '<span class="typing-cursor">|</span>';
+
+    generatorContainer.querySelector('#char-card-name').innerHTML = typingText;
+    generatorContainer.querySelector('#char-card-desc').innerHTML = typingText;
+    generatorContainer.querySelector('#char-card-personality').innerHTML = typingText;
+    generatorContainer.querySelector('#char-card-abilities').innerHTML = typingText;
+    generatorContainer.querySelector('#char-card-goal').innerHTML = typingText;
+    generatorContainer.querySelector('#char-card-story').innerHTML = typingText;
+}
+
+/**
+ * 완성된 캐릭터 데이터를 표시합니다.
+ * @param {HTMLElement} generatorContainer - 생성기 컨테이너
+ * @param {Object} characterData - 캐릭터 데이터
+ */
+function updateCharacterDisplay(generatorContainer, characterData) {
+    // 커서 제거하고 최종 데이터 표시
+    generatorContainer.querySelector('#char-card-name').innerHTML = characterData.name || '';
+    generatorContainer.querySelector('#char-card-desc').innerHTML = characterData.description || '';
+    generatorContainer.querySelector('#char-card-personality').innerHTML = characterData.personality || '';
+    generatorContainer.querySelector('#char-card-abilities').innerHTML = characterData.abilities || '';
+    generatorContainer.querySelector('#char-card-goal').innerHTML = characterData.goal || '';
+
+    const quoteContainer = generatorContainer.querySelector('#char-card-quote-container');
+    let quotesHTML = '';
+    if (Array.isArray(characterData.quote) && characterData.quote.length > 0) {
+        quotesHTML = `
+            <p><strong class="label">대표 대사:</strong></p>
+            <ul>
+                ${characterData.quote.map(q => `<li>"${q}"</li>`).join('')}
+            </ul>
+        `;
+    }
+    quoteContainer.innerHTML = quotesHTML;
+
+    generatorContainer.querySelector('#char-card-story').innerHTML = characterData.introduction_story || '';
+}
+
+/**
  * 캐릭터 생성 버튼 클릭 핸들러
  */
 async function handleGenerateClick(projectId, generatorContainer) {
@@ -162,30 +210,34 @@ async function handleGenerateClick(projectId, generatorContainer) {
             worldview_card_ids: selectedWorldviewCardIds.length > 0 ? selectedWorldviewCardIds : null,
         };
 
-        const characterData = await api.generateCharacter(projectId, requestBody);
-        app.stateManager.setLastGeneratedCard(characterData);
+        // 스트리밍 방식으로 캐릭터 생성
+        let characterData = {};
+        let currentField = '';
 
-        generatorContainer.querySelector('#char-card-name').innerHTML = characterData.name;
-        generatorContainer.querySelector('#char-card-desc').innerHTML = characterData.description;
-        generatorContainer.querySelector('#char-card-personality').innerHTML = characterData.personality;
-        generatorContainer.querySelector('#char-card-abilities').innerHTML = characterData.abilities;
-        generatorContainer.querySelector('#char-card-goal').innerHTML = characterData.goal;
-
-        const quoteContainer = generatorContainer.querySelector('#char-card-quote-container');
-        let quotesHTML = '';
-        if (Array.isArray(characterData.quote) && characterData.quote.length > 0) {
-            quotesHTML = `
-                <p><strong class="label">대표 대사:</strong></p>
-                <ul>
-                    ${characterData.quote.map(q => `<li>"${q}"</li>`).join('')}
-                </ul>
-            `;
-        }
-        quoteContainer.innerHTML = quotesHTML;
-
-        generatorContainer.querySelector('#char-card-story').innerHTML = characterData.introduction_story;
-
-        resultCard.style.display = 'block';
+        await api.generateCharacterStream(
+            requestBody,
+            (chunk) => {
+                // 실시간으로 텍스트를 표시
+                if (typeof chunk === 'string') {
+                    // 부분적인 텍스트 청크 처리
+                    currentField += chunk;
+                    updateStreamingDisplay(generatorContainer, currentField);
+                } else if (typeof chunk === 'object') {
+                    // 완성된 JSON 객체
+                    characterData = chunk;
+                    updateCharacterDisplay(generatorContainer, characterData);
+                }
+            },
+            () => {
+                // 생성 완료
+                app.stateManager.setLastGeneratedCard(characterData);
+                resultCard.style.display = 'block';
+            },
+            (error) => {
+                console.error('스트리밍 캐릭터 생성 실패:', error);
+                alert(`캐릭터 생성에 실패했습니다: ${error.message}`);
+            }
+        );
 
     } catch (error) {
         console.error('캐릭터 생성 실패:', error);

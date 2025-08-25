@@ -1,4 +1,5 @@
 import { StateManager } from './StateManager.js';
+import { EventListenerManager } from './EventListenerManager.js';
 import * as ui from '../modules/ui.js';
 import * as modals from '../modules/modals.js';
 import * as panels from '../modules/panels.js';
@@ -17,6 +18,7 @@ import { handleEditWorldviewCardAI } from '../modules/panels/worldview-editor.js
 export class App {
     constructor() {
         this.stateManager = new StateManager();
+        this.eventManager = new EventListenerManager();
         this.panels = {
             showCharacterGeneratorUI,
             showRelationshipPanel,

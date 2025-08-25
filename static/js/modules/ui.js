@@ -5,6 +5,7 @@
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
 let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
 let app; // App 인스턴스를 저장할 변수
+let eventManager; // EventListenerManager 인스턴스
 
 /**
  * 모듈을 초기화하고 App 인스턴스를 저장합니다.
@@ -12,6 +13,7 @@ let app; // App 인스턴스를 저장할 변수
  */
 export function initializeUI(appInstance) {
     app = appInstance;
+    eventManager = appInstance.eventManager;
 }
 
 /**
@@ -86,9 +88,14 @@ export function activateTab(tabId) {
 
 function renderCharacterTab(projectData) {
     const container = document.getElementById('card-list-container');
-    container.innerHTML = `<div style="margin-bottom: 1.5rem;"><button id="show-generator-btn">✨ 새 인물 AI 생성</button></div>`;
-    // [수정] app.panels.showCharacterGeneratorUI 호출
-    container.querySelector('#show-generator-btn').addEventListener('click', () => app.panels.showCharacterGeneratorUI(projectData.id, container));
+
+    // 안전하게 내용 교체 및 이벤트 리스너 설정
+    eventManager.replaceContentSafely(container, `<div style="margin-bottom: 1.5rem;"><button id="show-generator-btn">✨ 새 인물 AI 생성</button></div>`, (container) => {
+        const generatorBtn = container.querySelector('#show-generator-btn');
+        if (generatorBtn) {
+            eventManager.addEventListener(generatorBtn, 'click', () => app.panels.showCharacterGeneratorUI(projectData.id, container));
+        }
+    });
 
     const groupsContainer = document.createElement('div');
     groupsContainer.className = 'groups-container';
@@ -118,12 +125,18 @@ function renderCharacterTab(projectData) {
     groupsContainer.appendChild(addGroupColumn);
 
     // [수정] app.handleCreateGroup 호출
-    document.getElementById('create-group-form')?.addEventListener('submit', (e) => app.handleCreateGroup(e, projectData.id));
+    const createGroupForm = document.getElementById('create-group-form');
+    if (createGroupForm) {
+        eventManager.addEventListener(createGroupForm, 'submit', (e) => app.handleCreateGroup(e, projectData.id));
+    }
+
     // [수정] app.handleDeleteGroup 호출
-    container.querySelectorAll('.delete-group-btn').forEach(button => button.addEventListener('click', (e) => {
-        const { groupId, groupName } = e.currentTarget.dataset;
-        app.handleDeleteGroup(projectData.id, groupId, groupName);
-    }));
+    container.querySelectorAll('.delete-group-btn').forEach(button => {
+        eventManager.addEventListener(button, 'click', (e) => {
+            const { groupId, groupName } = e.currentTarget.dataset;
+            app.handleDeleteGroup(projectData.id, groupId, groupName);
+        });
+    });
     
     // [수정] setupSortable은 이제 App에서 관리
     app.setupSortable(container.querySelectorAll('.cards-list'), projectData.id, 'character');

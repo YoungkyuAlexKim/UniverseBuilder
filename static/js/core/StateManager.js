@@ -13,6 +13,16 @@ export class StateManager extends EventEmitter {
             projects: [],
             currentProject: null,
             isLoading: false,
+            loadingStates: {
+                projectsLoading: false,
+                projectCreating: false,
+                projectLoading: false,
+                aiGenerating: false,
+                scenarioGenerating: false,
+                worldviewGenerating: false,
+                characterGenerating: false,
+                savingData: false
+            },
         };
     }
 
@@ -35,18 +45,49 @@ export class StateManager extends EventEmitter {
     }
 
     /**
+     * 특정 로딩 상태를 설정합니다.
+     * @param {string} key - 로딩 상태 키
+     * @param {boolean} isLoading - 로딩 중인지 여부
+     */
+    setLoadingState(key, isLoading) {
+        this._setState({
+            loadingStates: {
+                ...this.state.loadingStates,
+                [key]: isLoading
+            }
+        });
+    }
+
+    /**
+     * 특정 로딩 상태를 확인합니다.
+     * @param {string} key - 로딩 상태 키
+     * @returns {boolean} 해당 로딩 상태
+     */
+    isLoadingState(key) {
+        return this.state.loadingStates[key] || false;
+    }
+
+    /**
+     * 전체 로딩 상태를 확인합니다.
+     * @returns {boolean} 어떤 작업이라도 로딩 중인지 여부
+     */
+    isAnyLoading() {
+        return Object.values(this.state.loadingStates).some(loading => loading);
+    }
+
+    /**
      * API를 호출하여 프로젝트 목록을 불러오고 상태를 업데이트합니다.
      */
     async loadProjects() {
-        this._setState({ isLoading: true });
+        this.setLoadingState('projectsLoading', true);
         try {
             const data = await api.fetchProjects();
-            this._setState({ projects: data.projects, isLoading: false });
+            this._setState({ projects: data.projects });
         } catch (error) {
             console.error('Error loading projects:', error);
-            this._setState({ isLoading: false });
-            // 여기서 에러 이벤트를 발생시켜 UI가 처리하도록 할 수도 있습니다.
             this.emit('error', '프로젝트 목록을 불러오는 데 실패했습니다.');
+        } finally {
+            this.setLoadingState('projectsLoading', false);
         }
     }
 
@@ -58,17 +99,18 @@ export class StateManager extends EventEmitter {
         if (this.state.currentProject && this.state.currentProject.id === projectId) {
             return;
         }
-        
-        this._setState({ isLoading: true });
+
+        this.setLoadingState('projectLoading', true);
         try {
             // 비밀번호 확인 로직은 UI 레이어에서 처리 후, 성공 시 이 메소드를 호출하는 것이 더 적합합니다.
             // 여기서는 성공적으로 인증되었다고 가정합니다.
             const projectDetails = await api.fetchProjectDetails(projectId);
-            this._setState({ currentProject: projectDetails, isLoading: false });
+            this._setState({ currentProject: projectDetails });
         } catch (error) {
             console.error('Error loading project details:', error);
-            this._setState({ isLoading: false });
             this.emit('error', '프로젝트 상세 정보를 불러오는 데 실패했습니다.');
+        } finally {
+            this.setLoadingState('projectLoading', false);
         }
     }
     
@@ -108,14 +150,15 @@ export class StateManager extends EventEmitter {
      * @param {string|null} password - 새 프로젝트의 비밀번호
      */
     async createProject(name, password) {
-        this._setState({ isLoading: true });
+        this.setLoadingState('projectCreating', true);
         try {
             await api.createProject(name, password);
             await this.loadProjects(); // 목록을 다시 로드하여 갱신
         } catch (error) {
             console.error('Error creating project:', error);
-            this._setState({ isLoading: false });
             this.emit('error', '프로젝트 생성에 실패했습니다.');
+        } finally {
+            this.setLoadingState('projectCreating', false);
         }
     }
 
@@ -124,27 +167,26 @@ export class StateManager extends EventEmitter {
      * @param {string} projectId - 삭제할 프로젝트의 ID
      */
     async deleteProject(projectId) {
-        this._setState({ isLoading: true });
+        this.setLoadingState('savingData', true);
         try {
             await api.deleteProject(projectId);
             // 현재 프로젝트가 삭제된 경우 클리어
             if (this.state.currentProject && this.state.currentProject.id === projectId) {
                 this._setState({
                     currentProject: null,
-                    projects: this.state.projects.filter(p => p.id !== projectId),
-                    isLoading: false
+                    projects: this.state.projects.filter(p => p.id !== projectId)
                 });
             } else {
                 // 목록에서만 제거
                 this._setState({
-                    projects: this.state.projects.filter(p => p.id !== projectId),
-                    isLoading: false
+                    projects: this.state.projects.filter(p => p.id !== projectId)
                 });
             }
         } catch (error) {
             console.error('Error deleting project:', error);
-            this._setState({ isLoading: false });
             this.emit('error', '프로젝트 삭제에 실패했습니다.');
+        } finally {
+            this.setLoadingState('savingData', false);
         }
     }
 
