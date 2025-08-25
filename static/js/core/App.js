@@ -444,10 +444,17 @@ export class App {
      */
     async handleSaveWorldview(projectId) {
         const form = document.getElementById('worldview-form');
-        const button = document.getElementById('save-worldview-btn');
+        // [수정] 동적 버튼 찾기로 AI 수정 후 DOM 변경 문제 해결
+        const getButton = () => document.getElementById('save-worldview-btn');
+        let button = getButton();
+        
+        if (!button) {
+            console.error('세계관 저장 버튼을 찾을 수 없습니다.');
+            return;
+        }
 
-        const rules = Array.from(form.querySelectorAll('#worldview-rules-container input[name="rules"]'))
-            .map(input => input.value.trim())
+        const rules = Array.from(form.querySelectorAll('#worldview-rules-container textarea[name="rules"]'))
+            .map(textarea => textarea.value.trim())
             .filter(Boolean);
 
         const worldviewData = {
@@ -465,7 +472,11 @@ export class App {
             console.error('세계관 저장 실패:', error);
             alert(error.message);
         } finally {
-            button.setAttribute('aria-busy', 'false');
+            // [수정] 버튼을 다시 찾아서 aria-busy 해제
+            button = getButton();
+            if (button) {
+                button.setAttribute('aria-busy', 'false');
+            }
         }
     }
 

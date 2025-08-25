@@ -234,13 +234,36 @@ function addWorldviewRuleInput(value = '', projectId, container) {
     const wrapper = document.createElement('div');
     wrapper.className = 'dynamic-input-wrapper';
     wrapper.innerHTML = `
-        <input type="text" name="rules" placeholder="세계관의 핵심 전제, 설정, 규칙..." value="${value}">
+        <textarea name="rules" placeholder="세계관의 핵심 전제, 설정, 규칙..." rows="1" style="resize: vertical; min-height: 2.5rem; overflow: hidden;">${value}</textarea>
         <button type="button" class="secondary outline refine-rule-btn" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; line-height: 1;">✨</button>
         <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
     `;
     container.appendChild(wrapper);
 
-    const inputField = wrapper.querySelector('input[name="rules"]');
+    const inputField = wrapper.querySelector('textarea[name="rules"]');
+    
+    // [신규] 자동 높이 조정 기능 추가
+    function adjustHeight() {
+        inputField.style.height = 'auto';
+        // [수정] 패딩과 보더를 고려한 높이 계산 + 여유 공간 추가
+        const computedStyle = window.getComputedStyle(inputField);
+        const paddingTop = parseInt(computedStyle.paddingTop);
+        const paddingBottom = parseInt(computedStyle.paddingBottom);
+        const borderTop = parseInt(computedStyle.borderTopWidth);
+        const borderBottom = parseInt(computedStyle.borderBottomWidth);
+        
+        const extraHeight = paddingTop + paddingBottom + borderTop + borderBottom + 8; // 8px 여유 공간
+        const newHeight = Math.max(40, inputField.scrollHeight + extraHeight);
+        
+        inputField.style.height = newHeight + 'px';
+    }
+    
+    // 초기 높이 설정
+    adjustHeight();
+    
+    // 입력 시 높이 자동 조정
+    inputField.addEventListener('input', adjustHeight);
+    inputField.addEventListener('change', adjustHeight);
 
     wrapper.querySelector('.remove-dynamic-input-btn').addEventListener('click', () => {
         wrapper.remove();

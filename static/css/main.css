@@ -220,13 +220,19 @@ nav li { margin: 0; }
 
 .dynamic-input-wrapper {
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* 상단 정렬로 변경 */
     gap: 0.5rem;
 }
 
-.dynamic-input-wrapper input {
+.dynamic-input-wrapper input,
+.dynamic-input-wrapper textarea {
     flex-grow: 1;
     margin: 0 !important;
+}
+
+.dynamic-input-wrapper button {
+    margin-top: 0.1rem; /* 버튼을 약간 아래로 조정 */
+    flex-shrink: 0; /* 버튼 크기 유지 */
 }
 
 .relationship-panel {
