@@ -19,7 +19,7 @@ from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotP
 from .projects import get_project_if_accessible
 
 # --- Gemini API 설정 ---
-AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"]
+AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
 api_key = os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -43,7 +43,7 @@ class ScenarioBase(BaseModel):
     title: str
     summary: Optional[str] = None
     themes: Optional[List[str]] = None
-    prologue: Optional[str] = None # [수정] prologue 필드 추가
+    synopsis: Optional[str] = None # [변경] synopsis 필드
 
 class Scenario(ScenarioBase):
     id: str
@@ -100,7 +100,7 @@ def update_scenario_details(scenario_id: str, scenario_data: ScenarioBase, proje
 
     scenario.title = scenario_data.title
     scenario.summary = scenario_data.summary
-    scenario.prologue = scenario_data.prologue # [수정] prologue 저장 로직 추가
+    scenario.synopsis = scenario_data.synopsis # [변경] synopsis 저장 로직
     if scenario_data.themes is not None:
         scenario.themes = json.dumps(scenario_data.themes, ensure_ascii=False)
 
@@ -134,7 +134,7 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     scenario_themes = f"### 핵심 테마\n{', '.join(themes_list)}" if themes_list else ""
     characters_context = "### 주요 등장인물\n" + "\n".join([f"- {c.name}: {c.description}" for c in selected_characters])
     story_concept = f"### 이야기 핵심 컨셉\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
-    prologue_context = f"### 프롤로그 / 도입부 스토리\n{scenario.prologue}" if scenario.prologue and scenario.prologue.strip() else ""
+    synopsis_context = f"### 시놉시스 / 전체 줄거리\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
 
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
@@ -151,7 +151,7 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
 {scenario_themes}
 {characters_context}
 {story_concept}
-{prologue_context}
+{synopsis_context}
 ---
 
 [TASK]
@@ -340,16 +340,16 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
     characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
     characters_context = "[주요 등장인물]\n" + "\n".join([f"- {c.name}: {c.description}" for c in characters])
     story_concept = f"[이야기 핵심 컨셉]\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
-    # [수정] 프롤로그 컨텍스트 추가
-    prologue_context = f"[프롤로그 / 도입부]\n{scenario.prologue}" if scenario.prologue and scenario.prologue.strip() else ""
+    # [변경] 시놉시스 컨텍스트 추가
+    synopsis_context = f"[시놉시스 / 전체 줄거리]\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
 
 
-    # [수정] AI 프롬프트를 새로운 컨텍스트(prologue)를 포함하도록 수정
+    # [변경] AI 프롬프트를 새로운 컨텍스트(synopsis)를 포함하도록 수정
     prompt = f"""당신은 이야기의 전체적인 일관성을 유지하며 특정 부분을 섬세하게 수정하는 전문 스토리 편집자입니다.
 아래 제공된 '전체 스토리 흐름'과 컨텍스트를 참고하여, '수정 대상 플롯 포인트'를 사용자의 '수정 요청사항'에 맞게 수정해주세요.
 
 {story_concept}
-{prologue_context}
+{synopsis_context}
 [주요 등장인물]
 {characters_context}
 

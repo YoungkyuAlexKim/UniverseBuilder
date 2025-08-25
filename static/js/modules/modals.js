@@ -32,6 +32,16 @@ export function closeModal() {
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
+    
+    // [수정] ESC 키 이벤트 리스너 제거
+    document.removeEventListener('keydown', handleEscKey);
+}
+
+// [신규] ESC 키 처리 함수
+function handleEscKey(event) {
+    if (event.key === 'Escape') {
+        closeModal();
+    }
 }
 
 export function openCardModal(card, projectId) {
@@ -107,6 +117,26 @@ export function openCardModal(card, projectId) {
         button.addEventListener('click', (e) => handleHighlightClick(e, projectId, card.id));
     });
 
+    // [수정] X 버튼 클릭 이벤트 리스너 추가
+    const closeButton = cardDetailsModal.querySelector('.close');
+    if (closeButton) {
+        const newCloseButton = closeButton.cloneNode(true);
+        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+        newCloseButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeModal();
+        });
+    }
+
+    // [수정] 모달 배경 클릭 이벤트 리스너 추가 (기존 이벤트 제거 후 추가)
+    modalBackdrop.onclick = null; // 기존 이벤트 제거
+    modalBackdrop.onclick = () => {
+        closeModal();
+    };
+
+    // [수정] ESC 키 이벤트 리스너 추가
+    document.addEventListener('keydown', handleEscKey);
+
     cardDetailsModal.classList.add('active');
     modalBackdrop.classList.add('active');
 }
@@ -146,6 +176,20 @@ export function openWorldviewCardModal(card, projectId, groupId) {
         // [수정] app.handleDeleteWorldviewCard 호출
         await app.handleDeleteWorldviewCard(projectId, card.id);
     });
+
+    // [수정] X 버튼 클릭 이벤트 리스너 추가 (세계관 카드 모달)
+    const closeButton = worldviewCardModal.querySelector('.close');
+    if (closeButton) {
+        const newCloseButton = closeButton.cloneNode(true);
+        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+        newCloseButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeModal();
+        });
+    }
+
+    // [수정] ESC 키 이벤트 리스너 추가
+    document.addEventListener('keydown', handleEscKey);
 
     worldviewCardModal.classList.add('active');
     modalBackdrop.classList.add('active');

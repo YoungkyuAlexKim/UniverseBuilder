@@ -31,8 +31,7 @@
                     <label for="ai-model-select">사용할 모델 선택</label>
                     <select id="ai-model-select">
                         <option value="gemini-2.5-flash-lite">Gemini-2.5 Flash Lite (빠름)</option>
-                        <option value="gemini-2.5-flash">Gemini-2.5 Flash (보통)</option>
-                        <option value="gemini-2.5-pro">Gemini-2.5 Pro (고품질)</option>
+                        <option value="gemini-2.5-flash" selected>Gemini-2.5 Flash (기본값, 추천)</option>
                     </select>
                 </form>
             </div>
@@ -97,8 +96,11 @@
                             <label for="scenario-summary">이야기 핵심 컨셉 (Logline)</label>
                             <input type="text" id="scenario-summary" name="summary" placeholder="이 이야기를 한 문장으로 요약합니다. (예: 몰락한 왕국의 기사가 현대로 넘어와 자신의 세계를 구원할 방법을 찾는다.)">
                             
-                            <label for="scenario-prologue">프롤로그 / 도입부 스토리 (Prologue)</label>
-                            <textarea id="scenario-prologue" name="prologue" rows="5" placeholder="이야기의 시작점, 분위기, 주인공의 초기 상황을 자유롭게 서술합니다. 기존 '메인 세계관'에 잘못 작성되던 내용이 이곳으로 이동합니다."></textarea>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label for="scenario-synopsis">시놉시스 / 전체 줄거리 (Synopsis)</label>
+                                <button type="button" id="enhance-synopsis-btn" class="secondary outline" style="width: auto; font-size: 0.9rem;">✨ AI 스토리 구체화</button>
+                            </div>
+                            <textarea id="scenario-synopsis" name="synopsis" rows="5" placeholder="이야기의 전체적인 흐름과 구조를 자유롭게 서술합니다. 한 줄 아이디어부터 상세한 줄거리까지, AI와 함께 발전시켜 나갈 수 있습니다."></textarea>
 
                             <div class="grid">
                                 <label for="scenario-title">
@@ -287,6 +289,59 @@
                     <button id="refine-rule-reject-btn" class="secondary outline" style="width: auto;">반려</button>
                     <button id="refine-rule-reroll-btn" class="secondary" style="width: auto;">다시 시도 (Re-roll)</button>
                     <button id="refine-rule-accept-btn" style="width: auto;">이 내용으로 적용</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
+    <!-- [신규] 시놉시스 구체화 모달 -->
+    <div id="enhance-synopsis-modal" class="modal-container">
+        <article style="max-width: 90vw; width: 1200px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✨ AI 시놉시스 구체화</h3>
+            </header>
+            <div class="grid">
+                <article>
+                    <header><strong>현재 시놉시스</strong></header>
+                    <div id="enhance-synopsis-original" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px; max-height: 200px; overflow-y: auto;"></div>
+                </article>
+                <article>
+                    <header><strong>AI 제안</strong></header>
+                    <div id="enhance-synopsis-suggestion" style="white-space: pre-wrap; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; min-height: 100px; max-height: 200px; overflow-y: auto;">결과가 여기에 표시됩니다...</div>
+                </article>
+            </div>
+            <div style="margin-top: 1rem;">
+                <label for="synopsis-user-prompt"><strong>AI에게 요청할 내용:</strong></label>
+                <div class="grid" style="margin-bottom: 0.5rem;">
+                    <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="300자 내외로 더 상세하게 확장해줘">📝 상세하게 확장</button>
+                    <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="문장을 자연스럽게 다듬어줘">✏️ 문장 다듬기</button>
+                    <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="더 흥미진진하고 구체적으로 만들어줘">🎬 더 흥미롭게</button>
+                </div>
+                <textarea id="synopsis-user-prompt" rows="3" placeholder="또는 직접 입력: 어떻게 수정하고 싶으신지 자유롭게 설명해주세요..."></textarea>
+            </div>
+            <details style="margin-top: 1rem;">
+                <summary>참조할 정보 선택 (선택사항)</summary>
+                <div class="grid">
+                    <div>
+                        <fieldset><legend><strong>참고할 캐릭터</strong></legend></fieldset>
+                        <div id="synopsis-characters-container" class="checkbox-container" style="max-height: 150px; overflow-y: auto;">
+                            <p>캐릭터 정보 로딩 중...</p>
+                        </div>
+                    </div>
+                    <div>
+                        <fieldset><legend><strong>참고할 서브 설정</strong></legend></fieldset>
+                        <div id="synopsis-worldview-cards-container" class="checkbox-container" style="max-height: 150px; overflow-y: auto;">
+                            <p>서브 설정 정보 로딩 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </details>
+            <footer>
+                <div class="grid" style="justify-content: flex-end; grid-template-columns: repeat(3, auto); gap: 0.5rem;">
+                    <button id="enhance-synopsis-reject-btn" class="secondary outline" style="width: auto;">반려</button>
+                    <button id="enhance-synopsis-generate-btn" style="width: auto;">AI 구체화 실행</button>
+                    <button id="enhance-synopsis-accept-btn" style="width: auto; display: none;">이 내용으로 적용</button>
                 </div>
             </footer>
         </article>

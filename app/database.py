@@ -104,7 +104,7 @@ class Scenario(Base):
     title = Column(String, nullable=False, default="메인 시나리오")
     summary = Column(Text)
     themes = Column(Text) # JSON list of strings e.g., '["복수", "희생"]'
-    prologue = Column(Text) # [신규] 프롤로그 / 도입부 스토리 컬럼 추가
+    synopsis = Column(Text) # [변경] 시놉시스 / 전체 줄거리 컬럼
     project = relationship("Project", back_populates="scenarios")
     plot_points = relationship("PlotPoint", back_populates="scenario", cascade="all, delete-orphan")
 

@@ -74,6 +74,13 @@ export class App {
                 ui.activateTab(e.target.dataset.tab);
             }
         });
+
+        // [신규] 시놉시스 구체화 버튼 이벤트 리스너
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('#enhance-synopsis-btn')) {
+                this.handleEnhanceSynopsis();
+            }
+        });
     }
     
     /**
@@ -538,8 +545,11 @@ export class App {
     async handleSaveScenario(event, projectId, scenarioId) {
         event.preventDefault();
         const form = event.currentTarget;
-        const button = form.querySelector('button[type="submit"]');
-
+        
+        // [수정] 폼이 복제되더라도 항상 현재 DOM에서 버튼을 찾도록 개선
+        const getButton = () => form.querySelector('button[type="submit"]') || 
+                                document.querySelector('#scenario-details-form button[type="submit"]');
+        
         const themes = form.elements.themes.value.split(',')
             .map(theme => theme.trim())
             .filter(Boolean);
@@ -547,11 +557,13 @@ export class App {
         const scenarioData = {
             title: form.elements.title.value,
             summary: form.elements.summary.value,
-            prologue: form.elements.prologue.value,
+            synopsis: form.elements.synopsis.value,
             themes: themes
         };
 
-        button.setAttribute('aria-busy', 'true');
+        const button = getButton();
+        if (button) button.setAttribute('aria-busy', 'true');
+        
         try {
             await api.updateScenario(projectId, scenarioId, scenarioData);
             alert('시나리오 정보가 성공적으로 저장되었습니다.');
@@ -560,7 +572,9 @@ export class App {
             console.error('시나리오 저장 실패:', error);
             alert(error.message);
         } finally {
-            button.setAttribute('aria-busy', 'false');
+            // [수정] 저장 완료 후 다시 현재 버튼을 찾아서 aria-busy 해제
+            const finalButton = getButton();
+            if (finalButton) finalButton.setAttribute('aria-busy', 'false');
         }
     }
 
@@ -722,5 +736,201 @@ export class App {
         } finally {
             button.setAttribute('aria-busy', 'false');
         }
+    }
+
+    /**
+     * AI를 사용하여 시놉시스를 구체화합니다.
+     */
+    async handleEnhanceSynopsis() {
+        const synopsisTextarea = document.getElementById('scenario-synopsis');
+        const originalSynopsis = synopsisTextarea.value.trim();
+        const projectId = document.getElementById('project-title-display').dataset.currentProjectId;
+
+        if (!originalSynopsis) {
+            alert('먼저 구체화할 시놉시스를 입력해주세요.');
+            return;
+        }
+        if (!projectId) {
+            alert('현재 활성화된 프로젝트를 찾을 수 없습니다.');
+            return;
+        }
+
+        // 현재 프로젝트 정보 가져오기
+        const { projects } = this.stateManager.getState();
+        const project = projects.find(p => p.id === projectId);
+        if (!project) {
+            alert('프로젝트 정보를 찾을 수 없습니다.');
+            return;
+        }
+
+        // 시놉시스 구체화 모달 열기
+        this.openEnhanceSynopsisModal(originalSynopsis, project);
+    }
+
+    /**
+     * 시놉시스 구체화 모달을 엽니다.
+     */
+    openEnhanceSynopsisModal(originalSynopsis, project) {
+        const modal = document.getElementById('enhance-synopsis-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+        
+        // 원본 시놉시스 표시
+        document.getElementById('enhance-synopsis-original').textContent = originalSynopsis;
+        document.getElementById('enhance-synopsis-suggestion').textContent = '결과가 여기에 표시됩니다...';
+        
+        // 캐릭터 목록 렌더링
+        this.renderSynopsisCharacterList(project);
+        
+        // 세계관 카드 목록 렌더링  
+        this.renderSynopsisWorldviewCardsList(project);
+        
+        // 프리셋 버튼 이벤트 리스너 설정
+        modal.querySelectorAll('.synopsis-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('synopsis-user-prompt').value = btn.dataset.prompt;
+            });
+        });
+
+        // 버튼 이벤트 리스너 설정
+        document.getElementById('enhance-synopsis-generate-btn').onclick = () => this.executeEnhanceSynopsis(originalSynopsis, project.id);
+        document.getElementById('enhance-synopsis-accept-btn').onclick = () => this.applySynopsisEnhancement();
+        document.getElementById('enhance-synopsis-reject-btn').onclick = () => this.closeSynopsisModal();
+        
+        // 모달 닫기 버튼
+        modal.querySelector('.close').onclick = (e) => {
+            e.preventDefault();
+            this.closeSynopsisModal();
+        };
+
+        // 모달 표시
+        backdrop.style.display = 'block';
+        modal.style.display = 'block';
+    }
+
+    /**
+     * 시놉시스 모달용 캐릭터 목록 렌더링
+     */
+    renderSynopsisCharacterList(project) {
+        const container = document.getElementById('synopsis-characters-container');
+        
+        if (!project.groups || project.groups.length === 0) {
+            container.innerHTML = '<small>캐릭터가 없습니다.</small>';
+            return;
+        }
+
+        let charactersHTML = '';
+        project.groups.forEach(group => {
+            if (group.cards && group.cards.length > 0) {
+                const groupHTML = group.cards.map(card => `
+                    <label>
+                        <input type="checkbox" name="synopsis-character" value="${card.id}">
+                        ${card.name}
+                    </label>
+                `).join('');
+                charactersHTML += `<fieldset><legend>${group.name}</legend>${groupHTML}</fieldset>`;
+            }
+        });
+
+        container.innerHTML = charactersHTML || '<small>캐릭터가 없습니다.</small>';
+    }
+
+    /**
+     * 시놉시스 모달용 세계관 카드 목록 렌더링
+     */
+    renderSynopsisWorldviewCardsList(project) {
+        const container = document.getElementById('synopsis-worldview-cards-container');
+        
+        if (!project.worldview_groups || project.worldview_groups.length === 0) {
+            container.innerHTML = '<small>서브 설정이 없습니다.</small>';
+            return;
+        }
+
+        let cardsHTML = '';
+        project.worldview_groups.forEach(group => {
+            if (group.worldview_cards && group.worldview_cards.length > 0) {
+                const groupHTML = group.worldview_cards.map(card => `
+                    <label>
+                        <input type="checkbox" name="synopsis-worldview-card" value="${card.id}">
+                        ${card.title}
+                    </label>
+                `).join('');
+                cardsHTML += `<fieldset><legend>${group.name}</legend>${groupHTML}</fieldset>`;
+            }
+        });
+
+        container.innerHTML = cardsHTML || '<small>서브 설정이 없습니다.</small>';
+    }
+
+    /**
+     * AI 시놉시스 구체화 실행
+     */
+    async executeEnhanceSynopsis(originalSynopsis, projectId) {
+        const userPrompt = document.getElementById('synopsis-user-prompt').value.trim();
+        const generateBtn = document.getElementById('enhance-synopsis-generate-btn');
+        const acceptBtn = document.getElementById('enhance-synopsis-accept-btn');
+        const suggestionDiv = document.getElementById('enhance-synopsis-suggestion');
+
+        if (!userPrompt) {
+            alert('AI에게 요청할 내용을 입력해주세요.');
+            return;
+        }
+
+        // 선택된 컨텍스트 수집
+        const selectedCharacterIds = Array.from(document.querySelectorAll('input[name="synopsis-character"]:checked')).map(cb => cb.value);
+        const selectedWorldviewCardIds = Array.from(document.querySelectorAll('input[name="synopsis-worldview-card"]:checked')).map(cb => cb.value);
+
+        generateBtn.setAttribute('aria-busy', 'true');
+        generateBtn.disabled = true;
+        suggestionDiv.textContent = '생성 중...';
+
+        try {
+            const requestBody = {
+                existing_synopsis: originalSynopsis,
+                user_prompt: userPrompt,
+                project_id: projectId,
+                model_name: document.getElementById('ai-model-select').value,
+                selected_character_ids: selectedCharacterIds.length > 0 ? selectedCharacterIds : null,
+                selected_worldview_card_ids: selectedWorldviewCardIds.length > 0 ? selectedWorldviewCardIds : null
+            };
+
+            const result = await api.enhanceSynopsis(requestBody);
+            
+            // 결과 표시
+            suggestionDiv.textContent = result.enhanced_synopsis;
+            acceptBtn.style.display = 'inline-block';
+
+        } catch (error) {
+            console.error('시놉시스 구체화 실패:', error);
+            suggestionDiv.textContent = `오류가 발생했습니다: ${error.message}`;
+        } finally {
+            generateBtn.setAttribute('aria-busy', 'false');
+            generateBtn.disabled = false;
+        }
+    }
+
+    /**
+     * 구체화된 시놉시스를 적용
+     */
+    applySynopsisEnhancement() {
+        const enhancedSynopsis = document.getElementById('enhance-synopsis-suggestion').textContent;
+        const synopsisTextarea = document.getElementById('scenario-synopsis');
+        
+        synopsisTextarea.value = enhancedSynopsis;
+        alert('AI의 제안이 적용되었습니다! "시나리오 정보 저장" 버튼을 눌러 변경사항을 최종 저장하세요.');
+        this.closeSynopsisModal();
+    }
+
+    /**
+     * 시놉시스 모달 닫기
+     */
+    closeSynopsisModal() {
+        document.getElementById('enhance-synopsis-modal').style.display = 'none';
+        document.getElementById('modal-backdrop').style.display = 'none';
+        
+        // 폼 리셋
+        document.getElementById('synopsis-user-prompt').value = '';
+        document.querySelectorAll('input[name="synopsis-character"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('input[name="synopsis-worldview-card"]').forEach(cb => cb.checked = false);
+        document.getElementById('enhance-synopsis-accept-btn').style.display = 'none';
     }
 }

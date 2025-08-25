@@ -13,6 +13,7 @@ from typing import Optional, List
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
 from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
+from ..config import ai_models
 
 # --- Pydantic 모델 ---
 class GenerateRequest(BaseModel):
@@ -82,6 +83,15 @@ class RefineWorldviewRuleRequest(BaseModel):
     existing_rule: str
     project_id: str
     model_name: Optional[str] = None
+
+# [신규] 시놉시스 구체화 요청 모델
+class EnhanceSynopsisRequest(BaseModel):
+    existing_synopsis: str
+    user_prompt: str
+    project_id: str
+    model_name: Optional[str] = None
+    selected_character_ids: Optional[List[str]] = None
+    selected_worldview_card_ids: Optional[List[str]] = None
 
 # --- 설정 및 유틸리티 임포트 ---
 from ..config import ai_models, ai_prompts
@@ -237,7 +247,7 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
             character_info = [f"- 이름: {card.name}, 설명: {card.description}" for card in existing_cards]
             character_context_prompt = "\n**참고할 기존 캐릭터 정보:**\n" + "\n".join(character_info)
 
-    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+    chosen_model = request.model_name or ai_models.available[0]
     model = genai.GenerativeModel(chosen_model)
 
     prompt = ai_prompts.character_generation.format(
@@ -412,7 +422,7 @@ async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditReques
     if request.edit_related_characters:
         editing_instruction = f"""사용자의 요청에 따라 캐릭터 정보를 수정할 때, **'{edited_card_name}'** 캐릭터를 중심으로 서사를 변경해주세요. 한 캐릭터의 수정이 다른 캐릭터의 서사에 영향을 준다면, 컨텍스트로 제공된 관련된 다른 캐릭터들의 정보도 자연스럽게 수정해야 합니다."""
 
-    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+    chosen_model = request.model_name or ai_models.available[0]
     model = genai.GenerativeModel(chosen_model)
 
     prompt = f"""당신은 세계관 설정의 일관성을 유지하는 전문 편집자입니다.
@@ -494,7 +504,7 @@ async def edit_worldview_card_with_ai(project_id: str, card_id: str, request: AI
     if request.edit_related_cards:
         editing_instruction = f"""**'{edited_card_title}'** 카드를 중심으로 내용을 변경하고, 관련된 다른 카드의 정보도 자연스럽게 수정해야 합니다."""
     
-    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+    chosen_model = request.model_name or ai_models.available[0]
     model = genai.GenerativeModel(chosen_model)
 
     prompt = f"""당신은 세계관 설정의 일관성을 유지하는 전문 편집자입니다.
@@ -798,3 +808,72 @@ async def refine_worldview_rule(request: RefineWorldviewRuleRequest, db: Session
         return {"refined_rule": response.text.strip()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 설정 다듬기에 실패했습니다. 오류: {e}")
+
+# [신규] 시놉시스 구체화 API 엔드포인트
+@router.post("/generate/synopsis-enhance")
+async def enhance_synopsis_with_ai(request: EnhanceSynopsisRequest, db: Session = Depends(database.get_db)):
+    if not api_key:
+        error_response = create_ai_error_response(
+            operation="setup",
+            original_error=Exception("GOOGLE_API_KEY not configured"),
+            ai_response=None
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_response.model_dump()
+        )
+
+    project = db.query(ProjectModel).filter(ProjectModel.id == request.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+
+    # [수정] 컨텍스트 정보 준비 (선택된 경우에만)
+    context_parts = []
+    
+    # 선택된 캐릭터 정보 추가
+    if request.selected_character_ids:
+        selected_characters = db.query(CardModel).filter(CardModel.id.in_(request.selected_character_ids)).all()
+        if selected_characters:
+            char_info = [f"- {card.name}: {card.description[:100]}..." if len(card.description) > 100 else f"- {card.name}: {card.description}" for card in selected_characters]
+            context_parts.append(f"[참고할 캐릭터 정보]\n" + "\n".join(char_info))
+    
+    # 선택된 세계관 카드 정보 추가
+    if request.selected_worldview_card_ids:
+        selected_cards = db.query(WorldviewCardModel).filter(WorldviewCardModel.id.in_(request.selected_worldview_card_ids)).all()
+        if selected_cards:
+            card_info = [f"- {card.title}: {card.content[:80]}..." if len(card.content) > 80 else f"- {card.title}: {card.content}" for card in selected_cards]
+            context_parts.append(f"[참고할 세계관 설정]\n" + "\n".join(card_info))
+    
+    # 컨텍스트 문자열 생성
+    context_text = "\n\n".join(context_parts) if context_parts else ""
+
+    try:
+        chosen_model = request.model_name or ai_models.available[0]
+        model = genai.GenerativeModel(chosen_model)
+        
+        # [복구] 처음 설계했던 풍성하고 상세한 프롬프트 (Flash 모델이므로 안전)
+        prompt = f"""당신은 사용자의 창작 의도를 정확히 파악하고 이를 발전시키는 전문 스토리 에디터입니다.
+아래 정보를 바탕으로, 사용자의 '요청사항'에 따라 '기존 시놉시스'를 수정하고 발전시켜 주세요.
+
+{context_text}
+
+**매우 중요한 규칙:**
+1. **사용자 의도 존중:** 사용자의 요청사항을 최우선으로 하고, 기존 시놉시스의 핵심 아이디어는 유지해주세요.
+2. **참고 정보 활용:** 선택된 캐릭터와 설정 정보가 있다면 자연스럽게 반영해주세요.
+3. **감성과 톤 유지:** 원본 시놉시스가 가진 고유의 감성(유머, 진지함, 비극성 등)과 문체를 존중해주세요.
+4. **완성된 결과물:** 최종 결과는 수정된 시놉시스 텍스트만 출력해야 합니다. 설명이나 부가 내용을 붙이지 마세요.
+
+---
+[기존 시놉시스]
+{request.existing_synopsis}
+
+[사용자 요청사항]
+{request.user_prompt}
+
+---
+[출력]
+(사용자 요청에 따라 수정/발전된 새로운 시놉시스)"""
+        response = await model.generate_content_async(prompt)
+        return {"enhanced_synopsis": response.text.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 시놉시스 구체화에 실패했습니다. 오류: {e}")

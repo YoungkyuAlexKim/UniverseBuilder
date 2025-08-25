@@ -10,8 +10,7 @@ class AIModels:
     """AI 모델 관련 설정"""
     available: List[str] = field(default_factory=lambda: [
         "gemini-2.5-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-2.5-pro"
+        "gemini-2.5-flash"
     ])
     default: str = "gemini-2.5-flash-lite"
 

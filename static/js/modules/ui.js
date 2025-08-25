@@ -271,7 +271,7 @@ export function renderScenarioTab(projectData) {
 
     const form = container.querySelector('#scenario-details-form');
     form.elements.summary.value = mainScenario.summary || '';
-    form.elements.prologue.value = mainScenario.prologue || '';
+    form.elements.synopsis.value = mainScenario.synopsis || '';
     form.elements.title.value = mainScenario.title || '';
     form.elements.themes.value = (mainScenario.themes || []).join(', ');
 

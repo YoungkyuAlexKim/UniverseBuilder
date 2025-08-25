@@ -32,7 +32,7 @@ class Scenario(BaseModel):
     title: str
     summary: Optional[str] = None
     themes: Optional[List[str]] = None
-    prologue: Optional[str] = None
+    synopsis: Optional[str] = None
     plot_points: List[PlotPoint] = []
     class Config:
         from_attributes = True
@@ -208,7 +208,15 @@ def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
         project_dict["worldview_groups"].append(wv_group_dict)
 
     for scenario_orm in project_orm.scenarios:
-        scenario_dict = scenario_orm.__dict__
+        # [수정] synopsis 필드를 안전하게 처리
+        scenario_dict = {
+            "id": scenario_orm.id,
+            "project_id": scenario_orm.project_id,
+            "title": scenario_orm.title,
+            "summary": scenario_orm.summary,
+            "synopsis": getattr(scenario_orm, 'synopsis', ''),  # synopsis 필드 안전 처리
+        }
+        
         themes_value = getattr(scenario_orm, 'themes', None)
         if themes_value and isinstance(themes_value, str):
             try:
@@ -296,7 +304,7 @@ def get_project_details(project: ProjectModel = Depends(get_project_if_accessibl
             id=f"scen-{int(time.time() * 1000)}",
             project_id=project.id,
             title="메인 시나리오",
-            prologue=""
+            synopsis=""
         )
         db.add(new_scenario)
         db.commit()

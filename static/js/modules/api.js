@@ -473,3 +473,13 @@ export async function suggestRelationship(projectId, sourceCharacterId, targetCh
     });
     return handleResponse(response);
 }
+
+// [신규] 시놉시스 구체화 API 호출 함수
+export async function enhanceSynopsis(requestBody) {
+    const response = await fetch('/api/v1/generate/synopsis-enhance', {
+        method: 'POST',
+        headers: getAuthHeaders(requestBody.project_id),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
