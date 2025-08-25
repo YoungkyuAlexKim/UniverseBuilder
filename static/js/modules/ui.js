@@ -81,6 +81,12 @@ export function activateTab(tabId) {
     
     document.querySelector(`.tab-link[data-tab="${tabId}"]`).classList.add('active');
     document.getElementById(`tab-content-${tabId}`).classList.add('active');
+    
+    // 탭 전환 시 스크롤을 맨 위로 리셋
+    const tabsContainer = document.querySelector('.tabs-container');
+    if (tabsContainer) {
+        tabsContainer.scrollTop = 0;
+    }
 }
 
 
@@ -253,7 +259,7 @@ function addWorldviewRuleInput(value = '', projectId, container) {
         const borderBottom = parseInt(computedStyle.borderBottomWidth);
         
         const extraHeight = paddingTop + paddingBottom + borderTop + borderBottom + 8; // 8px 여유 공간
-        const newHeight = Math.max(40, inputField.scrollHeight + extraHeight);
+        const newHeight = Math.max(60, inputField.scrollHeight + extraHeight); // 40px에서 60px로 1.5배 증가
         
         inputField.style.height = newHeight + 'px';
     }

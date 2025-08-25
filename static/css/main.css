@@ -45,11 +45,12 @@ body, html { height: 100%; margin: 0; overflow: hidden; }
 }
 
 .main-content { 
-    padding: 2rem; 
-    overflow-y: auto; 
+    padding: 0; /* padding을 제거하여 project-header가 전체 너비를 사용할 수 있게 함 */
+    overflow-y: visible; /* sticky가 작동하도록 overflow 변경 */
     position: relative; 
     grid-column: 3;
     background-color: #0d1117;
+    height: 100vh; /* 높이를 명시적으로 설정 */
 }
 
 .sidebar h3 { margin-top: 0; }
@@ -70,8 +71,30 @@ body, html { height: 100%; margin: 0; overflow: hidden; }
     height: auto;
 }
 
-.content-view { display: none; }
+.content-view { 
+    display: none; 
+    height: 100vh;
+    overflow-y: auto;
+}
 .content-view.active { display: block; }
+
+/* welcome-view는 중앙 정렬과 패딩 필요 */
+#welcome-view.content-view.active {
+    padding: 2rem;
+    display: flex !important; /* active 상태일 때만 flex 적용 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+/* project-detail-view는 패딩 없이 전체 높이 사용 */
+#project-detail-view.content-view.active {
+    padding: 0;
+    height: 100vh;
+    overflow: hidden; /* sticky가 작동하도록 */
+    display: block !important; /* active 상태일 때 block 적용 */
+}
 pre { white-space: pre-wrap; word-wrap: break-word; }
 
 .project-list li > span {
@@ -85,12 +108,56 @@ pre { white-space: pre-wrap; word-wrap: break-word; }
 article strong:not(.label) { color: #F59E0B; font-weight: bold; }
 article .protagonist { color: #06B6D4; font-weight: bold; }
 
-nav ul { display: flex; list-style: none; padding: 0; margin: 0; border-bottom: 2px solid #30363d; }
+/* 프로젝트 헤더(제목 + 탭 네비게이션)를 상단에 고정 */
+.project-header {
+    position: sticky;
+    top: 0;
+    background-color: #0d1117;
+    z-index: 100;
+    padding: 0 2rem; /* 좌우 패딩 */
+    border-bottom: 2px solid #30363d;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.project-header hgroup {
+    margin-bottom: 0;
+    padding: 1rem 0 0.5rem 0;
+    border-bottom: 1px solid #21262d;
+    text-align: center;
+}
+
+.project-header hgroup h1 {
+    margin: 0;
+    color: #f0f6fc;
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.project-header nav {
+    margin: 0;
+    padding: 0;
+}
+
+nav ul { display: flex; list-style: none; padding: 0; margin: 0; }
 nav li { margin: 0; }
-.tab-link { display: inline-block; padding: 0.75rem 1.25rem; text-decoration: none; border: 2px solid transparent; border-bottom: 0; margin-bottom: -2px; border-radius: 6px 6px 0 0; color: #58a6ff; }
+.tab-link { display: inline-block; padding: 0.75rem 1.25rem; text-decoration: none; border: 2px solid transparent; border-bottom: 0; margin-bottom: -2px; border-radius: 6px 6px 0 0; color: #58a6ff; transition: all 0.2s ease; }
 .tab-link:hover { background-color: #22272e; }
-.tab-link.active { background-color: #161a1f; border-color: #30363d; border-bottom-color: #161a1f; font-weight: bold; }
-.tab-content { display: none; padding-top: 1.5rem; }
+.tab-link.active { background-color: #161a1f; border-color: #30363d; border-bottom-color: #0d1117; font-weight: bold; }
+
+/* 탭 내용 영역을 스크롤 가능한 컨테이너로 설정 */
+.tabs-container {
+    height: calc(100vh - 160px); /* 전체 화면 높이에서 프로젝트 헤더(제목 + 탭) 높이 제외 */
+    overflow-y: auto;
+    padding: 1.5rem 2rem; /* 좌우 패딩 추가 */
+}
+
+.tab-content { 
+    display: none; 
+    height: 100%;
+    min-height: calc(100vh - 180px); /* 최소 높이 설정 (프로젝트 헤더 높이 반영) */
+}
 .tab-content.active { display: block; }
 
 .groups-container { display: flex; gap: 1.5rem; overflow-x: auto; padding-bottom: 1rem; align-items: flex-start; }
@@ -102,7 +169,7 @@ nav li { margin: 0; }
     padding: 1rem; 
     width: 320px; 
     flex-shrink: 0; 
-    max-height: 80vh; 
+    max-height: calc(100vh - 240px); /* 탭 컨테이너 내에서의 적절한 높이 설정 (프로젝트 헤더 높이 반영) */
     display: flex; 
     flex-direction: column; 
 }
@@ -228,6 +295,134 @@ nav li { margin: 0; }
 .dynamic-input-wrapper textarea {
     flex-grow: 1;
     margin: 0 !important;
+}
+
+/* 세계관 규칙 입력 필드의 기본 높이를 1.5배로 설정 */
+.dynamic-input-wrapper textarea[name="rules"] {
+    min-height: 3.75rem; /* 기본 2.5rem에서 3.75rem으로 1.5배 증가 */
+}
+
+/* 세계관 폼 UI 개선 */
+#worldview-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* 세계관 폼의 각 섹션을 카드 형태로 구분 */
+#worldview-form .worldview-section {
+    background-color: #161a1f;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: border-color 0.2s ease;
+}
+
+#worldview-form .worldview-section:hover {
+    border-color: #444c56;
+}
+
+/* 세계관 라벨 스타일 개선 */
+#worldview-form .section-label {
+    color: #58a6ff;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 세계관 입력 필드 스타일 */
+#worldview-form .main-input {
+    font-size: 1rem;
+    padding: 0.75rem;
+    border: 2px solid #30363d;
+    border-radius: 6px;
+    background-color: #0d1117;
+    transition: border-color 0.2s ease;
+}
+
+#worldview-form .main-input:focus {
+    border-color: #58a6ff;
+}
+
+/* 핵심설정 섹션 특별 스타일 */
+.rules-section {
+    background: linear-gradient(135deg, #1a1f26 0%, #161a1f 100%);
+    border: 2px solid #444c56;
+}
+
+.rules-section .section-label {
+    color: #f59e0b;
+    font-size: 1.2rem;
+}
+
+/* 버튼들의 시각적 구분 */
+#add-worldview-rule-btn {
+    background-color: #22272e;
+    border: 2px dashed #444c56;
+    color: #8b949e;
+    font-weight: 500;
+    padding: 0.75rem;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+#add-worldview-rule-btn:hover {
+    border-color: #58a6ff;
+    color: #58a6ff;
+    background-color: rgba(88, 166, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+#add-worldview-rule-btn::before {
+    content: '✨';
+    margin-right: 0.5rem;
+    font-size: 1.1em;
+}
+
+#save-worldview-btn {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+    border: none;
+    box-shadow: 0 2px 8px rgba(46, 160, 67, 0.3);
+    transition: all 0.2s ease;
+}
+
+#save-worldview-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+}
+
+/* 세계관 폼의 전체적인 간격 조정 */
+#tab-content-worldview article {
+    padding: 2rem;
+    background: linear-gradient(135deg, #0d1117 0%, #161a1f 100%);
+    border-radius: 10px;
+    border: 1px solid #21262d;
+    margin-bottom: 2rem;
+}
+
+#tab-content-worldview hgroup {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #21262d;
+}
+
+#tab-content-worldview hgroup h4 {
+    color: #f0f6fc;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#tab-content-worldview hgroup p {
+    color: #8b949e;
+    font-style: italic;
 }
 
 .dynamic-input-wrapper button {

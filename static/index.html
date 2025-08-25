@@ -46,47 +46,56 @@
             </div>
             
             <div id="project-detail-view" class="content-view">
-                <hgroup><h1 id="project-title-display"></h1></hgroup>
-                <nav>
-                    <ul>
-                        <li><a href="#" class="tab-link active" data-tab="characters">캐릭터</a></li>
-                        <li><a href="#" class="tab-link" data-tab="worldview">세계관</a></li>
-                        <li><a href="#" class="tab-link" data-tab="scenario">시나리오</a></li> </ul>
-                </nav>
-                <div id="tab-content-characters" class="tab-content active">
-                    <div id="card-list-container"></div> 
+                <div class="project-header">
+                    <hgroup><h1 id="project-title-display"></h1></hgroup>
+                    <nav>
+                        <ul>
+                            <li><a href="#" class="tab-link active" data-tab="characters">캐릭터</a></li>
+                            <li><a href="#" class="tab-link" data-tab="worldview">세계관</a></li>
+                            <li><a href="#" class="tab-link" data-tab="scenario">시나리오</a></li> </ul>
+                    </nav>
                 </div>
-
-                <div id="tab-content-worldview" class="tab-content">
-                    <article>
-                        <hgroup>
-                            <h4>메인 세계관 (무대 설정)</h4>
-                            <p>이야기가 펼쳐질 '무대'의 규칙과 설정을 정의하는 공간입니다.</p>
-                        </hgroup>
-                        <form id="worldview-form">
-                            <label for="worldview-logline">한 줄 정의 (Logline)</label>
-                            <input type="text" id="worldview-logline" name="logline" placeholder="이 세계를 한 문장으로 정의합니다. (예: 마법이 기술을 대체한 스팀펑크 세계)">
-
-                            <label for="worldview-genre">장르 및 분위기 (Genre & Tone)</label>
-                            <input type="text" id="worldview-genre" name="genre" placeholder="이 세계의 장르와 전반적인 분위기를 설명합니다. (예: 다크 판타지, 희망적인 디스토피아)">
-
-                            <label>세계관 핵심 설정</label>
-                            <div id="worldview-rules-container" class="dynamic-input-container" style="gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <!-- 핵심 설정 필드가 여기에 동적으로 추가됩니다. -->
-                            </div>
-                            <button type="button" id="add-worldview-rule-btn" class="secondary outline" style="width: 100%;">+ 핵심 설정 추가</button>
-                            
-                            <button type="submit" id="save-worldview-btn" style="margin-top: 1.5rem;">메인 세계관 저장</button>
-                        </form>
-                    </article>
-                    <hr>
-                    <h4>서브 설정 카드</h4>
-                    <div id="worldview-card-list-container">
-                        <!-- 서브 설정 카드들이 여기에 동적으로 렌더링됩니다. -->
+                <div class="tabs-container">
+                    <div id="tab-content-characters" class="tab-content active">
+                        <div id="card-list-container"></div> 
                     </div>
-                </div>
 
-                <div id="tab-content-scenario" class="tab-content">
+                    <div id="tab-content-worldview" class="tab-content">
+                        <article>
+                            <hgroup>
+                                <h4>메인 세계관 (무대 설정)</h4>
+                                <p>이야기가 펼쳐질 '무대'의 규칙과 설정을 정의하는 공간입니다.</p>
+                            </hgroup>
+                            <form id="worldview-form">
+                                <div class="worldview-section">
+                                    <label for="worldview-logline" class="section-label">🎯 한 줄 정의 (Logline)</label>
+                                    <input type="text" id="worldview-logline" name="logline" class="main-input" placeholder="이 세계를 한 문장으로 정의합니다. (예: 마법이 기술을 대체한 스팀펑크 세계)">
+                                </div>
+
+                                <div class="worldview-section">
+                                    <label for="worldview-genre" class="section-label">🎭 장르 및 분위기 (Genre & Tone)</label>
+                                    <input type="text" id="worldview-genre" name="genre" class="main-input" placeholder="이 세계의 장르와 전반적인 분위기를 설명합니다. (예: 다크 판타지, 희망적인 디스토피아)">
+                                </div>
+
+                                <div class="worldview-section rules-section">
+                                    <label class="section-label">⚡ 세계관 핵심 설정</label>
+                                    <div id="worldview-rules-container" class="dynamic-input-container" style="gap: 0.75rem; margin-bottom: 1rem;">
+                                        <!-- 핵심 설정 필드가 여기에 동적으로 추가됩니다. -->
+                                    </div>
+                                    <button type="button" id="add-worldview-rule-btn" class="secondary outline" style="width: 100%;">핵심 설정 추가</button>
+                                </div>
+                                
+                                <button type="submit" id="save-worldview-btn">💾 메인 세계관 저장</button>
+                            </form>
+                        </article>
+                        <hr>
+                        <h4>서브 설정 카드</h4>
+                        <div id="worldview-card-list-container">
+                            <!-- 서브 설정 카드들이 여기에 동적으로 렌더링됩니다. -->
+                        </div>
+                    </div>
+
+                    <div id="tab-content-scenario" class="tab-content">
                     <article>
                         <hgroup>
                             <h4>메인 스토리 (사건의 흐름)</h4>
@@ -136,6 +145,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         </main>
     </div>
 
