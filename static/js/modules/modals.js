@@ -430,7 +430,7 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     const wordCountLabel = document.getElementById('word-count-label');
     if (wordCountSlider && wordCountLabel) {
         const updateWordCountLabel = () => {
-            const labels = ['짧게 (약 500자)', '중간 (약 1000자)', '길게 (약 1500자)'];
+            const labels = ['짧게 (약 1000자)', '중간 (약 2000자)', '길게 (약 3000자)'];
             wordCountLabel.textContent = labels[parseInt(wordCountSlider.value)];
         };
         
@@ -438,6 +438,29 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
         wordCountSlider.parentNode.replaceChild(newSlider, wordCountSlider);
         newSlider.addEventListener('input', updateWordCountLabel);
         updateWordCountLabel(); // 초기값 설정
+    }
+    
+    // 캐릭터 선택 UI 설정
+    setupCharacterSelection(projectId);
+    
+    // 전체 선택/해제 버튼 이벤트 리스너
+    const selectAllBtn = document.getElementById('select-all-characters');
+    const deselectAllBtn = document.getElementById('deselect-all-characters');
+    if (selectAllBtn && deselectAllBtn) {
+        const newSelectAllBtn = selectAllBtn.cloneNode(true);
+        const newDeselectAllBtn = deselectAllBtn.cloneNode(true);
+        selectAllBtn.parentNode.replaceChild(newSelectAllBtn, selectAllBtn);
+        deselectAllBtn.parentNode.replaceChild(newDeselectAllBtn, deselectAllBtn);
+        
+        newSelectAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('#plot-point-character-selection input[type="checkbox"]')
+                .forEach(checkbox => checkbox.checked = true);
+        });
+        
+        newDeselectAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('#plot-point-character-selection input[type="checkbox"]')
+                .forEach(checkbox => checkbox.checked = false);
+        });
     }
     
     // [버그 수정] 모달을 닫는 이벤트 리스너들을 여기에 추가합니다.
@@ -523,4 +546,44 @@ export function updateRefineWorldviewRuleSuggestion(suggestedRule, onAcceptCallb
     newAcceptBtn.addEventListener('click', () => {
         onAcceptCallback(suggestedRule);
     });
+}
+
+function setupCharacterSelection(projectId) {
+    const characterContainer = document.getElementById('plot-point-character-selection');
+    if (!characterContainer) return;
+    
+    const currentProject = app.stateManager.getState().currentProject;
+    if (!currentProject || !currentProject.groups) {
+        characterContainer.innerHTML = '<p>캐릭터 정보를 불러올 수 없습니다.</p>';
+        return;
+    }
+    
+    let charactersHTML = '';
+    let characterCount = 0;
+    
+    currentProject.groups.forEach(group => {
+        if (group.cards && group.cards.length > 0) {
+            group.cards.forEach(character => {
+                characterCount++;
+                const isMainCharacter = characterCount <= 3; // 처음 3명을 주요 캐릭터로 간주하여 기본 선택
+                charactersHTML += `
+                <label style="display: flex; align-items: center; margin-bottom: 0.5rem; padding: 0.25rem; border: 1px solid var(--pico-muted-border-color); border-radius: 4px; cursor: pointer;">
+                    <input type="checkbox" name="selected_characters" value="${character.id}" ${isMainCharacter ? 'checked' : ''} style="margin-right: 0.5rem;">
+                    <div>
+                        <strong>${character.name}</strong>
+                        <div style="font-size: 0.8rem; color: var(--pico-muted-color); margin-top: 0.2rem;">
+                            ${character.description ? character.description.substring(0, 80) + (character.description.length > 80 ? '...' : '') : '설명 없음'}
+                        </div>
+                    </div>
+                </label>
+                `;
+            });
+        }
+    });
+    
+    if (charactersHTML) {
+        characterContainer.innerHTML = charactersHTML;
+    } else {
+        characterContainer.innerHTML = '<p>등록된 캐릭터가 없습니다.</p>';
+    }
 }

@@ -314,7 +314,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 - **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 배우 목록 (등장인물)]**
-{characters_context}
+{characters_context}{relationships_context}
 
 **[창작 가이드라인]**
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
@@ -336,7 +336,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 - **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 배우 목록 (등장인물)]**
-{characters_context}
+{characters_context}{relationships_context}
 
 **[창작 가이드라인]**
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
@@ -369,7 +369,7 @@ SCENE END
 - **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 배우 목록 (등장인물)]**
-{characters_context}
+{characters_context}{relationships_context}
 
 **[창작 가이드라인]**
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
@@ -399,7 +399,7 @@ SCENE END
 - **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 등장인물]**
-{characters_context}
+{characters_context}{relationships_context}
 
 **[사용자 수정 요청사항]**
 {user_edit_request}

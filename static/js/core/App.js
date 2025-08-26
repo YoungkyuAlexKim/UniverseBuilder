@@ -513,6 +513,7 @@ export class App {
             themes: themes
         };
 
+        // 버튼 참조를 고정하여 UI 재렌더링 시에도 스피너를 제대로 해제할 수 있도록 함
         const button = getButton();
         if (button) button.setAttribute('aria-busy', 'true');
         
@@ -524,8 +525,13 @@ export class App {
             console.error('시나리오 저장 실패:', error);
             alert(error.message);
         } finally {
-            const finalButton = getButton();
-            if (finalButton) finalButton.setAttribute('aria-busy', 'false');
+            // 원래 버튼이 아직 DOM에 있다면 해제, 없다면 현재 버튼 해제
+            if (button && button.parentNode) {
+                button.setAttribute('aria-busy', 'false');
+            } else {
+                const currentButton = getButton();
+                if (currentButton) currentButton.setAttribute('aria-busy', 'false');
+            }
         }
     }
 
@@ -568,8 +574,8 @@ export class App {
             return;
         }
 
-        if (!plotPointCount || plotPointCount < 5 || plotPointCount > 25) {
-            alert('플롯 개수는 5에서 25 사이의 숫자여야 합니다.');
+        if (!plotPointCount || plotPointCount < 5 || plotPointCount > 50) {
+            alert('플롯 개수는 5에서 50 사이의 숫자여야 합니다.');
             return;
         }
 
@@ -678,7 +684,10 @@ export class App {
         const wordCountSlider = document.getElementById('word-count-slider');
 
         const project = this.stateManager.getState().currentProject;
-        const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
+        
+        // 선택된 캐릭터 ID들만 가져오기
+        const selectedCharacterIds = Array.from(document.querySelectorAll('#plot-point-character-selection input[type="checkbox"]:checked'))
+            .map(checkbox => checkbox.value);
         
         // 글자 수 옵션 매핑
         const wordCountOptions = ['short', 'medium', 'long'];
@@ -686,7 +695,7 @@ export class App {
 
         const requestBody = {
             output_format: formatSelect.value,
-            character_ids: allCharacterIds,
+            character_ids: selectedCharacterIds,
             model_name: document.getElementById('ai-model-select').value,
             word_count: wordCount
         };
@@ -729,7 +738,10 @@ export class App {
         const wordCountSlider = document.getElementById('word-count-slider');
 
         const project = this.stateManager.getState().currentProject;
-        const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
+        
+        // 선택된 캐릭터 ID들만 가져오기
+        const selectedCharacterIds = Array.from(document.querySelectorAll('#plot-point-character-selection input[type="checkbox"]:checked'))
+            .map(checkbox => checkbox.value);
         
         // 글자 수 옵션 매핑
         const wordCountOptions = ['short', 'medium', 'long'];
@@ -738,7 +750,7 @@ export class App {
         const requestBody = {
             user_edit_request: userEditRequest,
             output_format: formatSelect.value,
-            character_ids: allCharacterIds,
+            character_ids: selectedCharacterIds,
             model_name: document.getElementById('ai-model-select').value,
             word_count: wordCount
         };
@@ -936,6 +948,13 @@ export class App {
     closeSynopsisModal() {
         document.getElementById('enhance-synopsis-modal').style.display = 'none';
         document.getElementById('modal-backdrop').style.display = 'none';
+        
+        // 스피너 해제
+        const generateBtn = document.getElementById('enhance-synopsis-generate-btn');
+        if (generateBtn) {
+            generateBtn.setAttribute('aria-busy', 'false');
+            generateBtn.disabled = false;
+        }
         
         document.getElementById('synopsis-user-prompt').value = '';
         document.querySelectorAll('input[name="synopsis-character"]').forEach(cb => cb.checked = false);

@@ -15,7 +15,7 @@ from google.api_core import exceptions as google_exceptions
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
-from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, Card as CardModel, Worldview as WorldviewModel
+from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, Card as CardModel, Worldview as WorldviewModel, Relationship as RelationshipModel
 from .projects import get_project_if_accessible
 # [신규] 프롬프트 설정을 불러오기 위한 임포트
 from ..config import ai_prompts
@@ -350,11 +350,31 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     character_names = ", ".join([c.name for c in characters]) if characters else "등장인물"
     
+    # 선택된 캐릭터들 간의 관계 정보 가져오기
+    relationships_context = ""
+    if len(character_ids) > 1:
+        relationships = db.query(RelationshipModel).filter(
+            RelationshipModel.source_character_id.in_(character_ids),
+            RelationshipModel.target_character_id.in_(character_ids),
+            RelationshipModel.project_id == project.id
+        ).all()
+        
+        if relationships:
+            char_name_map = {c.id: c.name for c in characters}
+            relationship_descriptions = []
+            for rel in relationships:
+                source_name = char_name_map.get(rel.source_character_id, "알 수 없는 캐릭터")
+                target_name = char_name_map.get(rel.target_character_id, "알 수 없는 캐릭터")
+                relationship_descriptions.append(f"- {source_name} → {target_name}: {rel.type} ({rel.description or '세부 설명 없음'})")
+            
+            if relationship_descriptions:
+                relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
+    
     # 글자 수 지시사항 생성
     word_count_map = {
-        "short": "이 장면은 약 500자 내외의 간결하면서도 핵심적인 분량으로 작성해주세요. 핵심 포인트만 담되 여운은 남겨주세요.",
-        "medium": "이 장면은 약 1000자 내외의 적당한 분량으로 작성해주세요. 상황과 감정이 충분히 전달되도록 묘사해주세요.", 
-        "long": "이 장면은 약 1500자 내외의 풍부하고 상세한 분량으로 작성해주세요. 세밀한 묘사와 깊이 있는 감정 표현으로 독자를 완전히 몰입시켜 주세요."
+        "short": "이 장면은 약 1000자 내외의 간결하면서도 핵심적인 분량으로 작성해주세요. 핵심 포인트를 명확하게 담아주세요.",
+        "medium": "이 장면은 약 2000자 내외의 적당한 분량으로 작성해주세요. 상황과 감정이 충분히 전달되도록 풍부하게 묘사해주세요.", 
+        "long": "이 장면은 약 3000자 내외의 풍부하고 상세한 분량으로 작성해주세요. 세밀한 묘사와 깊이 있는 감정 표현으로 독자를 완전히 몰입시켜 주세요."
     }
     word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
 
@@ -377,7 +397,8 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         character_names=character_names,
         plot_position_context=plot_position_context,
         plot_pacing_instruction=plot_pacing_instruction,
-        word_count_instruction=word_count_instruction
+        word_count_instruction=word_count_instruction,
+        relationships_context=relationships_context
     )
 
     try:
@@ -513,11 +534,31 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     
+    # 선택된 캐릭터들 간의 관계 정보 가져오기
+    relationships_context = ""
+    if len(character_ids) > 1:
+        relationships = db.query(RelationshipModel).filter(
+            RelationshipModel.source_character_id.in_(character_ids),
+            RelationshipModel.target_character_id.in_(character_ids),
+            RelationshipModel.project_id == project.id
+        ).all()
+        
+        if relationships:
+            char_name_map = {c.id: c.name for c in characters}
+            relationship_descriptions = []
+            for rel in relationships:
+                source_name = char_name_map.get(rel.source_character_id, "알 수 없는 캐릭터")
+                target_name = char_name_map.get(rel.target_character_id, "알 수 없는 캐릭터")
+                relationship_descriptions.append(f"- {source_name} → {target_name}: {rel.type} ({rel.description or '세부 설명 없음'})")
+            
+            if relationship_descriptions:
+                relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
+    
     # 글자 수 지시사항 생성
     word_count_map = {
-        "short": "약 500자 내외의 간결한 분량으로 수정해주세요.",
-        "medium": "약 1000자 내외의 적당한 분량으로 수정해주세요.", 
-        "long": "약 1500자 내외의 풍부한 분량으로 수정해주세요."
+        "short": "약 1000자 내외의 간결한 분량으로 수정해주세요.",
+        "medium": "약 2000자 내외의 적당한 분량으로 수정해주세요.", 
+        "long": "약 3000자 내외의 풍부한 분량으로 수정해주세요."
     }
     word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
 
@@ -529,6 +570,7 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         output_format=request.output_format,
         word_count_instruction=word_count_instruction,
         characters_context=characters_context,
+        relationships_context=relationships_context,
         user_edit_request=request.user_edit_request
     )
 
