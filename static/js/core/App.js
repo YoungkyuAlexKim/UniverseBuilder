@@ -39,8 +39,6 @@ export class App {
      * 애플리케이션에서 사용하는 모든 모듈을 초기화합니다.
      */
     initializeModules() {
-        // 각 모듈에 StateManager 인스턴스를 전달하여 상태에 접근할 수 있도록 합니다.
-        // 또한, App 인스턴스 자체(this)를 전달하여 모듈이 App의 메소드를 호출(이벤트 핸들러 등)할 수 있게 합니다.
         ui.initializeUI(this);
         modals.initializeModals(this);
         panels.initializePanels(this);
@@ -51,16 +49,10 @@ export class App {
      * StateManager와 DOM의 이벤트를 구독하고, 해당 이벤트가 발생했을 때 수행할 동작을 정의합니다.
      */
     bindEventListeners() {
-        // 상태가 변경될 때마다 UI를 다시 렌더링합니다.
         this.stateManager.on('stateChanged', (state) => this.renderUI(state));
-
-        // 에러가 발생했을 때 사용자에게 알립니다.
         this.stateManager.on('error', (errorMessage) => alert(errorMessage));
-
-        // 프로젝트 생성 폼 이벤트 리스너 설정
         document.getElementById('create-project-form').addEventListener('submit', (e) => this.handleCreateProject(e));
         
-        // 프로젝트 리스트 클릭 이벤트 (이벤트 위임)
         document.querySelector('.project-list').addEventListener('click', (e) => {
              if (e.target.matches('.project-name-span')) {
                 this.handleSelectProject(e.target.dataset.id);
@@ -71,7 +63,6 @@ export class App {
             }
         });
 
-        // 탭 클릭 이벤트 (이벤트 위임)
         document.querySelector('#project-detail-view nav ul').addEventListener('click', (e) => {
             if(e.target.matches('.tab-link')) {
                 e.preventDefault();
@@ -79,7 +70,6 @@ export class App {
             }
         });
 
-        // [신규] 시놉시스 구체화 버튼 이벤트 리스너
         document.addEventListener('click', (e) => {
             if (e.target.matches('#enhance-synopsis-btn')) {
                 this.handleEnhanceSynopsis();
@@ -98,14 +88,9 @@ export class App {
         } else {
             ui.showWelcomeView();
         }
-        
-        // 로딩 인디케이터 처리 등 추가적인 UI 상태 업데이트 로직
     }
 
-    // -------------------------
-    // 이벤트 핸들러 (사용자 입력 처리)
-    // -------------------------
-
+    // ... (handleCreateProject, handleSelectProject 등 다른 핸들러들은 변경 없음) ...
     async handleCreateProject(event) {
         event.preventDefault();
         const form = event.currentTarget;
@@ -242,12 +227,6 @@ export class App {
         }
     }
 
-    /**
-     * 드래그 앤 드롭 기능을 설정합니다.
-     * @param {NodeList} lists - 드래그 앤 드롭을 적용할 리스트 요소들
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} type - 카드 타입 ('character' 또는 'worldview')
-     */
     setupSortable(lists, projectId, type) {
         lists.forEach(list => {
             new Sortable(list, {
@@ -263,7 +242,6 @@ export class App {
                         const isCharacter = type === 'character';
 
                         if (fromGroupId !== toGroupId) {
-                            // 그룹 간 이동
                             if (isCharacter) {
                                 await api.moveCard(projectId, cardId, fromGroupId, toGroupId);
                             } else {
@@ -271,7 +249,6 @@ export class App {
                             }
                         }
 
-                        // 순서 업데이트
                         const updateOrder = async (groupId, listEl) => {
                             const cardIds = Array.from(listEl.children)
                                 .map(c => c.dataset.cardId)
@@ -291,7 +268,6 @@ export class App {
                             await updateOrder(fromGroupId, evt.from);
                         }
 
-                        // 빈 리스트 처리
                         if (evt.from.children.length === 0) {
                             evt.from.innerHTML = '<p><small>카드가 없습니다.</small></p>';
                         }
@@ -300,7 +276,6 @@ export class App {
                             evt.to.appendChild(evt.item);
                         }
 
-                        // UI 갱신
                         await this.stateManager.refreshCurrentProject();
 
                     } catch (error) {
@@ -313,9 +288,6 @@ export class App {
         });
     }
 
-    /**
-     * AI를 사용하여 시나리오 컨셉을 다듬습니다.
-     */
     async handleRefineConcept() {
         const conceptTextarea = document.getElementById('scenario-summary');
         const originalConcept = conceptTextarea.value.trim();
@@ -377,12 +349,6 @@ export class App {
         }
     }
 
-    /**
-     * AI를 사용하여 세계관 규칙을 다듬습니다.
-     * @param {Event} event - 클릭 이벤트
-     * @param {string} projectId - 프로젝트 ID
-     * @param {HTMLInputElement} inputField - 다듬을 입력 필드
-     */
     async handleRefineWorldviewRule(event, projectId, inputField) {
         const originalRule = inputField.value.trim();
         if (!originalRule) {
@@ -438,13 +404,8 @@ export class App {
         }
     }
 
-    /**
-     * 세계관 설정을 저장합니다.
-     * @param {string} projectId - 프로젝트 ID
-     */
     async handleSaveWorldview(projectId) {
         const form = document.getElementById('worldview-form');
-        // [수정] 동적 버튼 찾기로 AI 수정 후 DOM 변경 문제 해결
         const getButton = () => document.getElementById('save-worldview-btn');
         let button = getButton();
         
@@ -472,7 +433,6 @@ export class App {
             console.error('세계관 저장 실패:', error);
             alert(error.message);
         } finally {
-            // [수정] 버튼을 다시 찾아서 aria-busy 해제
             button = getButton();
             if (button) {
                 button.setAttribute('aria-busy', 'false');
@@ -480,11 +440,6 @@ export class App {
         }
     }
 
-    /**
-     * 세계관 그룹을 생성합니다.
-     * @param {Event} event - 폼 제출 이벤트
-     * @param {string} projectId - 프로젝트 ID
-     */
     async handleCreateWorldviewGroup(event, projectId) {
         event.preventDefault();
         const form = event.currentTarget;
@@ -505,11 +460,6 @@ export class App {
         }
     }
 
-    /**
-     * 세계관 그룹을 삭제합니다.
-     * @param {Event} event - 클릭 이벤트
-     * @param {string} projectId - 프로젝트 ID
-     */
     async handleDeleteWorldviewGroup(event, projectId) {
         event.stopPropagation();
         const { groupId, groupName } = event.currentTarget.dataset;
@@ -528,11 +478,6 @@ export class App {
         }
     }
 
-    /**
-     * 세계관 카드를 삭제합니다.
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} cardId - 카드 ID
-     */
     async handleDeleteWorldviewCard(projectId, cardId) {
         if (!cardId) {
             alert("먼저 카드를 저장해야 삭제할 수 있습니다.");
@@ -551,17 +496,10 @@ export class App {
         }
     }
 
-    /**
-     * 시나리오 정보를 저장합니다.
-     * @param {Event} event - 폼 제출 이벤트
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} scenarioId - 시나리오 ID
-     */
     async handleSaveScenario(event, projectId, scenarioId) {
         event.preventDefault();
         const form = event.currentTarget;
         
-        // [수정] 폼이 복제되더라도 항상 현재 DOM에서 버튼을 찾도록 개선
         const getButton = () => form.querySelector('button[type="submit"]') || 
                                 document.querySelector('#scenario-details-form button[type="submit"]');
         
@@ -587,18 +525,11 @@ export class App {
             console.error('시나리오 저장 실패:', error);
             alert(error.message);
         } finally {
-            // [수정] 저장 완료 후 다시 현재 버튼을 찾아서 aria-busy 해제
             const finalButton = getButton();
             if (finalButton) finalButton.setAttribute('aria-busy', 'false');
         }
     }
 
-    /**
-     * 플롯 포인트를 생성합니다.
-     * @param {Event} event - 폼 제출 이벤트
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} scenarioId - 시나리오 ID
-     */
     async handleCreatePlotPoint(event, projectId, scenarioId) {
         event.preventDefault();
         const form = event.currentTarget;
@@ -627,12 +558,6 @@ export class App {
         }
     }
 
-    /**
-     * AI 시나리오 초안을 생성합니다.
-     * @param {Event} event - 폼 제출 이벤트
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} scenarioId - 시나리오 ID
-     */
     async handleAiDraftGeneration(event, projectId, scenarioId) {
         const form = event.currentTarget;
         const button = form.querySelector('button[type="submit"]');
@@ -672,7 +597,7 @@ export class App {
     }
 
     /**
-     * 플롯 포인트를 수정합니다.
+     * [수정] 플롯 포인트를 수정합니다. (scene_draft 포함)
      * @param {HTMLFormElement} form - 폼 요소
      * @param {string} projectId - 프로젝트 ID
      * @param {string} scenarioId - 시나리오 ID
@@ -682,7 +607,8 @@ export class App {
         const plotPointId = form.elements.plot_point_id.value;
         const plotData = {
             title: form.elements.title.value,
-            content: form.elements.content.value
+            content: form.elements.content.value,
+            scene_draft: form.elements.scene_draft.value // [신규] scene_draft 값 추가
         };
 
         button.setAttribute('aria-busy', 'true');
@@ -698,12 +624,6 @@ export class App {
         }
     }
 
-    /**
-     * 플롯 포인트를 삭제합니다.
-     * @param {string} plotPointId - 플롯 포인트 ID
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} scenarioId - 시나리오 ID
-     */
     async handleDeletePlotPoint(plotPointId, projectId, scenarioId) {
         if (!confirm("정말로 이 플롯 포인트를 삭제하시겠습니까?")) return;
 
@@ -722,20 +642,52 @@ export class App {
     }
 
     /**
-     * AI를 사용하여 플롯 포인트를 수정합니다.
-     * @param {object} plotPoint - 플롯 포인트 데이터
+     * [신규] AI를 사용하여 장면 초안을 생성합니다.
+     * @param {string} plotPointId - 플롯 포인트 ID
      * @param {string} projectId - 프로젝트 ID
      * @param {string} scenarioId - 시나리오 ID
      */
+    async handleAiSceneGeneration(plotPointId, projectId, scenarioId) {
+        const button = document.getElementById('plot-point-ai-scene-btn');
+        const formatSelect = document.getElementById('scene-format-select');
+        const sceneDraftTextarea = document.getElementById('plot-point-scene-draft');
+
+        // 간단하게 현재 프로젝트의 모든 캐릭터를 컨텍스트로 사용
+        const project = this.stateManager.getState().currentProject;
+        const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
+
+        const requestBody = {
+            output_format: formatSelect.value,
+            character_ids: allCharacterIds,
+            model_name: document.getElementById('ai-model-select').value
+        };
+
+        button.setAttribute('aria-busy', 'true');
+        sceneDraftTextarea.value = "AI가 장면을 생성하고 있습니다...";
+        try {
+            const result = await api.generateSceneForPlotPoint(projectId, plotPointId, requestBody);
+            sceneDraftTextarea.value = result.scene_draft;
+            alert('AI 장면 생성이 완료되었습니다. 내용을 확인하고 "변경사항 저장"을 눌러주세요.');
+        } catch(error) {
+            alert(`AI 장면 생성 실패: ${error.message}`);
+            sceneDraftTextarea.value = "오류가 발생했습니다. 다시 시도해주세요.";
+        } finally {
+            button.setAttribute('aria-busy', 'false');
+        }
+    }
+
     async handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
-        const userPrompt = prompt("이 플롯을 어떻게 수정하고 싶으신가요?\n(예: '주인공이 더 극적으로 승리하는 장면으로 바꿔줘')");
+        // 이 기능은 'AI로 장면 생성' 기능으로 대체되거나 통합될 수 있습니다.
+        // 현재는 그대로 두지만, 추후 UI/UX를 고려하여 조정이 필요합니다.
+        const userPrompt = prompt("이 플롯의 '내용(요약)'을 어떻게 수정하고 싶으신가요?\n(예: '주인공이 더 극적으로 승리하는 장면으로 바꿔줘')");
         if (!userPrompt) return;
 
         const project = this.stateManager.getState().projects.find(p => p.id === projectId);
         const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
 
-        const button = document.getElementById('plot-point-ai-edit-btn');
-        button.setAttribute('aria-busy', 'true');
+        // 이 기능은 현재 UI에 버튼이 없으므로 임시로 비활성화된 것처럼 처리합니다.
+        // const button = document.getElementById('plot-point-ai-edit-btn');
+        // button.setAttribute('aria-busy', 'true');
         try {
             const requestBody = {
                 user_prompt: userPrompt,
@@ -743,19 +695,16 @@ export class App {
                 model_name: document.getElementById('ai-model-select').value
             };
             await api.editPlotPointWithAi(projectId, scenarioId, plotPoint.id, requestBody);
-            alert('AI가 플롯 포인트를 성공적으로 수정했습니다.');
+            alert('AI가 플롯 요약을 성공적으로 수정했습니다.');
             this.modals.closeModal();
             await this.stateManager.refreshCurrentProject();
         } catch(error) {
             alert(`AI 수정 실패: ${error.message}`);
         } finally {
-            button.setAttribute('aria-busy', 'false');
+            // button.setAttribute('aria-busy', 'false');
         }
     }
 
-    /**
-     * AI를 사용하여 시놉시스를 구체화합니다.
-     */
     async handleEnhanceSynopsis() {
         const synopsisTextarea = document.getElementById('scenario-synopsis');
         const originalSynopsis = synopsisTextarea.value.trim();
@@ -770,7 +719,6 @@ export class App {
             return;
         }
 
-        // 현재 프로젝트 정보 가져오기
         const { projects } = this.stateManager.getState();
         const project = projects.find(p => p.id === projectId);
         if (!project) {
@@ -778,53 +726,38 @@ export class App {
             return;
         }
 
-        // 시놉시스 구체화 모달 열기
         this.openEnhanceSynopsisModal(originalSynopsis, project);
     }
 
-    /**
-     * 시놉시스 구체화 모달을 엽니다.
-     */
     openEnhanceSynopsisModal(originalSynopsis, project) {
         const modal = document.getElementById('enhance-synopsis-modal');
         const backdrop = document.getElementById('modal-backdrop');
         
-        // 원본 시놉시스 표시
         document.getElementById('enhance-synopsis-original').textContent = originalSynopsis;
         document.getElementById('enhance-synopsis-suggestion').textContent = '결과가 여기에 표시됩니다...';
         
-        // 캐릭터 목록 렌더링
         this.renderSynopsisCharacterList(project);
-        
-        // 세계관 카드 목록 렌더링  
         this.renderSynopsisWorldviewCardsList(project);
         
-        // 프리셋 버튼 이벤트 리스너 설정
         modal.querySelectorAll('.synopsis-preset-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.getElementById('synopsis-user-prompt').value = btn.dataset.prompt;
             });
         });
 
-        // 버튼 이벤트 리스너 설정
         document.getElementById('enhance-synopsis-generate-btn').onclick = () => this.executeEnhanceSynopsis(originalSynopsis, project.id);
         document.getElementById('enhance-synopsis-accept-btn').onclick = () => this.applySynopsisEnhancement();
         document.getElementById('enhance-synopsis-reject-btn').onclick = () => this.closeSynopsisModal();
         
-        // 모달 닫기 버튼
         modal.querySelector('.close').onclick = (e) => {
             e.preventDefault();
             this.closeSynopsisModal();
         };
 
-        // 모달 표시
         backdrop.style.display = 'block';
         modal.style.display = 'block';
     }
 
-    /**
-     * 시놉시스 모달용 캐릭터 목록 렌더링
-     */
     renderSynopsisCharacterList(project) {
         const container = document.getElementById('synopsis-characters-container');
         
@@ -849,9 +782,6 @@ export class App {
         container.innerHTML = charactersHTML || '<small>캐릭터가 없습니다.</small>';
     }
 
-    /**
-     * 시놉시스 모달용 세계관 카드 목록 렌더링
-     */
     renderSynopsisWorldviewCardsList(project) {
         const container = document.getElementById('synopsis-worldview-cards-container');
         
@@ -876,9 +806,6 @@ export class App {
         container.innerHTML = cardsHTML || '<small>서브 설정이 없습니다.</small>';
     }
 
-    /**
-     * AI 시놉시스 구체화 실행
-     */
     async executeEnhanceSynopsis(originalSynopsis, projectId) {
         const userPrompt = document.getElementById('synopsis-user-prompt').value.trim();
         const generateBtn = document.getElementById('enhance-synopsis-generate-btn');
@@ -890,7 +817,6 @@ export class App {
             return;
         }
 
-        // 선택된 컨텍스트 수집
         const selectedCharacterIds = Array.from(document.querySelectorAll('input[name="synopsis-character"]:checked')).map(cb => cb.value);
         const selectedWorldviewCardIds = Array.from(document.querySelectorAll('input[name="synopsis-worldview-card"]:checked')).map(cb => cb.value);
 
@@ -910,7 +836,6 @@ export class App {
 
             const result = await api.enhanceSynopsis(requestBody);
             
-            // 결과 표시
             suggestionDiv.textContent = result.enhanced_synopsis;
             acceptBtn.style.display = 'inline-block';
 
@@ -923,9 +848,6 @@ export class App {
         }
     }
 
-    /**
-     * 구체화된 시놉시스를 적용
-     */
     applySynopsisEnhancement() {
         const enhancedSynopsis = document.getElementById('enhance-synopsis-suggestion').textContent;
         const synopsisTextarea = document.getElementById('scenario-synopsis');
@@ -935,24 +857,16 @@ export class App {
         this.closeSynopsisModal();
     }
 
-    /**
-     * 시놉시스 모달 닫기
-     */
     closeSynopsisModal() {
         document.getElementById('enhance-synopsis-modal').style.display = 'none';
         document.getElementById('modal-backdrop').style.display = 'none';
         
-        // 폼 리셋
         document.getElementById('synopsis-user-prompt').value = '';
         document.querySelectorAll('input[name="synopsis-character"]').forEach(cb => cb.checked = false);
         document.querySelectorAll('input[name="synopsis-worldview-card"]').forEach(cb => cb.checked = false);
         document.getElementById('enhance-synopsis-accept-btn').style.display = 'none';
     }
 
-    /**
-     * 공통 AI 모달을 사용하여 캐릭터 생성을 시작합니다.
-     * @param {string} projectId - 프로젝트 ID
-     */
     openCharacterGenerationModal(projectId) {
         const config = {
             title: '✨ AI 캐릭터 생성',
@@ -969,7 +883,7 @@ export class App {
             placeholder: '어떤 캐릭터를 원하시는지 구체적으로 설명해주세요. 예: 몰락한 왕국의 마지막 기사',
             showCharacters: true,
             showWorldviewCards: true,
-            showGroupSelection: true, // [신규] 그룹 선택 기능 활성화
+            showGroupSelection: true,
             projectId: projectId,
             onExecute: (selectedCharacterIds, selectedWorldviewCardIds, userPrompt) => 
                 this.executeCharacterGeneration(projectId, selectedCharacterIds, selectedWorldviewCardIds, userPrompt),
@@ -980,9 +894,6 @@ export class App {
         commonAiModal.openCommonAiModal(config);
     }
 
-    /**
-     * AI 캐릭터 생성을 실행합니다.
-     */
     async executeCharacterGeneration(projectId, selectedCharacterIds, selectedWorldviewCardIds, userPrompt) {
         const { projects } = this.stateManager.getState();
         const project = projects.find(p => p.id === projectId);
@@ -992,7 +903,7 @@ export class App {
             keywords: userPrompt,
             character_ids: selectedCharacterIds.length > 0 ? selectedCharacterIds : null,
             worldview_context: project.worldview?.content || null,
-            worldview_level: 'medium', // 기본값
+            worldview_level: 'medium',
             model_name: document.getElementById('ai-model-select').value,
             worldview_card_ids: selectedWorldviewCardIds.length > 0 ? selectedWorldviewCardIds : null,
         };
@@ -1000,7 +911,6 @@ export class App {
         try {
             const result = await api.generateCharacter(projectId, requestBody);
             
-            // JSON 결과를 사용자 친화적인 형태로 변환
             const formattedResult = this.formatCharacterForDisplay(result);
             return formattedResult;
             
@@ -1010,18 +920,13 @@ export class App {
         }
     }
 
-    /**
-     * 생성된 캐릭터를 적용합니다.
-     */
     async applyCharacterGeneration(projectId, result, selectedGroupId) {
         try {
-            // 마지막으로 생성된 캐릭터 데이터 가져오기
             const lastGeneratedCard = this.stateManager.getLastGeneratedCard();
             if (!lastGeneratedCard) {
                 throw new Error('생성된 캐릭터 데이터를 찾을 수 없습니다.');
             }
 
-            // 선택된 그룹에 캐릭터 저장
             await api.saveCard(projectId, selectedGroupId, lastGeneratedCard);
             alert('캐릭터가 성공적으로 저장되었습니다!');
             await this.stateManager.refreshCurrentProject();
@@ -1032,9 +937,6 @@ export class App {
         }
     }
 
-    /**
-     * 캐릭터 데이터를 표시용으로 포맷합니다.
-     */
     formatCharacterForDisplay(characterData) {
         this.stateManager.setLastGeneratedCard(characterData);
         

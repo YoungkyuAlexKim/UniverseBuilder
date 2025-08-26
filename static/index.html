@@ -68,7 +68,7 @@
                             </hgroup>
                             <form id="worldview-form">
                                 <div class="worldview-section">
-                                    <label for="worldview-logline" class="section-label">🎯 한 줄 정의 (Logline)</label>
+                                    <label for="worldview-logline" class="section-label">� 한 줄 정의 (Logline)</label>
                                     <input type="text" id="worldview-logline" name="logline" class="main-input" placeholder="이 세계를 한 문장으로 정의합니다. (예: 마법이 기술을 대체한 스팀펑크 세계)">
                                 </div>
 
@@ -237,15 +237,29 @@
                     <input type="text" id="plot-point-title" name="title" required>
                 </label>
                 <label for="plot-point-content">
-                    내용
-                    <textarea id="plot-point-content" name="content" rows="8"></textarea>
+                    내용 (요약)
+                    <textarea id="plot-point-content" name="content" rows="4"></textarea>
                 </label>
+
+                <!-- [신규] 장면 초안 생성 UI -->
+                <hr>
+                <label for="plot-point-scene-draft"><strong>장면 초안</strong></label>
+                <div class="grid" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto;">
+                    <select id="scene-format-select">
+                        <option value="novel" selected>소설 형식</option>
+                        <option value="screenplay">시나리오 형식</option>
+                        <option value="game_dialogue">게임 대사 형식</option>
+                    </select>
+                    <button id="plot-point-ai-scene-btn" class="secondary" type="button" style="width: auto;">✨ AI로 장면 생성</button>
+                </div>
+                <textarea id="plot-point-scene-draft" name="scene_draft" rows="15" placeholder="이곳에 장면 초안이 생성됩니다..."></textarea>
+                <!-- / [신규] 장면 초안 생성 UI -->
+
             </form>
             <footer>
-                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                     <button id="plot-point-delete-btn" class="secondary outline">삭제</button>
-                    <button id="plot-point-ai-edit-btn" class="secondary">✨ AI로 수정</button>
-                    <button id="plot-point-save-btn">수동으로 저장</button>
+                    <button id="plot-point-save-btn">변경사항 저장</button>
                 </div>
             </footer>
         </article>
@@ -417,3 +431,4 @@
 
 </body>
 </html>
+�

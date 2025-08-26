@@ -13,8 +13,8 @@ const modalBackdrop = document.getElementById('modal-backdrop');
 const aiScenarioDraftModal = document.getElementById('ai-scenario-draft-modal');
 const plotPointEditModal = document.getElementById('plot-point-edit-modal');
 const refineConceptModal = document.getElementById('refine-concept-modal'); 
-const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal'); // [신규] 모달 요소 추가
-const commonAiModal = document.getElementById('common-ai-modal'); // [신규] 공통 AI 모달 추가
+const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal');
+const commonAiModal = document.getElementById('common-ai-modal');
 
 // App 인스턴스를 저장할 변수
 let app;
@@ -28,17 +28,14 @@ export function initializeModals(appInstance) {
 }
 
 export function closeModal() {
-    // [개선] 닫을 모달 목록에 공통 AI 모달 추가
     [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal].forEach(el => el.classList.remove('active'));
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
     
-    // [수정] ESC 키 이벤트 리스너 제거
     document.removeEventListener('keydown', handleEscKey);
 }
 
-// [신규] ESC 키 처리 함수
 function handleEscKey(event) {
     if (event.key === 'Escape') {
         closeModal();
@@ -110,7 +107,6 @@ export function openCardModal(card, projectId) {
     footerEl.querySelector('#modal-edit-ai-btn').addEventListener('click', (e) => app.panels.handleEditCardAI(e, projectId, card.id));
     footerEl.querySelector('#modal-delete-btn').addEventListener('click', (e) => {
         closeModal();
-        // [수정] app.handleDeleteCard 호출
         app.handleDeleteCard(projectId, card.group_id, card.id);
     });
     
@@ -118,7 +114,6 @@ export function openCardModal(card, projectId) {
         button.addEventListener('click', (e) => handleHighlightClick(e, projectId, card.id));
     });
 
-    // [수정] X 버튼 클릭 이벤트 리스너 추가
     const closeButton = cardDetailsModal.querySelector('.close');
     if (closeButton) {
         const newCloseButton = closeButton.cloneNode(true);
@@ -129,13 +124,11 @@ export function openCardModal(card, projectId) {
         });
     }
 
-    // [수정] 모달 배경 클릭 이벤트 리스너 추가 (기존 이벤트 제거 후 추가)
-    modalBackdrop.onclick = null; // 기존 이벤트 제거
+    modalBackdrop.onclick = null;
     modalBackdrop.onclick = () => {
         closeModal();
     };
 
-    // [수정] ESC 키 이벤트 리스너 추가
     document.addEventListener('keydown', handleEscKey);
 
     cardDetailsModal.classList.add('active');
@@ -169,16 +162,13 @@ export function openWorldviewCardModal(card, projectId, groupId) {
 
     footer.querySelector('#wv-ai-edit-btn').addEventListener('click', (e) => {
         e.preventDefault();
-        // [수정] app.panels.handleEditWorldviewCardAI 호출
         app.panels.handleEditWorldviewCardAI(card, projectId);
     });
     footer.querySelector('#wv-delete-btn').addEventListener('click', async (e) => {
         e.preventDefault();
-        // [수정] app.handleDeleteWorldviewCard 호출
         await app.handleDeleteWorldviewCard(projectId, card.id);
     });
 
-    // [수정] X 버튼 클릭 이벤트 리스너 추가 (세계관 카드 모달)
     const closeButton = worldviewCardModal.querySelector('.close');
     if (closeButton) {
         const newCloseButton = closeButton.cloneNode(true);
@@ -189,7 +179,6 @@ export function openWorldviewCardModal(card, projectId, groupId) {
         });
     }
 
-    // [수정] ESC 키 이벤트 리스너 추가
     document.addEventListener('keydown', handleEscKey);
 
     worldviewCardModal.classList.add('active');
@@ -209,7 +198,6 @@ export function openWorldviewCardModal(card, projectId, groupId) {
             await api.saveWorldviewCard(projectId, groupId, cardData, cardId);
             alert('설정 카드가 저장되었습니다.');
             closeModal();
-            // [수정] stateManager를 통해 상태 갱신 요청
             await app.stateManager.refreshCurrentProject();
         } catch (error) {
             alert(error.message);
@@ -268,7 +256,6 @@ export function showAiDiffModal(projectId, originalCard, aiResult, cardType) {
             alert('AI의 수정 제안이 성공적으로 적용되었습니다!');
             diffModal.classList.remove('active');
             closeModal();
-            // [수정] stateManager를 통해 상태 갱신 요청
             await app.stateManager.refreshCurrentProject();
         } catch (error) {
             console.error("최종 적용 실패:", error);
@@ -391,7 +378,6 @@ async function handleSaveHighlight(projectId, cardId, fieldName) {
         alert('변경사항이 성공적으로 저장되었습니다.');
         toggleHighlightActions(fieldName, false);
 
-        // [수정] stateManager를 통해 상태 갱신 요청
         app.stateManager.refreshCurrentProject();
 
     } catch (error) {
@@ -416,26 +402,43 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     form.elements.plot_point_id.value = plotPoint.id;
     form.elements.title.value = plotPoint.title || '';
     form.elements.content.value = plotPoint.content || '';
+    form.elements.scene_draft.value = plotPoint.scene_draft || '';
     
     const saveBtn = document.getElementById('plot-point-save-btn');
     const deleteBtn = document.getElementById('plot-point-delete-btn');
-    const aiEditBtn = document.getElementById('plot-point-ai-edit-btn');
+    const aiSceneBtn = document.getElementById('plot-point-ai-scene-btn');
     
     const newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-    // [수정] app.handleUpdatePlotPoint 호출
     newSaveBtn.addEventListener('click', () => app.handleUpdatePlotPoint(form, projectId, scenarioId));
     
     const newDeleteBtn = deleteBtn.cloneNode(true);
     deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
-    // [수정] app.handleDeletePlotPoint 호출
     newDeleteBtn.addEventListener('click', () => app.handleDeletePlotPoint(plotPoint.id, projectId, scenarioId));
 
-    const newAiEditBtn = aiEditBtn.cloneNode(true);
-    aiEditBtn.parentNode.replaceChild(newAiEditBtn, aiEditBtn);
-    // [수정] app.handleAiEditPlotPoint 호출
-    newAiEditBtn.addEventListener('click', () => app.handleAiEditPlotPoint(plotPoint, projectId, scenarioId));
+    const newAiSceneBtn = aiSceneBtn.cloneNode(true);
+    aiSceneBtn.parentNode.replaceChild(newAiSceneBtn, aiSceneBtn);
+    newAiSceneBtn.addEventListener('click', () => app.handleAiSceneGeneration(plotPoint.id, projectId, scenarioId));
     
+    // [버그 수정] 모달을 닫는 이벤트 리스너들을 여기에 추가합니다.
+    const closeButton = plotPointEditModal.querySelector('.close');
+    if (closeButton) {
+        const newCloseButton = closeButton.cloneNode(true);
+        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+        newCloseButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeModal();
+        });
+    }
+
+    modalBackdrop.onclick = null;
+    modalBackdrop.onclick = () => {
+        closeModal();
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    // / [버그 수정]
+
     plotPointEditModal.classList.add('active');
     modalBackdrop.classList.add('active');
 }
@@ -471,7 +474,6 @@ export function updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback
     });
 }
 
-// [신규] 세계관 핵심 설정 다듬기 모달 열기 함수
 export function openRefineWorldviewRuleModal(originalRule, suggestedRule, onAcceptCallback, onRerollCallback) {
     document.getElementById('refine-rule-original').textContent = originalRule;
     updateRefineWorldviewRuleSuggestion(suggestedRule, onAcceptCallback);
@@ -491,7 +493,6 @@ export function openRefineWorldviewRuleModal(originalRule, suggestedRule, onAcce
     modalBackdrop.classList.add('active');
 }
 
-// [신규] 세계관 핵심 설정 다듬기 모달 제안 내용 업데이트 함수
 export function updateRefineWorldviewRuleSuggestion(suggestedRule, onAcceptCallback) {
     document.getElementById('refine-rule-suggestion').textContent = suggestedRule;
 

@@ -345,6 +345,16 @@ export async function editPlotPointWithAi(projectId, scenarioId, plotPointId, re
     return handleResponse(response);
 }
 
+// [신규] 플롯 포인트의 장면 초안을 AI로 생성하는 API 호출 함수
+export async function generateSceneForPlotPoint(projectId, plotPointId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}/generate-scene`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
 
 // -------------------------
 // AI 생성 및 수정 (AI Generators & Editors)

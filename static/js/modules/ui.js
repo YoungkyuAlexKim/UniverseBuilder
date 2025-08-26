@@ -28,7 +28,6 @@ export function renderProjectList(projects) {
     } else {
         projects.forEach(project => {
             const li = document.createElement('li');
-            // [수정] App.js의 이벤트 위임이 동작하도록 클래스와 데이터 속성 추가
             li.innerHTML = `
                 <span class="project-name-span" data-id="${project.id}" title="${project.name}">${project.name}</span>
                 <div>
@@ -82,7 +81,6 @@ export function activateTab(tabId) {
     document.querySelector(`.tab-link[data-tab="${tabId}"]`).classList.add('active');
     document.getElementById(`tab-content-${tabId}`).classList.add('active');
     
-    // 탭 전환 시 스크롤을 맨 위로 리셋
     const tabsContainer = document.querySelector('.tabs-container');
     if (tabsContainer) {
         tabsContainer.scrollTop = 0;
@@ -95,7 +93,6 @@ export function activateTab(tabId) {
 function renderCharacterTab(projectData) {
     const container = document.getElementById('card-list-container');
 
-    // [업그레이드] 새로운 공통 AI 모달 방식으로 변경
     eventManager.replaceContentSafely(container, `<div style="margin-bottom: 1.5rem;"><button id="show-generator-btn">✨ 새 인물 AI 생성</button></div>`, (container) => {
         const generatorBtn = container.querySelector('#show-generator-btn');
         if (generatorBtn) {
@@ -130,13 +127,11 @@ function renderCharacterTab(projectData) {
     addGroupColumn.innerHTML = `<h4>새 그룹 추가</h4><form id="create-group-form" style="margin-top: 1rem;"><input type="text" name="name" placeholder="새 그룹 이름" required autocomplete="off" style="margin-bottom: 0.5rem;"><button type="submit" class="contrast" style="width: 100%;">+ 새 그룹 추가</button></form>`;
     groupsContainer.appendChild(addGroupColumn);
 
-    // [수정] app.handleCreateGroup 호출
     const createGroupForm = document.getElementById('create-group-form');
     if (createGroupForm) {
         eventManager.addEventListener(createGroupForm, 'submit', (e) => app.handleCreateGroup(e, projectData.id));
     }
 
-    // [수정] app.handleDeleteGroup 호출
     container.querySelectorAll('.delete-group-btn').forEach(button => {
         eventManager.addEventListener(button, 'click', (e) => {
             const { groupId, groupName } = e.currentTarget.dataset;
@@ -144,7 +139,6 @@ function renderCharacterTab(projectData) {
         });
     });
     
-    // [수정] setupSortable은 이제 App에서 관리
     app.setupSortable(container.querySelectorAll('.cards-list'), projectData.id, 'character');
 }
 
@@ -155,18 +149,15 @@ function createCardElement(card, projectId, groupId) {
     cardEl.innerHTML = `<strong>${card.name || '이름 없는 카드'}</strong>`;
     cardEl.addEventListener('click', () => {
         const cardData = { ...card, group_id: groupId };
-        // [수정] app.modals.openCardModal 호출
         app.modals.openCardModal(cardData, projectId);
     });
     return cardEl;
 }
 
-// [오류 수정] 이벤트 리스너 유실 문제를 해결하기 위해 로직 순서 변경
 function renderWorldviewTab(projectData) {
     const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
     
     const form = document.getElementById('worldview-form');
-    // 이벤트 리스너 중복을 막기 위해 폼을 복제하여 교체
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
 
@@ -196,7 +187,6 @@ function renderWorldviewTab(projectData) {
     
     addRuleBtn.addEventListener('click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
 
-    // --- 서브 설정 카드 렌더링 로직 ---
     const container = document.getElementById('worldview-card-list-container');
     const groupsContainer = document.createElement('div');
     groupsContainer.className = 'groups-container';
@@ -231,11 +221,9 @@ function renderWorldviewTab(projectData) {
     container.querySelectorAll('.delete-wv-group-btn').forEach(btn => btn.addEventListener('click', (e) => app.handleDeleteWorldviewGroup(e, projectData.id)));
     container.querySelectorAll('.add-wv-card-btn').forEach(btn => btn.addEventListener('click', (e) => app.modals.openWorldviewCardModal(null, projectData.id, e.currentTarget.dataset.groupId)));
     
-    // [수정] setupSortable은 이제 App에서 관리
     app.setupSortable(container.querySelectorAll('.worldview-cards-list'), projectData.id, 'worldview');
 }
 
-// [오류 수정] 함수가 컨테이너를 인자로 받도록 수정
 function addWorldviewRuleInput(value = '', projectId, container) {
     const wrapper = document.createElement('div');
     wrapper.className = 'dynamic-input-wrapper';
@@ -248,26 +236,22 @@ function addWorldviewRuleInput(value = '', projectId, container) {
 
     const inputField = wrapper.querySelector('textarea[name="rules"]');
     
-    // [신규] 자동 높이 조정 기능 추가
     function adjustHeight() {
         inputField.style.height = 'auto';
-        // [수정] 패딩과 보더를 고려한 높이 계산 + 여유 공간 추가
         const computedStyle = window.getComputedStyle(inputField);
         const paddingTop = parseInt(computedStyle.paddingTop);
         const paddingBottom = parseInt(computedStyle.paddingBottom);
         const borderTop = parseInt(computedStyle.borderTopWidth);
         const borderBottom = parseInt(computedStyle.borderBottomWidth);
         
-        const extraHeight = paddingTop + paddingBottom + borderTop + borderBottom + 8; // 8px 여유 공간
-        const newHeight = Math.max(60, inputField.scrollHeight + extraHeight); // 40px에서 60px로 1.5배 증가
+        const extraHeight = paddingTop + paddingBottom + borderTop + borderBottom + 8;
+        const newHeight = Math.max(60, inputField.scrollHeight + extraHeight);
         
         inputField.style.height = newHeight + 'px';
     }
     
-    // 초기 높이 설정
     adjustHeight();
     
-    // 입력 시 높이 자동 조정
     inputField.addEventListener('input', adjustHeight);
     inputField.addEventListener('change', adjustHeight);
 
@@ -310,13 +294,15 @@ export function renderScenarioTab(projectData) {
             const plotDataString = JSON.stringify(plot);
             const escapedPlotDataString = plotDataString.replace(/'/g, '&#39;');
 
+            // [수정] 전체를 감싸던 button을 article로 변경하고, 내부에 작은 편집 버튼 추가
             return `
-            <button class="plot-point-item" data-plot-point='${escapedPlotDataString}' style="display:block; width:100%; text-align:left; margin-bottom: 1rem; padding:0;">
-                <article style="margin:0;">
-                    <h6>${plot.ordering + 1}. ${plot.title}</h6>
-                    <p style="margin:0;">${plot.content || '세부 내용 없음'}</p>
-                </article>
-            </button>
+            <article class="plot-point-item" style="position: relative; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px;">
+                <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}' style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.1rem 0.5rem; font-size: 0.75rem;">
+                    편집
+                </button>
+                <h6>${plot.ordering + 1}. ${plot.title}</h6>
+                <p style="margin:0; padding-right: 4rem;">${plot.content || '세부 내용 없음'}</p>
+            </article>
         `}).join('');
     } else {
         plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
@@ -349,10 +335,11 @@ export function renderScenarioTab(projectData) {
     const plotList = container.querySelector('#plot-list');
     const newPlotList = plotList.cloneNode(true);
     plotList.parentNode.replaceChild(newPlotList, plotList);
+    // [수정] 이벤트 리스너가 .plot-point-item 대신 .open-plot-modal-btn을 찾도록 변경
     newPlotList.addEventListener('click', (e) => {
-        const plotItem = e.target.closest('.plot-point-item');
-        if (plotItem) {
-            const plotData = JSON.parse(plotItem.dataset.plotPoint);
+        const editButton = e.target.closest('.open-plot-modal-btn');
+        if (editButton) {
+            const plotData = JSON.parse(editButton.dataset.plotPoint);
             app.modals.openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
         }
     });

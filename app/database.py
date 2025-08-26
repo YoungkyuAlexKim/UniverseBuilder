@@ -115,6 +115,7 @@ class PlotPoint(Base):
     title = Column(String, nullable=False)
     content = Column(Text)
     ordering = Column(Integer, nullable=False)
+    scene_draft = Column(Text, nullable=True) # [신규] 장면 초안을 저장할 컬럼
     scenario = relationship("Scenario", back_populates="plot_points")
 
 
