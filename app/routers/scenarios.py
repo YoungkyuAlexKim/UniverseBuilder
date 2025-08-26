@@ -71,6 +71,14 @@ class GenerateSceneRequest(BaseModel):
     output_format: str
     character_ids: Optional[List[str]] = None
     model_name: Optional[str] = None
+    word_count: Optional[str] = "medium"  # "short", "medium", "long"
+
+class EditSceneRequest(BaseModel):
+    user_edit_request: str
+    output_format: str
+    character_ids: Optional[List[str]] = None
+    model_name: Optional[str] = None
+    word_count: Optional[str] = "medium"
 
 
 # --- 라우터 생성 ---
@@ -341,6 +349,14 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     character_names = ", ".join([c.name for c in characters]) if characters else "등장인물"
+    
+    # 글자 수 지시사항 생성
+    word_count_map = {
+        "short": "이 장면은 약 500자 내외의 간결하면서도 핵심적인 분량으로 작성해주세요. 핵심 포인트만 담되 여운은 남겨주세요.",
+        "medium": "이 장면은 약 1000자 내외의 적당한 분량으로 작성해주세요. 상황과 감정이 충분히 전달되도록 묘사해주세요.", 
+        "long": "이 장면은 약 1500자 내외의 풍부하고 상세한 분량으로 작성해주세요. 세밀한 묘사와 깊이 있는 감정 표현으로 독자를 완전히 몰입시켜 주세요."
+    }
+    word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
 
     format_map = {
         "novel": ai_prompts.scene_generation_novel,
@@ -360,7 +376,8 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         characters_context=characters_context,
         character_names=character_names,
         plot_position_context=plot_position_context,
-        plot_pacing_instruction=plot_pacing_instruction
+        plot_pacing_instruction=plot_pacing_instruction,
+        word_count_instruction=word_count_instruction
     )
 
     try:
@@ -455,3 +472,86 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
         if 'response' in locals() and hasattr(response, 'text'):
             error_detail += f" | AI 응답: {response.text[:200]}"
         raise HTTPException(status_code=500, detail=error_detail)
+
+
+@router.put("/plot_points/{plot_point_id}/edit-scene", response_model=PlotPoint)
+async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
+
+    plot_point = db.query(PlotPointModel).join(ScenarioModel).filter(
+        PlotPointModel.id == plot_point_id,
+        ScenarioModel.project_id == project.id
+    ).first()
+    if not plot_point:
+        raise HTTPException(status_code=404, detail="플롯 포인트를 찾을 수 없습니다.")
+
+    if not plot_point.scene_draft:
+        raise HTTPException(status_code=400, detail="수정할 장면 초안이 없습니다. 먼저 'AI로 장면 생성'을 사용해주세요.")
+
+    scenario = plot_point.scenario
+    all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
+    total_plots = len(all_plot_points)
+    current_plot_index = next((i for i, p in enumerate(all_plot_points) if p.id == plot_point.id), 0)
+
+    # 플롯 위치 컨텍스트 생성
+    plot_position_context = ""
+    if total_plots > 0:
+        percentage = (current_plot_index + 1) / total_plots
+        if percentage <= 0.25:
+            plot_position_context = "도입부 (기)"
+        elif percentage <= 0.75:
+            plot_position_context = "전개 (승)"
+        elif percentage <= 0.9:
+            plot_position_context = "전환 (전)"
+        else:
+            plot_position_context = "결말 (결)"
+
+    worldview_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
+    
+    character_ids = request.character_ids or []
+    characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
+    characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
+    
+    # 글자 수 지시사항 생성
+    word_count_map = {
+        "short": "약 500자 내외의 간결한 분량으로 수정해주세요.",
+        "medium": "약 1000자 내외의 적당한 분량으로 수정해주세요.", 
+        "long": "약 1500자 내외의 풍부한 분량으로 수정해주세요."
+    }
+    word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
+
+    prompt = ai_prompts.scene_edit.format(
+        existing_scene_draft=plot_point.scene_draft,
+        plot_position_context=plot_position_context,
+        plot_title=plot_point.title,
+        plot_content=plot_point.content,
+        output_format=request.output_format,
+        word_count_instruction=word_count_instruction,
+        characters_context=characters_context,
+        user_edit_request=request.user_edit_request
+    )
+
+    try:
+        chosen_model = request.model_name or AVAILABLE_MODELS[0]
+        model = genai.GenerativeModel(chosen_model)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        response = await model.generate_content_async(prompt, safety_settings=safety_settings)
+        
+        generated_text = response.text.strip()
+        
+        plot_point.scene_draft = generated_text
+        db.commit()
+        db.refresh(plot_point)
+
+        return plot_point
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"AI 장면 수정 중 오류가 발생했습니다: {e}")

@@ -420,6 +420,26 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     aiSceneBtn.parentNode.replaceChild(newAiSceneBtn, aiSceneBtn);
     newAiSceneBtn.addEventListener('click', () => app.handleAiSceneGeneration(plotPoint.id, projectId, scenarioId));
     
+    const aiEditBtn = document.getElementById('plot-point-ai-edit-btn');
+    const newAiEditBtn = aiEditBtn.cloneNode(true);
+    aiEditBtn.parentNode.replaceChild(newAiEditBtn, aiEditBtn);
+    newAiEditBtn.addEventListener('click', () => app.handleAiSceneEdit(plotPoint.id, projectId, scenarioId));
+    
+    // 글자 수 슬라이더 이벤트 리스너 설정
+    const wordCountSlider = document.getElementById('word-count-slider');
+    const wordCountLabel = document.getElementById('word-count-label');
+    if (wordCountSlider && wordCountLabel) {
+        const updateWordCountLabel = () => {
+            const labels = ['짧게 (약 500자)', '중간 (약 1000자)', '길게 (약 1500자)'];
+            wordCountLabel.textContent = labels[parseInt(wordCountSlider.value)];
+        };
+        
+        const newSlider = wordCountSlider.cloneNode(true);
+        wordCountSlider.parentNode.replaceChild(newSlider, wordCountSlider);
+        newSlider.addEventListener('input', updateWordCountLabel);
+        updateWordCountLabel(); // 초기값 설정
+    }
+    
     // [버그 수정] 모달을 닫는 이벤트 리스너들을 여기에 추가합니다.
     const closeButton = plotPointEditModal.querySelector('.close');
     if (closeButton) {

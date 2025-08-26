@@ -311,6 +311,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
 - **연출 지침:** {plot_pacing_instruction}
+- **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}
@@ -332,6 +333,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
 - **연출 지침:** {plot_pacing_instruction}
+- **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}
@@ -364,6 +366,7 @@ SCENE END
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
 - **연출 지침:** {plot_pacing_instruction}
+- **분량 조절:** {word_count_instruction}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}
@@ -381,6 +384,35 @@ SCENE END
 [캐릭터 이름]: "[대사 내용]"
 [다른 캐릭터 이름]: "[대사 내용]"
 [시스템]: [선택지나 특별한 이벤트 발생 시 괄호 안에 서술. 예: (갑자기 문이 열리며 낯선 이가 들어선다.)]
+"""
+
+    scene_edit: str = """당신은 기존 장면을 기반으로 작가의 요청에 맞게 세밀하게 수정하는 전문 편집자입니다.
+기존 장면의 핵심 구조와 맥락을 유지하면서, 사용자의 요청사항을 자연스럽게 반영해주세요.
+
+**[기존 장면 내용]**
+{existing_scene_draft}
+
+**[이 장면의 역할과 배경]**
+- 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
+- **장면의 핵심 목표:** {plot_title} - {plot_content}
+- **출력 형식:** {output_format}
+- **분량 조절:** {word_count_instruction}
+
+**[활용 가능한 등장인물]**
+{characters_context}
+
+**[사용자 수정 요청사항]**
+{user_edit_request}
+
+**[수정 가이드라인]**
+1. **기존 장면의 핵심 구조 유지**: 전체적인 흐름과 중요한 사건은 그대로 두되, 요청사항에 맞게 표현이나 묘사를 조정해주세요.
+2. **자연스러운 통합**: 수정사항이 기존 내용과 어색하지 않게 자연스럽게 어우러지도록 해주세요.
+3. **일관성 유지**: 등장인물의 성격이나 세계관 설정과 일치하도록 수정해주세요.
+4. **요청 중심 개선**: 사용자가 요청한 부분에 집중하여 수정하되, 불필요한 변경은 피해주세요.
+
+다른 부가적인 설명 없이, 오직 수정된 장면 본문만 작성해주세요.
+---
+[수정된 결과물]
 """
 
 

@@ -675,14 +675,20 @@ export class App {
         const button = document.getElementById('plot-point-ai-scene-btn');
         const formatSelect = document.getElementById('scene-format-select');
         const sceneDraftTextarea = document.getElementById('plot-point-scene-draft');
+        const wordCountSlider = document.getElementById('word-count-slider');
 
         const project = this.stateManager.getState().currentProject;
         const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
+        
+        // 글자 수 옵션 매핑
+        const wordCountOptions = ['short', 'medium', 'long'];
+        const wordCount = wordCountOptions[parseInt(wordCountSlider.value)];
 
         const requestBody = {
             output_format: formatSelect.value,
             character_ids: allCharacterIds,
-            model_name: document.getElementById('ai-model-select').value
+            model_name: document.getElementById('ai-model-select').value,
+            word_count: wordCount
         };
 
         button.setAttribute('aria-busy', 'true');
@@ -694,6 +700,60 @@ export class App {
         } catch(error) {
             alert(`AI 장면 생성 실패: ${error.message}`);
             sceneDraftTextarea.value = "오류가 발생했습니다. 다시 시도해주세요.";
+        } finally {
+            button.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    async handleAiSceneEdit(plotPointId, projectId, scenarioId) {
+        const sceneDraftTextarea = document.getElementById('plot-point-scene-draft');
+        
+        if (!sceneDraftTextarea.value.trim()) {
+            alert('수정할 장면 초안이 없습니다. 먼저 "AI로 장면 생성"을 사용해주세요.');
+            return;
+        }
+
+        const userEditRequest = prompt(
+            "장면을 어떻게 수정하고 싶으신가요?\n\n" +
+            "예시:\n" +
+            "• '분위기를 더 어둡게 바꿔줘'\n" +
+            "• '주인공의 대사를 더 단호한 어조로 수정해줘'\n" +
+            "• '액션 장면을 더 생생하게 만들어줘'\n" +
+            "• '감정 표현을 더 섬세하게 해줘'"
+        );
+        
+        if (!userEditRequest || !userEditRequest.trim()) return;
+
+        const button = document.getElementById('plot-point-ai-edit-btn');
+        const formatSelect = document.getElementById('scene-format-select');
+        const wordCountSlider = document.getElementById('word-count-slider');
+
+        const project = this.stateManager.getState().currentProject;
+        const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
+        
+        // 글자 수 옵션 매핑
+        const wordCountOptions = ['short', 'medium', 'long'];
+        const wordCount = wordCountOptions[parseInt(wordCountSlider.value)];
+
+        const requestBody = {
+            user_edit_request: userEditRequest,
+            output_format: formatSelect.value,
+            character_ids: allCharacterIds,
+            model_name: document.getElementById('ai-model-select').value,
+            word_count: wordCount
+        };
+
+        button.setAttribute('aria-busy', 'true');
+        const originalValue = sceneDraftTextarea.value;
+        sceneDraftTextarea.value = "AI가 장면을 수정하고 있습니다...";
+        
+        try {
+            const result = await api.editSceneForPlotPoint(projectId, plotPointId, requestBody);
+            sceneDraftTextarea.value = result.scene_draft;
+            alert('AI 장면 수정이 완료되었습니다. 내용을 확인하고 "변경사항 저장"을 눌러주세요.');
+        } catch(error) {
+            alert(`AI 장면 수정 실패: ${error.message}`);
+            sceneDraftTextarea.value = originalValue; // 원래 값으로 복원
         } finally {
             button.setAttribute('aria-busy', 'false');
         }

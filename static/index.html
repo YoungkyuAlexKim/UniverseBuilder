@@ -246,13 +246,25 @@
                 </label>
                 <hr>
                 <label for="plot-point-scene-draft"><strong>장면 초안</strong></label>
-                <div class="grid" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto;">
+                <div class="grid" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto auto;">
                     <select id="scene-format-select">
                         <option value="novel" selected>소설 형식</option>
                         <option value="screenplay">시나리오 형식</option>
                         <option value="game_dialogue">게임 대사 형식</option>
                     </select>
                     <button id="plot-point-ai-scene-btn" class="secondary" type="button" style="width: auto;">✨ AI로 장면 생성</button>
+                    <button id="plot-point-ai-edit-btn" class="secondary outline" type="button" style="width: auto;">✏️ AI로 초안 수정</button>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="word-count-slider" style="font-size: 0.9rem; font-weight: bold; margin-bottom: 0.25rem; display: block;">
+                        장면 분량: <span id="word-count-label">중간 (약 1000자)</span>
+                    </label>
+                    <input type="range" id="word-count-slider" min="0" max="2" value="1" step="1" style="width: 100%; margin-bottom: 0.25rem;">
+                    <div class="grid" style="font-size: 0.75rem; color: var(--pico-muted-color); grid-template-columns: 1fr 1fr 1fr;">
+                        <span>짧게 (약 500자)</span>
+                        <span style="text-align: center;">중간 (약 1000자)</span>
+                        <span style="text-align: right;">길게 (약 1500자)</span>
+                    </div>
                 </div>
                 <textarea id="plot-point-scene-draft" name="scene_draft" rows="15" placeholder="이곳에 장면 초안이 생성됩니다..."></textarea>
             </form>

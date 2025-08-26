@@ -363,6 +363,15 @@ export async function generateSceneForPlotPoint(projectId, plotPointId, requestB
     return handleResponse(response);
 }
 
+export async function editSceneForPlotPoint(projectId, plotPointId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}/edit-scene`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
 
 // -------------------------
 // AI 생성 및 수정 (AI Generators & Editors)
