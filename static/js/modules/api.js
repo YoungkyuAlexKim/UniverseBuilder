@@ -336,6 +336,15 @@ export async function deletePlotPoint(projectId, scenarioId, plotPointId) {
     return handleResponse(response);
 }
 
+// [신규] 모든 플롯 포인트를 삭제하는 API 호출 함수
+export async function deleteAllPlotPoints(projectId, scenarioId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/${scenarioId}/plot_points`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
 export async function editPlotPointWithAi(projectId, scenarioId, plotPointId, requestBody) {
     const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}/edit-with-ai`, {
         method: 'PUT',
@@ -345,7 +354,6 @@ export async function editPlotPointWithAi(projectId, scenarioId, plotPointId, re
     return handleResponse(response);
 }
 
-// [신규] 플롯 포인트의 장면 초안을 AI로 생성하는 API 호출 함수
 export async function generateSceneForPlotPoint(projectId, plotPointId, requestBody) {
     const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}/generate-scene`, {
         method: 'POST',
@@ -378,7 +386,6 @@ export async function refineScenarioConcept(requestBody) {
    return handleResponse(response);
 }
 
-// [신규] 세계관 핵심 설정 다듬기 API 호출 함수
 export async function refineWorldviewRule(requestBody) {
     const response = await fetch('/api/v1/generate/worldview-rule', {
        method: 'POST',
@@ -484,7 +491,6 @@ export async function suggestRelationship(projectId, sourceCharacterId, targetCh
     return handleResponse(response);
 }
 
-// [신규] 시놉시스 구체화 API 호출 함수
 export async function enhanceSynopsis(requestBody) {
     const response = await fetch('/api/v1/generate/synopsis-enhance', {
         method: 'POST',

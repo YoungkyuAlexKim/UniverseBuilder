@@ -255,6 +255,19 @@ def create_plot_point(scenario_id: str, plot_point_data: PlotPointBase, project:
     db.refresh(new_plot_point)
     return new_plot_point
 
+# [신규] 모든 플롯 포인트 삭제 API 엔드포인트
+@router.delete("/{scenario_id}/plot_points")
+def delete_all_plot_points(scenario_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
+
+    # 해당 시나리오에 속한 모든 플롯 포인트 삭제
+    num_deleted = db.query(PlotPointModel).filter(PlotPointModel.scenario_id == scenario_id).delete(synchronize_session=False)
+    db.commit()
+    
+    return {"message": f"{num_deleted}개의 플롯 포인트가 성공적으로 삭제되었습니다."}
+
 @router.put("/plot_points/{plot_point_id}", response_model=PlotPoint)
 def update_plot_point(plot_point_id: str, plot_point_data: PlotPointBase, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     plot_point = db.query(PlotPointModel).join(ScenarioModel).filter(
@@ -299,7 +312,6 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     if not plot_point:
         raise HTTPException(status_code=404, detail="플롯 포인트를 찾을 수 없습니다.")
 
-    # --- [신규] 4막 구조(기승전결) 컨텍스트 자동 계산 ---
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
     total_plots = len(all_plot_points)
@@ -316,14 +328,13 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         elif percentage <= 0.75:
             plot_position_context = "전개 (승)"
             plot_pacing_instruction = "이야기를 발전시키고 심화시키세요. 인물 간의 관계가 깊어지거나 갈등의 씨앗이 뿌려지는 과정을 보여주세요."
-        elif percentage <= 0.9: # 75% ~ 90% 구간을 '전'으로 설정
+        elif percentage <= 0.9:
             plot_position_context = "전환 (전)"
             plot_pacing_instruction = "이야기의 흐름을 완전히 바꾸는 예상치 못한 사건이나 반전을 등장시키세요. 이 장면을 통해 독자가 새로운 국면을 맞이하게 만들어야 합니다."
-        else: # 90% 이후 구간을 '결'로 설정
+        else:
             plot_position_context = "결말 (결)"
             plot_pacing_instruction = "지금까지의 모든 사건들을 하나로 묶어 명확한 결론을 내리세요. 인물의 최종적인 변화와 이야기의 주제를 드러내며 마무리하세요."
 
-    # --- AI 컨텍스트 구성 ---
     worldview_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
     
     character_ids = request.character_ids or []

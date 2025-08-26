@@ -90,7 +90,6 @@ export class App {
         }
     }
 
-    // ... (handleCreateProject, handleSelectProject 등 다른 핸들러들은 변경 없음) ...
     async handleCreateProject(event) {
         event.preventDefault();
         const form = event.currentTarget;
@@ -596,13 +595,27 @@ export class App {
         }
     }
 
+    /**
+     * [버그 수정] 플롯 포인트를 수정합니다. (stale reference 방지)
+     * @param {HTMLFormElement} form - 이벤트 리스너가 참조하던 form (사용하지 않음)
+     * @param {string} projectId - 프로젝트 ID
+     * @param {string} scenarioId - 시나리오 ID
+     */
     async handleUpdatePlotPoint(form, projectId, scenarioId) {
+        // stale reference 문제를 피하기 위해 DOM에서 직접 최신 form과 button을 가져옵니다.
+        const currentForm = document.getElementById('plot-point-edit-form');
         const button = document.getElementById('plot-point-save-btn');
-        const plotPointId = form.elements.plot_point_id.value;
+
+        if (!currentForm || !button) {
+            console.error("플롯 포인트 편집 폼 또는 저장 버튼을 찾을 수 없습니다.");
+            return;
+        }
+
+        const plotPointId = currentForm.elements.plot_point_id.value;
         const plotData = {
-            title: form.elements.title.value,
-            content: form.elements.content.value,
-            scene_draft: form.elements.scene_draft.value
+            title: currentForm.elements.title.value,
+            content: currentForm.elements.content.value,
+            scene_draft: currentForm.elements.scene_draft.value
         };
 
         button.setAttribute('aria-busy', 'true');
@@ -614,6 +627,7 @@ export class App {
         } catch(error) {
             alert(`저장 실패: ${error.message}`);
         } finally {
+            // UI가 닫히기 전이므로, 기존 버튼 참조를 사용해도 안전합니다.
             button.setAttribute('aria-busy', 'false');
         }
     }
@@ -632,6 +646,28 @@ export class App {
             alert(`삭제 실패: ${error.message}`);
         } finally {
             button.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    async handleDeleteAllPlotPoints(projectId, scenarioId) {
+        if (!confirm("정말로 이 시나리오의 모든 플롯 포인트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")) return;
+
+        let button = document.getElementById('delete-all-plots-btn');
+        if (button) {
+            button.setAttribute('aria-busy', 'true');
+        }
+        
+        try {
+            await api.deleteAllPlotPoints(projectId, scenarioId);
+            alert('모든 플롯 포인트가 성공적으로 삭제되었습니다.');
+            await this.stateManager.refreshCurrentProject();
+        } catch(error) {
+            alert(`전체 삭제 실패: ${error.message}`);
+        } finally {
+            button = document.getElementById('delete-all-plots-btn');
+            if (button) {
+                button.setAttribute('aria-busy', 'false');
+            }
         }
     }
 

@@ -294,7 +294,6 @@ export function renderScenarioTab(projectData) {
             const plotDataString = JSON.stringify(plot);
             const escapedPlotDataString = plotDataString.replace(/'/g, '&#39;');
 
-            // [수정] 전체를 감싸던 button을 article로 변경하고, 내부에 작은 편집 버튼 추가
             return `
             <article class="plot-point-item" style="position: relative; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px;">
                 <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}' style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.1rem 0.5rem; font-size: 0.75rem;">
@@ -331,11 +330,18 @@ export function renderScenarioTab(projectData) {
 
     setupButtonListener('ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
     setupButtonListener('refine-concept-btn', () => app.handleRefineConcept());
+    
+    // [신규] '전체 삭제' 버튼 이벤트 리스너 연결
+    const deleteAllPlotsBtn = container.querySelector('#delete-all-plots-btn');
+    if (deleteAllPlotsBtn) {
+        const newDeleteAllBtn = deleteAllPlotsBtn.cloneNode(true);
+        deleteAllPlotsBtn.parentNode.replaceChild(newDeleteAllBtn, deleteAllPlotsBtn);
+        newDeleteAllBtn.addEventListener('click', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
+    }
 
     const plotList = container.querySelector('#plot-list');
     const newPlotList = plotList.cloneNode(true);
     plotList.parentNode.replaceChild(newPlotList, plotList);
-    // [수정] 이벤트 리스너가 .plot-point-item 대신 .open-plot-modal-btn을 찾도록 변경
     newPlotList.addEventListener('click', (e) => {
         const editButton = e.target.closest('.open-plot-modal-btn');
         if (editButton) {
