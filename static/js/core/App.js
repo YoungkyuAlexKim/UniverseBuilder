@@ -498,9 +498,7 @@ export class App {
     async handleSaveScenario(event, projectId, scenarioId) {
         event.preventDefault();
         const form = event.currentTarget;
-        
-        const getButton = () => form.querySelector('button[type="submit"]') || 
-                                document.querySelector('#scenario-details-form button[type="submit"]');
+        const button = form.querySelector('button[type="submit"]');
         
         const themes = form.elements.themes.value.split(',')
             .map(theme => theme.trim())
@@ -512,9 +510,7 @@ export class App {
             synopsis: form.elements.synopsis.value,
             themes: themes
         };
-
-        // 버튼 참조를 고정하여 UI 재렌더링 시에도 스피너를 제대로 해제할 수 있도록 함
-        const button = getButton();
+        
         if (button) button.setAttribute('aria-busy', 'true');
         
         try {
@@ -525,12 +521,10 @@ export class App {
             console.error('시나리오 저장 실패:', error);
             alert(error.message);
         } finally {
-            // 원래 버튼이 아직 DOM에 있다면 해제, 없다면 현재 버튼 해제
-            if (button && button.parentNode) {
-                button.setAttribute('aria-busy', 'false');
-            } else {
-                const currentButton = getButton();
-                if (currentButton) currentButton.setAttribute('aria-busy', 'false');
+            // UI가 새로 렌더링된 후이므로, DOM에서 버튼을 다시 찾아야 합니다.
+            const newButton = document.querySelector('#scenario-details-form button[type="submit"]');
+            if (newButton) {
+                newButton.setAttribute('aria-busy', 'false');
             }
         }
     }

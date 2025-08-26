@@ -392,6 +392,17 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
         app.handleAiDraftGeneration(e, projectData.id, scenarioId);
     });
 
+    // [버그 수정] 모달 닫기 이벤트 리스너 추가
+    const closeButton = modal.querySelector('.close');
+    if (closeButton) {
+        const newCloseButton = closeButton.cloneNode(true);
+        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+        newCloseButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            app.modals.closeModal();
+        });
+    }
+
     modal.classList.add('active');
     modalBackdrop.classList.add('active');
 }
