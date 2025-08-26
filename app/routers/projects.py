@@ -23,6 +23,7 @@ class PlotPoint(BaseModel):
     title: str
     content: Optional[str] = None
     ordering: int
+    scene_draft: Optional[str] = None 
     class Config:
         from_attributes = True
 
