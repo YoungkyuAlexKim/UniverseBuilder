@@ -32,17 +32,16 @@ if api_key:
 class PlotPointBase(BaseModel):
     title: str
     content: Optional[str] = None
-    # [신규] scene_draft 필드를 수동 저장 시에도 받을 수 있도록 추가
     scene_draft: Optional[str] = None
 
 class PlotPoint(PlotPointBase):
     id: str
     scenario_id: str
     ordering: int
-    scene_draft: Optional[str] = None # [신규] 응답 모델에 scene_draft 필드 추가
+    scene_draft: Optional[str] = None
 
     class Config:
-        from_attributes = True # [수정] orm_mode 대신 from_attributes 사용
+        from_attributes = True
 
 class ScenarioBase(BaseModel):
     title: str
@@ -68,9 +67,8 @@ class AIEditPlotPointRequest(BaseModel):
     character_ids: List[str]
     model_name: Optional[str] = None
 
-# [신규] 장면 생성 요청을 위한 Pydantic 모델
 class GenerateSceneRequest(BaseModel):
-    output_format: str  # e.g., "novel", "screenplay", "game_dialogue"
+    output_format: str
     character_ids: Optional[List[str]] = None
     model_name: Optional[str] = None
 
@@ -92,7 +90,6 @@ def parse_scenario_fields(scenario_obj):
         scenario_obj.themes = []
 
     if scenario_obj.plot_points:
-        # [수정] plot_points 객체에 scene_draft가 포함되도록 함
         scenario_obj.plot_points.sort(key=lambda x: (x.ordering is None, x.ordering))
 
     return scenario_obj
@@ -102,7 +99,6 @@ def parse_scenario_fields(scenario_obj):
 @router.get("", response_model=List[Scenario])
 def get_scenarios_for_project(project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     scenarios = db.query(ScenarioModel).filter(ScenarioModel.project_id == project.id).all()
-    # PlotPoint 모델에 scene_draft가 자동으로 포함되므로 별도 처리 필요 없음
     return [parse_scenario_fields(s) for s in scenarios]
 
 @router.put("/{scenario_id}", response_model=Scenario)
@@ -130,15 +126,15 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
 
-    worldview_data = {"logline": "", "genre": "", "rules": []}
+    world_data = {"logline": "", "genre": "", "rules": []}
     if project.worldview and project.worldview.content:
         try:
-            worldview_data = json.loads(project.worldview.content)
+            world_data = json.loads(project.worldview.content)
         except json.JSONDecodeError:
             pass
 
-    worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(worldview_data.get("rules", [])) if worldview_data.get("rules") else ""
-    story_genre_context = f"### 이야기 장르 및 분위기\n{worldview_data.get('genre', '정의되지 않음')}"
+    worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(world_data.get("rules", [])) if world_data.get("rules") else ""
+    story_genre_context = f"### 이야기 장르 및 분위기\n{world_data.get('genre', '정의되지 않음')}"
     
     selected_characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
 
@@ -151,58 +147,16 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
 
-    prompt = f"""[SYSTEM INSTRUCTION]
-당신은 독자를 사로잡는 매력적인 스토리를 창조하는 베테랑 소설가입니다.
-주어진 세계관과 캐릭터들을 바탕으로, 독자가 다음 페이지를 넘기고 싶어지는 흥미진진한 플롯을 설계해주세요.
-
-[WORLD & CHARACTER CONTEXT]
-{worldview_rules_context}
-{story_genre_context}
-{scenario_themes}
-{characters_context}
-{story_concept}
-{synopsis_context}
----
-
-[CREATIVE MISSION]
-위의 모든 요소를 유기적으로 결합하여, **{request.plot_point_count}개의 플롯 포인트**로 구성된 몰입도 높은 스토리 아웃라인을 창조하세요.
-
-**🎯 핵심 창작 원칙:**
-1. **감정적 몰입**: 각 플롯 포인트는 독자의 감정을 자극하고 몰입하게 만들어야 합니다
-2. **생생한 장면성**: 독자가 마치 영화를 보듯 상황을 상상할 수 있도록 구체적이고 감각적으로 묘사하세요
-3. **캐릭터 중심**: 단순한 사건 나열이 아닌, 캐릭터의 감정 변화와 성장이 드러나야 합니다
-4. **긴장감과 리듬**: 갈등의 고조-완화-재고조 패턴으로 독자를 끝까지 붙잡아야 합니다
-5. **복선과 반전**: 자연스럽게 떡밥을 심고, 예상을 뒤엎는 반전을 준비하세요
-
-**📝 플롯 포인트 작성 가이드:**
-- **제목**: 해당 장면의 핵심 감정이나 전환점을 함축하는 드라마틱한 표현 (예: "배신의 진실", "운명적 만남", "마지막 선택")
-- **내용**: 
-  • 구체적인 상황과 배경 묘사
-  • 캐릭터들의 감정과 내적 갈등
-  • 중요한 대화나 행동의 순간
-  • 다음 플롯으로 이어지는 자연스러운 연결고리
-  • 독자의 호기심을 자극하는 요소
-
-**🎨 스타일 가이드:**
-- 생동감 있는 표현과 적절한 은유 사용
-- 캐릭터의 개성이 드러나는 구체적 묘사
-- 긴박함과 여유로움의 적절한 배치
-- 독자가 감정이입할 수 있는 인간적 디테일 포함
-
-**JSON 스키마:**
-{{
-  "plot_points": [
-    {{
-      "title": "드라마틱하고 함축적인 장면 제목",
-      "content": "생생하고 감정적으로 몰입도 높은 장면 묘사 (상황, 캐릭터 감정, 갈등, 전개 요소 포함)"
-    }}
-  ]
-}}
-
----
-[FINAL OUTPUT INSTRUCTION]
-반드시 유효한 JSON 형식으로만 응답하세요. 다른 설명이나 텍스트는 절대 포함하지 마세요.
-"""
+    prompt = ai_prompts.scenario_draft.format(
+        worldview_rules_context=worldview_rules_context,
+        story_genre_context=story_genre_context,
+        scenario_themes=scenario_themes,
+        characters_context=characters_context,
+        story_concept=story_concept,
+        prologue_context=synopsis_context, # prologue_context is a legacy name
+        plot_point_count=request.plot_point_count
+    )
+    
     try:
         generation_config = GenerationConfig(response_mime_type="application/json")
         safety_settings = {
@@ -231,34 +185,28 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
                     raise e
 
         if response is None:
-            raise HTTPException(status_code=500, detail="AI 모델 호출에 실패했습니다. (최대 재시도 횟수 초과)")
+            raise HTTPException(status_code=500, detail="AI 모델 호출에 실패했습니다.")
 
         if not response.parts:
             finish_reason_name = "UNKNOWN"
             if response.candidates and response.candidates[0].finish_reason:
                 finish_reason_name = response.candidates[0].finish_reason.name
-
             if finish_reason_name == "SAFETY":
-                raise HTTPException(
-                    status_code=400,
-                    detail="AI가 생성한 내용이 안전 필터에 의해 차단되었습니다. 컨셉이나 테마에 갈등 요소가 너무 직접적으로 묘사되었을 수 있습니다. 내용을 조금 수정 후 다시 시도해 주세요."
-                )
+                raise HTTPException(status_code=400, detail="AI 생성 내용이 안전 필터에 의해 차단되었습니다.")
             else:
-                 raise HTTPException(
-                    status_code=500,
-                    detail=f"AI로부터 유효한 응답을 받지 못했습니다. (종료 사유: {finish_reason_name})"
-                )
+                 raise HTTPException(status_code=500, detail=f"AI로부터 유효한 응답을 받지 못했습니다. (종료 사유: {finish_reason_name})")
 
         try:
             cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
             ai_result = json.loads(cleaned_response_text)
         except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 응답을 반환했습니다. 잠시 후 다시 시도하거나 다른 모델을 선택해 주세요. (응답: {response.text[:100]})")
+            raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 응답을 반환했습니다: {response.text[:100]}")
 
         if not ai_result.get("plot_points"):
-            raise HTTPException(status_code=400, detail="AI가 컨텍스트를 처리하지 못했습니다. 컨셉이나 테마를 조금 더 구체적으로 작성한 후 다시 시도해 주세요.")
+            raise HTTPException(status_code=400, detail="AI가 컨텍스트를 처리하지 못했습니다.")
 
         db.query(PlotPointModel).filter(PlotPointModel.scenario_id == scenario_id).delete()
+        db.commit()
 
         new_plot_points = []
         for i, plot_data in enumerate(ai_result.get("plot_points", [])):
@@ -281,16 +229,7 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
         db.rollback()
         if isinstance(e, HTTPException):
             raise e
-        
-        error_detail = f"AI 플롯 생성 중 서버 오류 발생: {e}"
-        if 'response' in locals() and response:
-            try:
-                feedback = response.prompt_feedback
-                error_detail += f" | Prompt Feedback: {feedback}"
-            except Exception:
-                error_detail += " | (AI 응답 객체에서 추가 정보를 가져오는 데 실패)"
-        
-        raise HTTPException(status_code=500, detail=error_detail)
+        raise HTTPException(status_code=500, detail=f"AI 플롯 생성 중 서버 오류 발생: {e}")
 
 
 @router.post("/{scenario_id}/plot_points", response_model=PlotPoint)
@@ -328,7 +267,6 @@ def update_plot_point(plot_point_id: str, plot_point_data: PlotPointBase, projec
 
     plot_point.title = plot_point_data.title
     plot_point.content = plot_point_data.content
-    # [신규] 수동 저장 시 scene_draft도 함께 업데이트
     plot_point.scene_draft = plot_point_data.scene_draft
 
     db.commit()
@@ -349,7 +287,6 @@ def delete_plot_point(plot_point_id: str, project: ProjectModel = Depends(get_pr
     db.commit()
     return {"message": "플롯 포인트가 성공적으로 삭제되었습니다."}
 
-# [신규] AI 장면 초안 생성 API 엔드포인트
 @router.post("/plot_points/{plot_point_id}/generate-scene", response_model=PlotPoint)
 async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSceneRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     if not api_key:
@@ -362,18 +299,38 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     if not plot_point:
         raise HTTPException(status_code=404, detail="플롯 포인트를 찾을 수 없습니다.")
 
-    # --- AI 컨텍스트 구성 ---
+    # --- [신규] 4막 구조(기승전결) 컨텍스트 자동 계산 ---
     scenario = plot_point.scenario
+    all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
+    total_plots = len(all_plot_points)
+    current_plot_index = plot_point.ordering
+
+    plot_position_context = ""
+    plot_pacing_instruction = ""
+    
+    if total_plots > 0:
+        percentage = (current_plot_index + 1) / total_plots
+        if percentage <= 0.25:
+            plot_position_context = "도입부 (기)"
+            plot_pacing_instruction = "등장인물과 배경을 소개하고, 앞으로 전개될 사건의 실마리를 제시하며 독자의 호기심을 자극하세요. 아직 중요한 비밀은 밝히지 마세요."
+        elif percentage <= 0.75:
+            plot_position_context = "전개 (승)"
+            plot_pacing_instruction = "이야기를 발전시키고 심화시키세요. 인물 간의 관계가 깊어지거나 갈등의 씨앗이 뿌려지는 과정을 보여주세요."
+        elif percentage <= 0.9: # 75% ~ 90% 구간을 '전'으로 설정
+            plot_position_context = "전환 (전)"
+            plot_pacing_instruction = "이야기의 흐름을 완전히 바꾸는 예상치 못한 사건이나 반전을 등장시키세요. 이 장면을 통해 독자가 새로운 국면을 맞이하게 만들어야 합니다."
+        else: # 90% 이후 구간을 '결'로 설정
+            plot_position_context = "결말 (결)"
+            plot_pacing_instruction = "지금까지의 모든 사건들을 하나로 묶어 명확한 결론을 내리세요. 인물의 최종적인 변화와 이야기의 주제를 드러내며 마무리하세요."
+
+    # --- AI 컨텍스트 구성 ---
     worldview_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
     
-    # 등장인물 정보 구성
     character_ids = request.character_ids or []
-    # 플롯 포인트 내용에 언급된 캐릭터 이름을 기반으로 ID를 찾아 추가하는 로직 (추후 구현 가능)
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     character_names = ", ".join([c.name for c in characters]) if characters else "등장인물"
 
-    # 프롬프트 선택
     format_map = {
         "novel": ai_prompts.scene_generation_novel,
         "screenplay": ai_prompts.scene_generation_screenplay,
@@ -390,10 +347,11 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         plot_title=plot_point.title,
         plot_content=plot_point.content,
         characters_context=characters_context,
-        character_names=character_names
+        character_names=character_names,
+        plot_position_context=plot_position_context,
+        plot_pacing_instruction=plot_pacing_instruction
     )
 
-    # --- AI 호출 및 결과 처리 ---
     try:
         chosen_model = request.model_name or AVAILABLE_MODELS[0]
         model = genai.GenerativeModel(chosen_model)
@@ -408,7 +366,6 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         
         generated_text = response.text.strip()
         
-        # 생성된 텍스트를 plot_point의 scene_draft에 저장
         plot_point.scene_draft = generated_text
         db.commit()
         db.refresh(plot_point)
@@ -422,7 +379,6 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
 
 @router.put("/plot_points/{plot_point_id}/edit-with-ai", response_model=PlotPoint)
 async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
-    # ... (기존 코드는 변경 없음, 필요 시 추후 수정)
     if not api_key:
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
 
@@ -443,48 +399,15 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
     synopsis_context = f"[시놉시스 / 전체 줄거리]\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
 
 
-    prompt = f"""당신은 독자의 마음을 사로잡는 스토리텔링의 달인입니다.
-전체 이야기의 흐름과 분위기를 완벽히 이해하고, 한 장면 한 장면을 더욱 생생하고 몰입도 높게 다듬는 전문가입니다.
-
-아래 스토리의 맥락을 파악하고, 지정된 플롯 포인트를 사용자의 요청에 따라 더욱 매력적으로 개선해주세요.
-
-**📖 스토리 전체 맥락**
-{story_concept}
-{synopsis_context}
-
-**👥 핵심 인물들**
-{characters_context}
-
-**🎬 전체 스토리 흐름**
-{full_story_context}
-
----
-**🎯 수정 대상 장면**
-현재 제목: "{plot_point_to_edit.title}"
-현재 내용: "{plot_point_to_edit.content}"
-
-**✨ 사용자 개선 요청**
-"{request.user_prompt}"
-
----
-**🎨 창작 가이드라인**
-1. **감정의 깊이**: 단순한 사건 전개가 아닌, 캐릭터의 내적 변화와 감정을 생동감 있게 표현하세요
-2. **장면의 생생함**: 독자가 그 순간을 생생히 상상할 수 있도록 구체적이고 감각적으로 묘사하세요
-3. **스토리 연결성**: 전후 맥락과 자연스럽게 어우러지면서도 이 장면만의 독특함을 살려주세요
-4. **드라마틱 임팩트**: 독자의 호기심과 몰입도를 높이는 긴장감과 매력 포인트를 강화하세요
-5. **캐릭터 일관성**: 등장인물들의 개성과 성격이 일관되게 반영되도록 하세요
-
-**📝 결과물 요구사항**
-- **제목**: 해당 장면의 핵심 감정이나 드라마를 함축하는 매력적인 표현
-- **내용**: 생생하고 몰입감 있는 장면 묘사 (상황, 감정, 갈등, 분위기 포함)
-
-**JSON 스키마:**
-{{
-  "title": "개선된 드라마틱한 장면 제목",
-  "content": "더욱 생생하고 매력적으로 개선된 장면 묘사"
-}}
-
-반드시 유효한 JSON 형식으로만 응답하세요."""
+    prompt = ai_prompts.plot_point_edit.format(
+        story_concept=story_concept,
+        prologue_context=synopsis_context,
+        characters_context=characters_context,
+        full_story_context=full_story_context,
+        plot_title=plot_point_to_edit.title,
+        plot_content=plot_point_to_edit.content,
+        user_prompt=request.user_prompt
+    )
     try:
         chosen_model = request.model_name or AVAILABLE_MODELS[0]
         model = genai.GenerativeModel(chosen_model)

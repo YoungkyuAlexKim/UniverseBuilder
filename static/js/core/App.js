@@ -596,19 +596,13 @@ export class App {
         }
     }
 
-    /**
-     * [수정] 플롯 포인트를 수정합니다. (scene_draft 포함)
-     * @param {HTMLFormElement} form - 폼 요소
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} scenarioId - 시나리오 ID
-     */
     async handleUpdatePlotPoint(form, projectId, scenarioId) {
         const button = document.getElementById('plot-point-save-btn');
         const plotPointId = form.elements.plot_point_id.value;
         const plotData = {
             title: form.elements.title.value,
             content: form.elements.content.value,
-            scene_draft: form.elements.scene_draft.value // [신규] scene_draft 값 추가
+            scene_draft: form.elements.scene_draft.value
         };
 
         button.setAttribute('aria-busy', 'true');
@@ -641,18 +635,11 @@ export class App {
         }
     }
 
-    /**
-     * [신규] AI를 사용하여 장면 초안을 생성합니다.
-     * @param {string} plotPointId - 플롯 포인트 ID
-     * @param {string} projectId - 프로젝트 ID
-     * @param {string} scenarioId - 시나리오 ID
-     */
     async handleAiSceneGeneration(plotPointId, projectId, scenarioId) {
         const button = document.getElementById('plot-point-ai-scene-btn');
         const formatSelect = document.getElementById('scene-format-select');
         const sceneDraftTextarea = document.getElementById('plot-point-scene-draft');
 
-        // 간단하게 현재 프로젝트의 모든 캐릭터를 컨텍스트로 사용
         const project = this.stateManager.getState().currentProject;
         const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
 
@@ -677,17 +664,12 @@ export class App {
     }
 
     async handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
-        // 이 기능은 'AI로 장면 생성' 기능으로 대체되거나 통합될 수 있습니다.
-        // 현재는 그대로 두지만, 추후 UI/UX를 고려하여 조정이 필요합니다.
         const userPrompt = prompt("이 플롯의 '내용(요약)'을 어떻게 수정하고 싶으신가요?\n(예: '주인공이 더 극적으로 승리하는 장면으로 바꿔줘')");
         if (!userPrompt) return;
 
         const project = this.stateManager.getState().projects.find(p => p.id === projectId);
         const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
-
-        // 이 기능은 현재 UI에 버튼이 없으므로 임시로 비활성화된 것처럼 처리합니다.
-        // const button = document.getElementById('plot-point-ai-edit-btn');
-        // button.setAttribute('aria-busy', 'true');
+        
         try {
             const requestBody = {
                 user_prompt: userPrompt,
@@ -700,8 +682,6 @@ export class App {
             await this.stateManager.refreshCurrentProject();
         } catch(error) {
             alert(`AI 수정 실패: ${error.message}`);
-        } finally {
-            // button.setAttribute('aria-busy', 'false');
         }
     }
 
