@@ -309,9 +309,13 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 
 **[장면의 역할과 목표]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
-- **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
 - **연출 지침:** {plot_pacing_instruction}
 - **분량 조절:** {word_count_instruction}
+
+**[스토리 흐름]**
+{previous_scene_context}
+- **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
+{next_scene_context}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}{relationships_context}
@@ -320,6 +324,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
 2.  **감정선 중심 서술:** 인물의 행동뿐만 아니라, 그 행동을 하는 순간의 내면 심리, 감정 변화를 섬세하게 묘사해주세요.
 3.  **생생한 묘사:** 시각, 청각, 후각 등 오감을 자극하는 표현으로 장면의 분위기를 구체적으로 그려주세요.
+4.  **(중요) 흐름의 연결:** 만약 '이전' 또는 '다음' 장면 정보가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
 
 다른 부가적인 설명 없이, 오직 완성된 소설 본문만 작성해주세요.
 ---
@@ -331,9 +336,13 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 
 **[장면의 역할과 목표]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
-- **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
 - **연출 지침:** {plot_pacing_instruction}
 - **분량 조절:** {word_count_instruction}
+
+**[스토리 흐름]**
+{previous_scene_context}
+- **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
+{next_scene_context}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}{relationships_context}
@@ -342,6 +351,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
 2.  **'보여주기(Showing)':** 감정이나 상황을 설명하지 말고, 인물의 행동, 표정, 대사를 통해 간접적으로 보여주세요.
 3.  **구체적인 지문:** 카메라가 무엇을 비춰야 할지, 배우가 어떤 톤으로 말해야 할지가 눈에 보이도록 구체적으로 작성해야 합니다.
+4.  **(중요) 흐름의 연결:** 만약 '이전' 또는 '다음' 장면 정보가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
 
 다른 부가적인 설명 없이, 오직 완성된 시나리오 본문만 작성해주세요.
 ---
@@ -364,9 +374,13 @@ SCENE END
 
 **[장면의 역할과 목표]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
-- **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
 - **연출 지침:** {plot_pacing_instruction}
 - **분량 조절:** {word_count_instruction}
+
+**[스토리 흐름]**
+{previous_scene_context}
+- **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
+{next_scene_context}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}{relationships_context}
@@ -375,6 +389,7 @@ SCENE END
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
 2.  **성격이 드러나는 대사:** 각 대사는 해당 캐릭터의 성격, 가치관, 말투를 명확히 반영해야 합니다.
 3.  **간결하고 명확하게:** 플레이어가 쉽게 이해하고 따라갈 수 있도록 간결한 문장을 사용해주세요.
+4.  **(중요) 흐름의 연결:** 만약 '이전' 또는 '다음' 장면 정보가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
 
 다른 부가적인 설명 없이, 오직 완성된 게임 대사 지문만 작성해주세요.
 ---
@@ -389,14 +404,17 @@ SCENE END
     scene_edit: str = """당신은 기존 장면을 기반으로 작가의 요청에 맞게 세밀하게 수정하는 전문 편집자입니다.
 기존 장면의 핵심 구조와 맥락을 유지하면서, 사용자의 요청사항을 자연스럽게 반영해주세요.
 
-**[기존 장면 내용]**
-{existing_scene_draft}
-
 **[이 장면의 역할과 배경]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **장면의 핵심 목표:** {plot_title} - {plot_content}
 - **출력 형식:** {output_format}
 - **분량 조절:** {word_count_instruction}
+
+**[스토리 흐름]**
+{previous_scene_context}
+**[기존 장면 내용 (수정 대상)]**
+{existing_scene_draft}
+{next_scene_context}
 
 **[활용 가능한 등장인물]**
 {characters_context}{relationships_context}
@@ -409,6 +427,7 @@ SCENE END
 2. **자연스러운 통합**: 수정사항이 기존 내용과 어색하지 않게 자연스럽게 어우러지도록 해주세요.
 3. **일관성 유지**: 등장인물의 성격이나 세계관 설정과 일치하도록 수정해주세요.
 4. **요청 중심 개선**: 사용자가 요청한 부분에 집중하여 수정하되, 불필요한 변경은 피해주세요.
+5. **(중요) 흐름의 연결:** '이전' 또는 '다음' 장면이 있다면, 수정된 장면이 그 흐름과 자연스럽게 이어지도록 각별히 신경 써주세요.
 
 다른 부가적인 설명 없이, 오직 수정된 장면 본문만 작성해주세요.
 ---

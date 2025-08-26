@@ -325,6 +325,20 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     total_plots = len(all_plot_points)
     current_plot_index = plot_point.ordering
 
+    # [개선] 이전/다음 플롯 포인트 초안 컨텍스트 생성
+    previous_scene_context = ""
+    if current_plot_index > 0:
+        previous_plot = all_plot_points[current_plot_index - 1]
+        if previous_plot.scene_draft:
+            previous_scene_context = f"### 이전 장면 내용 (참고용)\n{previous_plot.scene_draft}\n"
+
+    next_scene_context = ""
+    if current_plot_index < total_plots - 1:
+        next_plot = all_plot_points[current_plot_index + 1]
+        if next_plot.scene_draft:
+            next_scene_context = f"### 다음 장면 내용 (참고용)\n{next_plot.scene_draft}\n"
+
+
     plot_position_context = ""
     plot_pacing_instruction = ""
     
@@ -388,16 +402,14 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         raise HTTPException(status_code=400, detail="지원하지 않는 출력 형식입니다.")
 
     prompt = prompt_template.format(
-        worldview_genre=worldview_data.get('genre', '알 수 없음'),
-        worldview_rules="\n- ".join(worldview_data.get('rules', [])),
-        scenario_summary=scenario.summary,
-        plot_title=plot_point.title,
-        plot_content=plot_point.content,
-        characters_context=characters_context,
-        character_names=character_names,
         plot_position_context=plot_position_context,
         plot_pacing_instruction=plot_pacing_instruction,
         word_count_instruction=word_count_instruction,
+        previous_scene_context=previous_scene_context,
+        plot_title=plot_point.title,
+        plot_content=plot_point.content,
+        next_scene_context=next_scene_context,
+        characters_context=characters_context,
         relationships_context=relationships_context
     )
 
@@ -515,6 +527,19 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     total_plots = len(all_plot_points)
     current_plot_index = next((i for i, p in enumerate(all_plot_points) if p.id == plot_point.id), 0)
 
+    # [개선] 이전/다음 플롯 포인트 초안 컨텍스트 생성
+    previous_scene_context = ""
+    if current_plot_index > 0:
+        previous_plot = all_plot_points[current_plot_index - 1]
+        if previous_plot.scene_draft:
+            previous_scene_context = f"### 이전 장면 내용 (참고용)\n{previous_plot.scene_draft}\n"
+
+    next_scene_context = ""
+    if current_plot_index < total_plots - 1:
+        next_plot = all_plot_points[current_plot_index + 1]
+        if next_plot.scene_draft:
+            next_scene_context = f"### 다음 장면 내용 (참고용)\n{next_plot.scene_draft}\n"
+
     # 플롯 위치 컨텍스트 생성
     plot_position_context = ""
     if total_plots > 0:
@@ -569,6 +594,8 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         plot_content=plot_point.content,
         output_format=request.output_format,
         word_count_instruction=word_count_instruction,
+        previous_scene_context=previous_scene_context,
+        next_scene_context=next_scene_context,
         characters_context=characters_context,
         relationships_context=relationships_context,
         user_edit_request=request.user_edit_request
