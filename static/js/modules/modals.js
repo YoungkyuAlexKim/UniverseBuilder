@@ -15,6 +15,9 @@ const plotPointEditModal = document.getElementById('plot-point-edit-modal');
 const refineConceptModal = document.getElementById('refine-concept-modal'); 
 const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal');
 const commonAiModal = document.getElementById('common-ai-modal');
+// [신규] 플롯 포인트 비교 모달을 위한 DOM 요소 추가
+const plotPointsDiffModal = document.getElementById('plot-points-diff-modal');
+
 
 // App 인스턴스를 저장할 변수
 let app;
@@ -28,7 +31,9 @@ export function initializeModals(appInstance) {
 }
 
 export function closeModal() {
-    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal].forEach(el => el.classList.remove('active'));
+    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal, plotPointsDiffModal].forEach(el => {
+        if (el) el.classList.remove('active');
+    });
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
@@ -41,6 +46,65 @@ function handleEscKey(event) {
         closeModal();
     }
 }
+
+/**
+ * [신규] AI가 수정한 전체 플롯 포인트를 비교하는 모달을 엽니다.
+ * @param {Array} originalPlots - 원본 플롯 포인트 배열
+ * @param {Array} suggestedPlots - AI가 제안한 플롯 포인트 배열
+ * @param {Function} onAcceptCallback - '적용' 버튼 클릭 시 실행될 콜백 함수
+ */
+export function openPlotPointsDiffModal(originalPlots, suggestedPlots, onAcceptCallback) {
+    const originalContainer = document.getElementById('plot-points-diff-original');
+    const suggestionContainer = document.getElementById('plot-points-diff-suggestion');
+    const acceptBtn = document.getElementById('plot-points-diff-accept-btn');
+    const rejectBtn = document.getElementById('plot-points-diff-reject-btn');
+
+    const renderPlots = (plots) => {
+        return plots.map((plot, index) => `
+            <article class="plot-point-item" data-index="${index}">
+                <h6>${index + 1}. ${plot.title}</h6>
+                <p>${plot.content || '세부 내용 없음'}</p>
+            </article>
+        `).join('');
+    };
+    
+    originalContainer.innerHTML = renderPlots(originalPlots);
+    suggestionContainer.innerHTML = renderPlots(suggestedPlots);
+
+    // 변경된 부분 하이라이트
+    suggestedPlots.forEach((plot, index) => {
+        const originalPlot = originalPlots[index];
+        if (!originalPlot || originalPlot.title !== plot.title || originalPlot.content !== plot.content) {
+            const suggestedArticle = suggestionContainer.querySelector(`article[data-index="${index}"]`);
+            if (suggestedArticle) {
+                suggestedArticle.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
+                suggestedArticle.style.border = '1px solid rgba(245, 158, 11, 0.5)';
+            }
+        }
+    });
+    
+    const newAcceptBtn = acceptBtn.cloneNode(true);
+    acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
+    newAcceptBtn.addEventListener('click', () => onAcceptCallback(suggestedPlots));
+
+    const newRejectBtn = rejectBtn.cloneNode(true);
+    rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
+    newRejectBtn.addEventListener('click', () => closeModal());
+
+    const closeButton = plotPointsDiffModal.querySelector('.close');
+    if (closeButton) {
+        const newCloseButton = closeButton.cloneNode(true);
+        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+        newCloseButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeModal();
+        });
+    }
+
+    plotPointsDiffModal.classList.add('active');
+    modalBackdrop.classList.add('active');
+}
+
 
 export function openCardModal(card, projectId) {
     if (!card) return;

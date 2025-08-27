@@ -304,6 +304,50 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 ```
 """
 
+    # [신규] 전체 플롯 포인트 목록을 수정하기 위한 프롬프트
+    plot_points_edit: str = """[SYSTEM INSTRUCTION]
+당신은 이야기의 전체적인 흐름과 일관성을 꿰뚫어 보는 전문 스토리 편집자입니다.
+주어진 [CONTEXT]와 [EXISTING PLOT POINTS]를 바탕으로, 사용자의 [USER REQUEST]를 반영하여 전체 플롯을 수정해야 합니다.
+
+[CONTEXT]
+{worldview_rules_context}
+{story_genre_context}
+{scenario_themes}
+{characters_context}
+{story_concept}
+{prologue_context}
+---
+
+[EXISTING PLOT POINTS]
+{plot_points_context}
+---
+
+[USER REQUEST]
+"{user_prompt}"
+---
+
+[TASK]
+1.  [USER REQUEST]를 깊이 이해하고, [EXISTING PLOT POINTS]의 전체적인 흐름을 어떻게 수정해야 할지 파악하세요.
+2.  요청에 따라 일부 플롯 포인트의 `title`과 `content`를 수정하거나, 여러 플롯 포인트를 통합/재구성하여 새로운 내용으로 변경하세요.
+3.  **매우 중요한 규칙: 전체 플롯 포인트의 총 개수는 절대 변경해서는 안 됩니다.** 기존 플롯이 {plot_point_count}개였다면, 수정된 결과도 반드시 {plot_point_count}개의 플롯 포인트여야 합니다.
+4.  수정된 내용은 [CONTEXT]의 설정과 충돌해서는 안 되며, 이야기의 일관성을 유지해야 합니다.
+5.  최종 결과물은 반드시 아래 JSON 스키마를 따르는 단 하나의 JSON 객체여야 합니다. 다른 설명은 절대 포함하지 마세요.
+
+**JSON 스키마:**
+{{
+  "plot_points": [
+    {{
+      "title": "수정된 플롯 포인트의 간결한 제목",
+      "content": "수정된 플롯 포인트의 상세한 설명."
+    }}
+  ]
+}}
+
+---
+[CRITICAL FINAL INSTRUCTION]
+Your entire response must start with `{{` and end with `}}`. No other text, explanation, or formatting is permitted.
+"""
+
     scene_generation_novel: str = """당신은 독자의 감각을 자극하고 마음을 움직이는 묘사에 능한 베테랑 소설가입니다.
 주어진 상황과 설정을 바탕으로, 독자가 마치 그 장면 속에 직접 들어가 있는 듯한 몰입감을 선사하는 한 편의 장면을 소설 형식으로 서술해주세요.
 

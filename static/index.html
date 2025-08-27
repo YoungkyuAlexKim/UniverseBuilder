@@ -68,7 +68,7 @@
                             </hgroup>
                             <form id="worldview-form">
                                 <div class="worldview-section">
-                                    <label for="worldview-logline" class="section-label">� 한 줄 정의 (Logline)</label>
+                                    <label for="worldview-logline" class="section-label"> 한 줄 정의 (Logline)</label>
                                     <input type="text" id="worldview-logline" name="logline" class="main-input" placeholder="이 세계를 한 문장으로 정의합니다. (예: 마법이 기술을 대체한 스팀펑크 세계)">
                                 </div>
 
@@ -125,6 +125,8 @@
                             <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; margin-top: 1rem;">
                                 <button type="button" id="refine-concept-btn" class="secondary" style="width: auto; flex-grow: 0;">✨ 컨셉 다듬기 (AI)</button>
                                 <div style="flex-grow: 1;"></div>
+                                <!-- [신규] 'AI로 전체 플롯 수정' 버튼 추가 -->
+                                <button type="button" id="ai-edit-plots-btn" class="secondary" style="width: auto;">✏️ AI로 전체 플롯 수정</button>
                                 <button type="button" id="ai-draft-btn" class="contrast" style="width: auto;">✨ AI로 전체 스토리 초안 생성</button>
                                 <button type="submit" style="width: auto;">시나리오 정보 저장</button>
                             </div>
@@ -450,6 +452,31 @@
         </article>
     </div>
 
+    <!-- [신규] 전체 플롯 수정 비교 모달 -->
+    <div id="plot-points-diff-modal" class="modal-container">
+        <article style="max-width: 95vw; width: 1400px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✏️ AI 전체 플롯 수정 제안</h3>
+            </header>
+            <div class="grid">
+                <article>
+                    <header><strong>원본 플롯</strong></header>
+                    <div id="plot-points-diff-original" style="max-height: 60vh; overflow-y: auto; padding-right: 1rem;"></div>
+                </article>
+                <article>
+                    <header><strong>AI 수정 제안 (변경된 항목은 하이라이트됩니다)</strong></header>
+                    <div id="plot-points-diff-suggestion" style="max-height: 60vh; overflow-y: auto; padding-right: 1rem;"></div>
+                </article>
+            </div>
+            <footer>
+                <div class="grid" style="justify-content: flex-end;">
+                    <button id="plot-points-diff-reject-btn" class="secondary outline" style="width: auto;">반려</button>
+                    <button id="plot-points-diff-accept-btn" style="width: auto;">이 내용으로 적용</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
 </body>
 </html>
-�

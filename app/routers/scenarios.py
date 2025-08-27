@@ -15,7 +15,7 @@ from google.api_core import exceptions as google_exceptions
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
-from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, Card as CardModel, Worldview as WorldviewModel, Relationship as RelationshipModel
+from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, Card as CardModel, Worldview as WorldviewModel, Relationship as RelationshipModel, Group as GroupModel
 from .projects import get_project_if_accessible
 # [신규] 프롬프트 설정을 불러오기 위한 임포트
 from ..config import ai_prompts
@@ -65,6 +65,11 @@ class GenerateDraftRequest(BaseModel):
 class AIEditPlotPointRequest(BaseModel):
     user_prompt: str
     character_ids: List[str]
+    model_name: Optional[str] = None
+
+# [신규] 전체 플롯 수정 요청을 위한 모델
+class AIEditPlotsRequest(BaseModel):
+    user_prompt: str
     model_name: Optional[str] = None
 
 class GenerateSceneRequest(BaseModel):
@@ -238,6 +243,77 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"AI 플롯 생성 중 서버 오류 발생: {e}")
+
+# [신규] 전체 플롯 수정 API 엔드포인트
+@router.put("/{scenario_id}/edit-plots-with-ai")
+async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
+
+    scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
+    if not scenario.plot_points:
+        raise HTTPException(status_code=400, detail="수정할 플롯 포인트가 없습니다. 먼저 플롯을 생성해주세요.")
+
+    # AI에게 전달할 컨텍스트 준비
+    world_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
+    worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(world_data.get("rules", [])) if world_data.get("rules") else ""
+    story_genre_context = f"### 이야기 장르 및 분위기\n{world_data.get('genre', '정의되지 않음')}"
+    themes_list = json.loads(scenario.themes) if scenario.themes and scenario.themes != "[]" else []
+    scenario_themes = f"### 핵심 테마\n{', '.join(themes_list)}" if themes_list else ""
+    
+    all_characters = db.query(CardModel).join(GroupModel).filter(GroupModel.project_id == project.id).all()
+    characters_context = "### 주요 등장인물\n" + "\n".join([f"- {c.name}: {c.description}" for c in all_characters])
+    story_concept = f"### 이야기 핵심 컨셉\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
+    synopsis_context = f"### 시놉시스 / 전체 줄거리\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
+
+    sorted_plots = sorted(scenario.plot_points, key=lambda p: p.ordering)
+    plot_points_context = "\n".join([f"{i+1}. {p.title}: {p.content or ''}" for i, p in enumerate(sorted_plots)])
+    plot_point_count = len(sorted_plots)
+
+    # 프롬프트 생성
+    prompt = ai_prompts.plot_points_edit.format(
+        worldview_rules_context=worldview_rules_context,
+        story_genre_context=story_genre_context,
+        scenario_themes=scenario_themes,
+        characters_context=characters_context,
+        story_concept=story_concept,
+        prologue_context=synopsis_context,
+        plot_points_context=plot_points_context,
+        user_prompt=request.user_prompt,
+        plot_point_count=plot_point_count
+    )
+
+    try:
+        chosen_model = request.model_name or AVAILABLE_MODELS[0]
+        model = genai.GenerativeModel(chosen_model)
+        generation_config = GenerationConfig(response_mime_type="application/json")
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        response = await model.generate_content_async(prompt, generation_config=generation_config, safety_settings=safety_settings)
+        
+        cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
+        ai_result = json.loads(cleaned_response_text)
+
+        # AI 응답 검증 (플롯 개수가 동일한지)
+        if "plot_points" not in ai_result or len(ai_result["plot_points"]) != plot_point_count:
+            raise HTTPException(status_code=500, detail=f"AI가 요청된 플롯 개수({plot_point_count}개)와 다른 수({len(ai_result.get('plot_points', []))}개)의 플롯을 반환했습니다.")
+
+        # 프론트엔드로 수정 제안을 반환 (DB에 바로 저장하지 않음)
+        return ai_result
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 JSON 응답을 반환했습니다: {response.text[:200]}")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"AI 플롯 수정 중 서버 오류 발생: {e}")
 
 
 @router.post("/{scenario_id}/plot_points", response_model=PlotPoint)

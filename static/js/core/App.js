@@ -74,6 +74,10 @@ export class App {
             if (e.target.matches('#enhance-synopsis-btn')) {
                 this.handleEnhanceSynopsis();
             }
+            // [수정] 'AI로 전체 플롯 수정' 버튼 이벤트 리스너
+            if (e.target.matches('#ai-edit-plots-btn')) {
+                this.handleAiEditPlots();
+            }
         });
     }
     
@@ -589,6 +593,76 @@ export class App {
 
         } catch (error) {
             console.error('AI 시나리오 초안 생성 실패:', error);
+            alert(error.message);
+        } finally {
+            button.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    /**
+     * [수정] AI를 이용해 전체 플롯 포인트를 수정하는 전체 워크플로우를 처리합니다.
+     */
+    async handleAiEditPlots() {
+        const { currentProject } = this.stateManager.getState();
+        if (!currentProject || !currentProject.scenarios || currentProject.scenarios.length === 0) {
+            alert('현재 활성화된 시나리오가 없습니다.');
+            return;
+        }
+        const mainScenario = currentProject.scenarios[0];
+        if (!mainScenario.plot_points || mainScenario.plot_points.length === 0) {
+            alert('수정할 플롯이 없습니다. 먼저 AI로 초안을 생성해주세요.');
+            return;
+        }
+
+        const userPrompt = prompt("전체 플롯을 어떤 방향으로 수정하고 싶으신가요?\n\n예시:\n- 후반부 전개를 좀 더 희망적으로 바꿔줘.\n- 20번부터 25번 플롯까지의 긴장감을 더 높여줘.\n- 주인공의 라이벌을 더 일찍 등장시켜줘.");
+        if (!userPrompt || !userPrompt.trim()) {
+            return;
+        }
+
+        const button = document.getElementById('ai-edit-plots-btn');
+        button.setAttribute('aria-busy', 'true');
+
+        try {
+            const requestBody = {
+                user_prompt: userPrompt,
+                model_name: document.getElementById('ai-model-select').value
+            };
+            const result = await api.editAllPlotPointsWithAi(currentProject.id, mainScenario.id, requestBody);
+            
+            const onAccept = async (suggestedPlots) => {
+                const acceptBtn = document.getElementById('plot-points-diff-accept-btn');
+                acceptBtn.setAttribute('aria-busy', 'true');
+                
+                try {
+                    // 모든 플롯 포인트를 순차적으로 업데이트합니다.
+                    const updatePromises = suggestedPlots.map((plot, index) => {
+                        const originalPlot = mainScenario.plot_points[index];
+                        const plotData = {
+                            title: plot.title,
+                            content: plot.content
+                        };
+                        return api.updatePlotPoint(currentProject.id, mainScenario.id, originalPlot.id, plotData);
+                    });
+
+                    await Promise.all(updatePromises);
+                    
+                    alert('AI의 수정 제안이 성공적으로 적용되었습니다!');
+                    this.modals.closeModal();
+                    await this.stateManager.refreshCurrentProject();
+
+                } catch (error) {
+                    console.error('플롯 포인트 적용 실패:', error);
+                    alert(`플롯 적용 중 오류가 발생했습니다: ${error.message}`);
+                } finally {
+                    // [버그 수정] 작업 성공/실패와 관계없이 스피너를 멈춥니다.
+                    acceptBtn.setAttribute('aria-busy', 'false');
+                }
+            };
+
+            this.modals.openPlotPointsDiffModal(mainScenario.plot_points, result.plot_points, onAccept);
+
+        } catch (error) {
+            console.error('AI 전체 플롯 수정 실패:', error);
             alert(error.message);
         } finally {
             button.setAttribute('aria-busy', 'false');

@@ -319,6 +319,16 @@ export async function generateAiScenarioDraft(projectId, scenarioId, requestBody
     return handleResponse(response);
 }
 
+// [신규] 전체 플롯 수정 API 호출 함수
+export async function editAllPlotPointsWithAi(projectId, scenarioId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/scenarios/${scenarioId}/edit-plots-with-ai`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
 export async function updatePlotPoint(projectId, scenarioId, plotPointId, plotPointData) {
     const response = await fetch(`/api/v1/projects/${projectId}/scenarios/plot_points/${plotPointId}`, {
         method: 'PUT',
