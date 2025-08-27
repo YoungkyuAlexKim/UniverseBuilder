@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scenario Universe Builder</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
-    <link rel="stylesheet" href="/static/css/main.css?v=1.6"> 
+    <link rel="stylesheet" href="/static/css/main.css?v=1.7"> 
     
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
     
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     
-    <script type="module" src="/static/js/main.js?v=2.0"></script>
+    <script type="module" src="/static/js/main.js?v=2.1"></script>
 </head>
 <body>
     <div class="grid-container">
@@ -96,62 +96,63 @@
                     </div>
 
                     <div id="tab-content-scenario" class="tab-content">
-                    <article>
-                        <hgroup>
-                            <h4>메인 스토리 (사건의 흐름)</h4>
-                            <p>세계관이라는 무대 위에서 벌어지는 구체적인 '사건'의 흐름을 설계하는 공간입니다.</p>
-                        </hgroup>
-                        <form id="scenario-details-form">
-                            <label for="scenario-summary">이야기 핵심 컨셉 (Logline)</label>
-                            <input type="text" id="scenario-summary" name="summary" placeholder="이 이야기를 한 문장으로 요약합니다. (예: 몰락한 왕국의 기사가 현대로 넘어와 자신의 세계를 구원할 방법을 찾는다.)">
-                            
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label for="scenario-synopsis">시놉시스 / 전체 줄거리 (Synopsis)</label>
-                                <button type="button" id="enhance-synopsis-btn" class="secondary outline" style="width: auto; font-size: 0.9rem;">✨ AI 스토리 구체화</button>
-                            </div>
-                            <textarea id="scenario-synopsis" name="synopsis" rows="5" placeholder="이야기의 전체적인 흐름과 구조를 자유롭게 서술합니다. 한 줄 아이디어부터 상세한 줄거리까지, AI와 함께 발전시켜 나갈 수 있습니다."></textarea>
+                        <article>
+                            <hgroup>
+                                <h4>메인 스토리 (사건의 흐름)</h4>
+                                <p>세계관이라는 무대 위에서 벌어지는 구체적인 '사건'의 흐름을 설계하는 공간입니다.</p>
+                            </hgroup>
+                            <form id="scenario-details-form">
+                                <div class="input-with-button">
+                                    <label for="scenario-summary">이야기 핵심 컨셉 (Logline)</label>
+                                    <button type="button" id="refine-concept-btn" class="secondary outline">✨ 컨셉 다듬기 (AI)</button>
+                                </div>
+                                <input type="text" id="scenario-summary" name="summary" placeholder="이 이야기를 한 문장으로 요약합니다. (예: 몰락한 왕국의 기사가 현대로 넘어와 자신의 세계를 구원할 방법을 찾는다.)">
+                                
+                                <div class="input-with-button">
+                                    <label for="scenario-synopsis">시놉시스 / 전체 줄거리 (Synopsis)</label>
+                                    <button type="button" id="enhance-synopsis-btn" class="secondary outline">✨ AI 스토리 구체화</button>
+                                </div>
+                                <textarea id="scenario-synopsis" name="synopsis" rows="5" placeholder="이야기의 전체적인 흐름과 구조를 자유롭게 서술합니다. 한 줄 아이디어부터 상세한 줄거리까지, AI와 함께 발전시켜 나갈 수 있습니다."></textarea>
 
-                            <div class="grid">
-                                <label for="scenario-title">
-                                    시나리오 제목
-                                    <input type="text" id="scenario-title" name="title" placeholder="시나리오의 제목">
-                                </label>
-                                <label for="scenario-themes">
-                                    핵심 테마 (쉼표로 구분)
-                                    <input type="text" id="scenario-themes" name="themes" placeholder="예: 복수, 희생, 구원">
-                                </label>
+                                <div class="grid">
+                                    <label for="scenario-title">
+                                        시나리오 제목
+                                        <input type="text" id="scenario-title" name="title" placeholder="시나리오의 제목">
+                                    </label>
+                                    <label for="scenario-themes">
+                                        핵심 테마 (쉼표로 구분)
+                                        <input type="text" id="scenario-themes" name="themes" placeholder="예: 복수, 희생, 구원">
+                                    </label>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                                    <button type="submit" style="width: auto;">시나리오 정보 저장</button>
+                                </div>
+                            </form>
+                        </article>
+                        <hr>
+                        <div id="plot-points-container">
+                            <div class="plot-points-header">
+                                <h4>플롯 포인트</h4>
+                                <div class="plot-buttons-group">
+                                    <button type="button" id="ai-draft-btn" class="contrast">✨ AI로 전체 스토리 초안 생성</button>
+                                    <button type="button" id="ai-edit-plots-btn" class="secondary">✏️ AI로 전체 플롯 수정</button>
+                                    <button id="delete-all-plots-btn" class="secondary outline">전체 삭제</button>
+                                </div>
                             </div>
-                            
-                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; margin-top: 1rem;">
-                                <button type="button" id="refine-concept-btn" class="secondary" style="width: auto; flex-grow: 0;">✨ 컨셉 다듬기 (AI)</button>
-                                <div style="flex-grow: 1;"></div>
-                                <!-- [신규] 'AI로 전체 플롯 수정' 버튼 추가 -->
-                                <button type="button" id="ai-edit-plots-btn" class="secondary" style="width: auto;">✏️ AI로 전체 플롯 수정</button>
-                                <button type="button" id="ai-draft-btn" class="contrast" style="width: auto;">✨ AI로 전체 스토리 초안 생성</button>
-                                <button type="submit" style="width: auto;">시나리오 정보 저장</button>
+                            <div id="plot-list">
+                                <!-- 플롯 포인트들이 여기에 동적으로 렌더링됩니다. -->
                             </div>
-                        </form>
-                    </article>
-                    <hr>
-                    <div id="plot-points-container">
-                        <!-- [신규] '전체 삭제' 버튼을 포함한 헤더 영역 -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <h4>플롯 포인트</h4>
-                            <button id="delete-all-plots-btn" class="secondary outline" style="width: auto; font-size: 0.8rem; padding: 0.2rem 0.6rem;">전체 삭제</button>
+                            <form id="add-plot-point-form" style="margin-top: 1.5rem; border-top: 1px solid var(--pico-muted-border-color); padding-top: 1.5rem;">
+                                <label for="new-plot-title"><strong>새 플롯 추가</strong></label>
+                                <input type="text" id="new-plot-title" name="title" placeholder="플롯 제목 (예: 주인공의 각성)" required>
+                                <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
+                                <button type="submit" style="width: auto;">+ 플롯 추가</button>
+                            </form>
                         </div>
-                        <div id="plot-list">
-                            <!-- 플롯 포인트들이 여기에 동적으로 렌더링됩니다. -->
-                        </div>
-                        <form id="add-plot-point-form" style="margin-top: 1.5rem; border-top: 1px solid var(--pico-muted-border-color); padding-top: 1.5rem;">
-                            <label for="new-plot-title"><strong>새 플롯 추가</strong></label>
-                            <input type="text" id="new-plot-title" name="title" placeholder="플롯 제목 (예: 주인공의 각성)" required>
-                            <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
-                            <button type="submit" style="width: auto;">+ 플롯 추가</button>
-                        </form>
                     </div>
                 </div>
             </div>
-        </div>
         </main>
     </div>
 
@@ -238,49 +239,59 @@
             </header>
             <form id="plot-point-edit-form">
                 <input type="hidden" name="plot_point_id">
-                <label for="plot-point-title">
-                    제목
-                    <input type="text" id="plot-point-title" name="title" required>
-                </label>
-                <label for="plot-point-content">
-                    내용 (요약)
-                    <textarea id="plot-point-content" name="content" rows="4"></textarea>
-                </label>
-                <hr>
-                <label for="plot-point-scene-draft"><strong>장면 초안</strong></label>
-                <div class="grid" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto auto;">
-                    <select id="scene-format-select">
-                        <option value="novel" selected>소설 형식</option>
-                        <option value="screenplay">시나리오 형식</option>
-                        <option value="game_dialogue">게임 대사 형식</option>
-                    </select>
-                    <button id="plot-point-ai-scene-btn" class="secondary" type="button" style="width: auto;">✨ AI로 장면 생성</button>
-                    <button id="plot-point-ai-edit-btn" class="secondary outline" type="button" style="width: auto;">✏️ AI로 초안 수정</button>
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <label for="word-count-slider" style="font-size: 0.9rem; font-weight: bold; margin-bottom: 0.25rem; display: block;">
-                        장면 분량: <span id="word-count-label">중간 (약 2000자)</span>
-                    </label>
-                    <input type="range" id="word-count-slider" min="0" max="2" value="1" step="1" style="width: 100%; margin-bottom: 0.25rem;">
-                    <div class="grid" style="font-size: 0.75rem; color: var(--pico-muted-color); grid-template-columns: 1fr 1fr 1fr;">
-                        <span>짧게 (약 1000자)</span>
-                        <span style="text-align: center;">중간 (약 2000자)</span>
-                        <span style="text-align: right;">길게 (약 3000자)</span>
+                <div class="plot-edit-grid">
+                    <div class="plot-edit-left">
+                        <label for="plot-point-title"><strong>제목</strong></label>
+                        <input type="text" id="plot-point-title" name="title" required>
+                        
+                        <label for="plot-point-content"><strong>내용 (요약)</strong></label>
+                        <textarea id="plot-point-content" name="content" rows="5"></textarea>
+                        
+                        <hr>
+                        
+                        <strong>장면 생성 옵션 (AI)</strong>
+                        <div class="grid" style="margin-bottom: 0.5rem; grid-template-columns: 1fr auto;">
+                            <select id="scene-format-select">
+                                <option value="novel" selected>소설 형식</option>
+                                <option value="screenplay">시나리오 형식</option>
+                                <option value="game_dialogue">게임 대사 형식</option>
+                            </select>
+                            <button id="plot-point-ai-scene-btn" class="secondary" type="button" style="width: auto;">✨ AI로 장면 생성</button>
+                        </div>
+
+                        <div style="margin-bottom: 1rem;">
+                            <label for="word-count-slider" style="font-size: 0.9rem; font-weight: bold; margin-bottom: 0.25rem; display: block;">
+                                장면 분량: <span id="word-count-label">중간 (약 2000자)</span>
+                            </label>
+                            <input type="range" id="word-count-slider" min="0" max="2" value="1" step="1" style="width: 100%; margin-bottom: 0.25rem;">
+                            <div class="grid" style="font-size: 0.75rem; color: var(--pico-muted-color); grid-template-columns: 1fr 1fr 1fr;">
+                                <span>짧게 (약 1000자)</span>
+                                <span style="text-align: center;">중간 (약 2000자)</span>
+                                <span style="text-align: right;">길게 (약 3000자)</span>
+                            </div>
+                        </div>
+
+                        <details style="margin-bottom: 1rem;">
+                            <summary style="font-size: 0.9rem; font-weight: bold; cursor: pointer;">참고할 캐릭터 선택 (선택사항)</summary>
+                            <div style="margin-top: 0.5rem; max-height: 200px; overflow-y: auto; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; padding: 0.75rem;">
+                                <div style="margin-bottom: 0.5rem;">
+                                    <button type="button" id="select-all-characters" class="secondary outline" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">전체 선택</button>
+                                    <button type="button" id="deselect-all-characters" class="secondary outline" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; margin-left: 0.5rem;">전체 해제</button>
+                                </div>
+                                <div id="plot-point-character-selection" class="checkbox-container">
+                                    <p>캐릭터 정보 로딩 중...</p>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                    <div class="plot-edit-right">
+                        <div class="input-with-button">
+                            <label for="plot-point-scene-draft"><strong>장면 초안</strong></label>
+                            <button id="plot-point-ai-edit-btn" class="secondary outline" type="button" style="width: auto;">✏️ AI로 초안 수정</button>
+                        </div>
+                        <textarea id="plot-point-scene-draft" name="scene_draft" rows="25" placeholder="이곳에 장면 초안이 생성됩니다..."></textarea>
                     </div>
                 </div>
-                <details style="margin-bottom: 1rem;">
-                    <summary style="font-size: 0.9rem; font-weight: bold; cursor: pointer;">참고할 캐릭터 선택 (선택사항)</summary>
-                    <div style="margin-top: 0.5rem; max-height: 200px; overflow-y: auto; border: 1px solid var(--pico-muted-border-color); border-radius: 6px; padding: 0.75rem;">
-                        <div style="margin-bottom: 0.5rem;">
-                            <button type="button" id="select-all-characters" class="secondary outline" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">전체 선택</button>
-                            <button type="button" id="deselect-all-characters" class="secondary outline" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; margin-left: 0.5rem;">전체 해제</button>
-                        </div>
-                        <div id="plot-point-character-selection" class="checkbox-container">
-                            <p>캐릭터 정보 로딩 중...</p>
-                        </div>
-                    </div>
-                </details>
-                <textarea id="plot-point-scene-draft" name="scene_draft" rows="15" placeholder="이곳에 장면 초안이 생성됩니다..."></textarea>
             </form>
             <footer>
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
@@ -364,7 +375,7 @@
                 <div class="grid" style="margin-bottom: 0.5rem;">
                     <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="300자 내외로 더 상세하게 확장해줘">📝 상세하게 확장</button>
                     <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="문장을 자연스럽게 다듬어줘">✏️ 문장 다듬기</button>
-                    <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="더 흥미진진하고 구체적으로 만들어줘">🎬 더 흥미롭게</button>
+                    <button type="button" class="synopsis-preset-btn secondary outline" data-prompt="더 흥미진진하고 구체적으로 만들어줘">� 더 흥미롭게</button>
                 </div>
                 <textarea id="synopsis-user-prompt" rows="3" placeholder="또는 직접 입력: 어떻게 수정하고 싶으신지 자유롭게 설명해주세요..."></textarea>
             </div>
@@ -480,3 +491,4 @@
 
 </body>
 </html>
+�

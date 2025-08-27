@@ -461,6 +461,7 @@ function handleCancelHighlight(fieldName, originalContent) {
 }
 
 export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
+    const modalArticle = plotPointEditModal.querySelector('article');
     const form = document.getElementById('plot-point-edit-form');
     form.reset();
     form.elements.plot_point_id.value = plotPoint.id;
@@ -471,7 +472,9 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     const saveBtn = document.getElementById('plot-point-save-btn');
     const deleteBtn = document.getElementById('plot-point-delete-btn');
     const aiSceneBtn = document.getElementById('plot-point-ai-scene-btn');
+    const aiEditBtn = document.getElementById('plot-point-ai-edit-btn');
     
+    // 이벤트 리스너를 안전하게 다시 연결하기 위해 cloneNode 사용
     const newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
     newSaveBtn.addEventListener('click', () => app.handleUpdatePlotPoint(form, projectId, scenarioId));
@@ -484,7 +487,6 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     aiSceneBtn.parentNode.replaceChild(newAiSceneBtn, aiSceneBtn);
     newAiSceneBtn.addEventListener('click', () => app.handleAiSceneGeneration(plotPoint.id, projectId, scenarioId));
     
-    const aiEditBtn = document.getElementById('plot-point-ai-edit-btn');
     const newAiEditBtn = aiEditBtn.cloneNode(true);
     aiEditBtn.parentNode.replaceChild(newAiEditBtn, aiEditBtn);
     newAiEditBtn.addEventListener('click', () => app.handleAiSceneEdit(plotPoint.id, projectId, scenarioId));
@@ -527,7 +529,7 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
         });
     }
     
-    // [버그 수정] 모달을 닫는 이벤트 리스너들을 여기에 추가합니다.
+    // 모달 닫기 이벤트 리스너
     const closeButton = plotPointEditModal.querySelector('.close');
     if (closeButton) {
         const newCloseButton = closeButton.cloneNode(true);
@@ -544,7 +546,6 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     };
 
     document.addEventListener('keydown', handleEscKey);
-    // / [버그 수정]
 
     plotPointEditModal.classList.add('active');
     modalBackdrop.classList.add('active');

@@ -1,4 +1,4 @@
-html { font-size: 90%; } /* [신규] 전체 UI 크기 조절 */
+html { font-size: 95%; } /* [수정] 전체 UI 크기 조절 */
 
 body, html { height: 100%; margin: 0; overflow: hidden; }
 
@@ -503,4 +503,63 @@ nav li { margin: 0; }
 }
 .relationship-card-body p {
     margin: 0;
+}
+
+/* --- [신규] 시나리오 탭 UI 개선 --- */
+.input-with-button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.input-with-button label {
+    margin-bottom: 0;
+    font-weight: bold;
+}
+.input-with-button button {
+    width: auto;
+    font-size: 0.9rem;
+    padding: 0.3rem 0.8rem;
+}
+
+.plot-points-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #30363d;
+}
+.plot-points-header h4 {
+    margin: 0;
+}
+.plot-buttons-group {
+    display: flex;
+    gap: 0.75rem;
+}
+.plot-buttons-group button {
+    width: auto;
+}
+
+
+/* --- [신규] 플롯 포인트 편집 모달 UI 개선 --- */
+#plot-point-edit-modal > article {
+    max-width: 1200px; /* 모달 너비 확장 */
+    width: 90vw;
+}
+
+.plot-edit-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr; /* 2단 레이아웃 */
+    gap: 2rem;
+    height: 100%;
+}
+
+.plot-edit-left, .plot-edit-right {
+    display: flex;
+    flex-direction: column;
+}
+
+.plot-edit-right textarea {
+    flex-grow: 1; /* 오른쪽 영역의 textarea가 남은 공간 모두 차지 */
 }

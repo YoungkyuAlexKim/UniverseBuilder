@@ -274,7 +274,7 @@ function createWorldviewCardElement(card, projectId, groupId) {
     return cardEl;
 }
 
-export function renderScenarioTab(projectData) {
+function renderScenarioTab(projectData) {
     const container = document.getElementById('tab-content-scenario');
     const mainScenario = projectData.scenarios && projectData.scenarios[0];
     if (!mainScenario) {
@@ -308,6 +308,7 @@ export function renderScenarioTab(projectData) {
     }
     container.querySelector('#plot-list').innerHTML = plotPointsHTML;
 
+    // 이벤트 리스너를 안전하게 다시 연결하기 위해 cloneNode 사용
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
     newForm.addEventListener('submit', (e) => {
@@ -321,23 +322,21 @@ export function renderScenarioTab(projectData) {
         app.handleCreatePlotPoint(e, projectData.id, mainScenario.id);
     });
 
-    const setupButtonListener = (id, handler) => {
-        const button = container.querySelector(`#${id}`);
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-        newButton.addEventListener('click', handler);
+    // 버튼 이벤트 리스너 설정
+    const setupButtonListener = (selector, handler) => {
+        const button = container.querySelector(selector);
+        if (button) {
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+            newButton.addEventListener('click', handler);
+        }
     };
 
-    setupButtonListener('ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
-    setupButtonListener('refine-concept-btn', () => app.handleRefineConcept());
-    
-    // [신규] '전체 삭제' 버튼 이벤트 리스너 연결
-    const deleteAllPlotsBtn = container.querySelector('#delete-all-plots-btn');
-    if (deleteAllPlotsBtn) {
-        const newDeleteAllBtn = deleteAllPlotsBtn.cloneNode(true);
-        deleteAllPlotsBtn.parentNode.replaceChild(newDeleteAllBtn, deleteAllPlotsBtn);
-        newDeleteAllBtn.addEventListener('click', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
-    }
+    setupButtonListener('#refine-concept-btn', () => app.handleRefineConcept());
+    setupButtonListener('#enhance-synopsis-btn', () => app.handleEnhanceSynopsis());
+    setupButtonListener('#ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
+    setupButtonListener('#ai-edit-plots-btn', () => app.handleAiEditPlots());
+    setupButtonListener('#delete-all-plots-btn', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
 
     const plotList = container.querySelector('#plot-list');
     const newPlotList = plotList.cloneNode(true);
