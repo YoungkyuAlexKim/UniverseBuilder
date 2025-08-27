@@ -70,15 +70,8 @@ export class App {
             }
         });
 
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('#enhance-synopsis-btn')) {
-                this.handleEnhanceSynopsis();
-            }
-            // [수정] 'AI로 전체 플롯 수정' 버튼 이벤트 리스너
-            if (e.target.matches('#ai-edit-plots-btn')) {
-                this.handleAiEditPlots();
-            }
-        });
+        // [수정] 중복되는 전역 이벤트 리스너를 삭제하여 버그를 해결합니다.
+        // document.addEventListener('click', (e) => { ... });
     }
     
     /**

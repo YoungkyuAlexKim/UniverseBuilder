@@ -157,36 +157,37 @@ function createCardElement(card, projectId, groupId) {
 function renderWorldviewTab(projectData) {
     const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
     
+    // [수정] 폼 전체를 교체하는 대신, 내용만 업데이트합니다.
     const form = document.getElementById('worldview-form');
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-
-    const loglineInput = newForm.querySelector('#worldview-logline');
-    const genreInput = newForm.querySelector('#worldview-genre');
-    const rulesContainer = newForm.querySelector('#worldview-rules-container');
-    const addRuleBtn = newForm.querySelector('#add-worldview-rule-btn');
+    const loglineInput = form.querySelector('#worldview-logline');
+    const genreInput = form.querySelector('#worldview-genre');
+    const rulesContainer = form.querySelector('#worldview-rules-container');
+    const addRuleBtn = form.querySelector('#add-worldview-rule-btn');
 
     loglineInput.value = worldview.logline || '';
     genreInput.value = worldview.genre || '';
-    rulesContainer.innerHTML = '';
+    rulesContainer.innerHTML = ''; // 기존 규칙 필드를 비웁니다.
 
     if (worldview.rules && worldview.rules.length > 0) {
         worldview.rules.forEach(ruleText => {
             addWorldviewRuleInput(ruleText, projectData.id, rulesContainer);
         });
     } else {
+        // 기본 3개의 빈 필드를 생성합니다.
         addWorldviewRuleInput('', projectData.id, rulesContainer);
         addWorldviewRuleInput('', projectData.id, rulesContainer);
         addWorldviewRuleInput('', projectData.id, rulesContainer);
     }
 
-    newForm.addEventListener('submit', (e) => {
+    // [수정] EventManager를 사용하여 이벤트 리스너를 안전하게 (재)설정합니다.
+    eventManager.addEventListener(form, 'submit', (e) => {
         e.preventDefault();
         app.handleSaveWorldview(projectData.id);
     });
     
-    addRuleBtn.addEventListener('click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
+    eventManager.addEventListener(addRuleBtn, 'click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
 
+    // --- 서브 설정 카드 렌더링 로직 (기존과 동일) ---
     const container = document.getElementById('worldview-card-list-container');
     const groupsContainer = document.createElement('div');
     groupsContainer.className = 'groups-container';
@@ -277,76 +278,126 @@ function createWorldviewCardElement(card, projectId, groupId) {
 function renderScenarioTab(projectData) {
     const container = document.getElementById('tab-content-scenario');
     const mainScenario = projectData.scenarios && projectData.scenarios[0];
+
     if (!mainScenario) {
         container.innerHTML = '<p>시나리오 데이터를 불러오지 못했습니다.</p>';
         return;
     }
 
-    const form = container.querySelector('#scenario-details-form');
-    form.elements.summary.value = mainScenario.summary || '';
-    form.elements.synopsis.value = mainScenario.synopsis || '';
-    form.elements.title.value = mainScenario.title || '';
-    form.elements.themes.value = (mainScenario.themes || []).join(', ');
+    const scenarioTabHTML = `
+        <article>
+            <hgroup>
+                <h4>메인 스토리 (사건의 흐름)</h4>
+                <p>세계관이라는 무대 위에서 벌어지는 구체적인 '사건'의 흐름을 설계하는 공간입니다.</p>
+            </hgroup>
+            <form id="scenario-details-form">
+                <div class="input-with-button">
+                    <label for="scenario-summary">이야기 핵심 컨셉 (Logline)</label>
+                    <button type="button" id="refine-concept-btn" class="secondary outline">✨ 컨셉 다듬기 (AI)</button>
+                </div>
+                <input type="text" id="scenario-summary" name="summary" placeholder="이 이야기를 한 문장으로 요약합니다. (예: 몰락한 왕국의 기사가 현대로 넘어와 자신의 세계를 구원할 방법을 찾는다.)">
+                
+                <div class="input-with-button">
+                    <label for="scenario-synopsis">시놉시스 / 전체 줄거리 (Synopsis)</label>
+                    <button type="button" id="enhance-synopsis-btn" class="secondary outline">✨ AI 스토리 구체화</button>
+                </div>
+                <textarea id="scenario-synopsis" name="synopsis" rows="5" placeholder="이야기의 전체적인 흐름과 구조를 자유롭게 서술합니다. 한 줄 아이디어부터 상세한 줄거리까지, AI와 함께 발전시켜 나갈 수 있습니다."></textarea>
 
-    let plotPointsHTML = '';
-    if (mainScenario.plot_points && mainScenario.plot_points.length > 0) {
-        plotPointsHTML = mainScenario.plot_points.map(plot => {
-            const plotDataString = JSON.stringify(plot);
-            const escapedPlotDataString = plotDataString.replace(/'/g, '&#39;');
+                <div class="grid">
+                    <label for="scenario-title">
+                        시나리오 제목
+                        <input type="text" id="scenario-title" name="title" placeholder="시나리오의 제목">
+                    </label>
+                    <label for="scenario-themes">
+                        핵심 테마 (쉼표로 구분)
+                        <input type="text" id="scenario-themes" name="themes" placeholder="예: 복수, 희생, 구원">
+                    </label>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="submit" style="width: auto;">시나리오 정보 저장</button>
+                </div>
+            </form>
+        </article>
+        <hr>
+        <div id="plot-points-container">
+            <div class="plot-points-header">
+                <h4>플롯 포인트</h4>
+                <div class="plot-buttons-group">
+                    <button type="button" id="ai-draft-btn" class="contrast">✨ AI로 전체 스토리 초안 생성</button>
+                    <button type="button" id="ai-edit-plots-btn" class="secondary">✏️ AI로 전체 플롯 수정</button>
+                    <button id="delete-all-plots-btn" class="secondary outline">전체 삭제</button>
+                </div>
+            </div>
+            <div id="plot-list">
+                <!-- Plot points will be rendered here -->
+            </div>
+            <form id="add-plot-point-form" style="margin-top: 1.5rem; border-top: 1px solid var(--pico-muted-border-color); padding-top: 1.5rem;">
+                <label for="new-plot-title"><strong>새 플롯 추가</strong></label>
+                <input type="text" id="new-plot-title" name="title" placeholder="플롯 제목 (예: 주인공의 각성)" required>
+                <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
+                <button type="submit" style="width: auto;">+ 플롯 추가</button>
+            </form>
+        </div>
+    `;
 
-            return `
-            <article class="plot-point-item" style="position: relative; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px;">
-                <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}' style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.1rem 0.5rem; font-size: 0.75rem;">
-                    편집
-                </button>
-                <h6>${plot.ordering + 1}. ${plot.title}</h6>
-                <p style="margin:0; padding-right: 4rem;">${plot.content || '세부 내용 없음'}</p>
-            </article>
-        `}).join('');
-    } else {
-        plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
-    }
-    container.querySelector('#plot-list').innerHTML = plotPointsHTML;
+    eventManager.replaceContentSafely(container, scenarioTabHTML, (newContainer) => {
+        const form = newContainer.querySelector('#scenario-details-form');
+        form.elements.summary.value = mainScenario.summary || '';
+        form.elements.synopsis.value = mainScenario.synopsis || '';
+        form.elements.title.value = mainScenario.title || '';
+        form.elements.themes.value = (mainScenario.themes || []).join(', ');
 
-    // 이벤트 리스너를 안전하게 다시 연결하기 위해 cloneNode 사용
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-    newForm.addEventListener('submit', (e) => {
-        app.handleSaveScenario(e, projectData.id, mainScenario.id);
-    });
-
-    const addPlotForm = container.querySelector('#add-plot-point-form');
-    const newAddPlotForm = addPlotForm.cloneNode(true);
-    addPlotForm.parentNode.replaceChild(newAddPlotForm, addPlotForm);
-    newAddPlotForm.addEventListener('submit', (e) => {
-        app.handleCreatePlotPoint(e, projectData.id, mainScenario.id);
-    });
-
-    // 버튼 이벤트 리스너 설정
-    const setupButtonListener = (selector, handler) => {
-        const button = container.querySelector(selector);
-        if (button) {
-            const newButton = button.cloneNode(true);
-            button.parentNode.replaceChild(newButton, button);
-            newButton.addEventListener('click', handler);
+        let plotPointsHTML = '';
+        if (mainScenario.plot_points && mainScenario.plot_points.length > 0) {
+            plotPointsHTML = mainScenario.plot_points.map(plot => {
+                const plotDataString = JSON.stringify(plot);
+                const escapedPlotDataString = plotDataString.replace(/'/g, '&#39;');
+                return `
+                <article class="plot-point-item" style="position: relative; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px;">
+                    <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}' style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.1rem 0.5rem; font-size: 0.75rem;">
+                        편집
+                    </button>
+                    <h6>${plot.ordering + 1}. ${plot.title}</h6>
+                    <p style="margin:0; padding-right: 4rem;">${plot.content || '세부 내용 없음'}</p>
+                </article>
+            `;
+            }).join('');
+        } else {
+            plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
         }
-    };
+        newContainer.querySelector('#plot-list').innerHTML = plotPointsHTML;
 
-    setupButtonListener('#refine-concept-btn', () => app.handleRefineConcept());
-    setupButtonListener('#enhance-synopsis-btn', () => app.handleEnhanceSynopsis());
-    setupButtonListener('#ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
-    setupButtonListener('#ai-edit-plots-btn', () => app.handleAiEditPlots());
-    setupButtonListener('#delete-all-plots-btn', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
+        eventManager.addEventListener(form, 'submit', (e) => {
+            app.handleSaveScenario(e, projectData.id, mainScenario.id);
+        });
 
-    const plotList = container.querySelector('#plot-list');
-    const newPlotList = plotList.cloneNode(true);
-    plotList.parentNode.replaceChild(newPlotList, plotList);
-    newPlotList.addEventListener('click', (e) => {
-        const editButton = e.target.closest('.open-plot-modal-btn');
-        if (editButton) {
-            const plotData = JSON.parse(editButton.dataset.plotPoint);
-            app.modals.openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
-        }
+        const addPlotForm = newContainer.querySelector('#add-plot-point-form');
+        eventManager.addEventListener(addPlotForm, 'submit', (e) => {
+            app.handleCreatePlotPoint(e, projectData.id, mainScenario.id);
+        });
+
+        const setupButtonListener = (selector, handler) => {
+            const button = newContainer.querySelector(selector);
+            if (button) {
+                eventManager.addEventListener(button, 'click', handler);
+            }
+        };
+
+        setupButtonListener('#refine-concept-btn', () => app.handleRefineConcept());
+        setupButtonListener('#enhance-synopsis-btn', () => app.handleEnhanceSynopsis());
+        setupButtonListener('#ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
+        setupButtonListener('#ai-edit-plots-btn', () => app.handleAiEditPlots());
+        setupButtonListener('#delete-all-plots-btn', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
+
+        const plotList = newContainer.querySelector('#plot-list');
+        eventManager.addEventListener(plotList, 'click', (e) => {
+            const editButton = e.target.closest('.open-plot-modal-btn');
+            if (editButton) {
+                const plotData = JSON.parse(editButton.dataset.plotPoint);
+                app.modals.openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
+            }
+        });
     });
 }
 
@@ -391,7 +442,6 @@ function openAiScenarioDraftModal(projectData, scenarioId) {
         app.handleAiDraftGeneration(e, projectData.id, scenarioId);
     });
 
-    // [버그 수정] 모달 닫기 이벤트 리스너 추가
     const closeButton = modal.querySelector('.close');
     if (closeButton) {
         const newCloseButton = closeButton.cloneNode(true);
