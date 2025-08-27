@@ -25,13 +25,14 @@ body, html { height: 100%; margin: 0; overflow: hidden; }
 }
 
 .sidebar { 
-    background-color: #161a1f;
-    border-right: 1px solid #30363d; 
-    padding: 1.5rem; 
+    background: linear-gradient(180deg, #0d1117 0%, #161a1f 50%, #1c2128 100%);
+    border-right: 2px solid #21262d; 
+    padding: 2rem 1.5rem; 
     overflow-y: auto; 
     display: flex; 
     flex-direction: column; 
     grid-column: 1;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.3);
 }
 
 .resizer {
@@ -53,22 +54,122 @@ body, html { height: 100%; margin: 0; overflow: hidden; }
     height: 100vh; /* 높이를 명시적으로 설정 */
 }
 
-.sidebar h3 { margin-top: 0; }
-.sidebar .project-list-container { flex-grow: 1; overflow-y: auto; margin-bottom: 1rem; }
-.sidebar ul { list-style: none; padding: 0; }
-.sidebar li { padding: 0.5rem; cursor: pointer; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
-.sidebar li:hover { background-color: #22272e; }
-
-.sidebar li.active { 
-    background-color: #30363d;
-    color: #c9d1d9; 
+/* 사이드바 섹션 헤더 */
+.sidebar h3 { 
+    margin: 0 0 1.5rem 0; 
+    color: #f0f6fc;
+    font-size: 1.2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #30363d;
 }
 
-#create-project-form input[type="text"],
-#create-project-form button {
-    font-size: 0.9rem;
-    padding: 0.4rem 0.8rem;
+/* 프로젝트 리스트 컨테이너 */
+.sidebar .project-list-container { 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* 프로젝트 리스트 스타일 */
+.sidebar ul { 
+    list-style: none; 
+    padding: 0; 
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* 프로젝트 카드 스타일 */
+.sidebar li { 
+    background: linear-gradient(135deg, #0d1117 0%, #161a1f 100%);
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar li:hover { 
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border-color: #58a6ff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(88, 166, 255, 0.2);
+}
+
+.sidebar li.active { 
+    background: linear-gradient(135deg, #1f6feb 0%, #58a6ff 100%);
+    border-color: #1f6feb;
+    color: white;
+    box-shadow: 0 3px 12px rgba(31, 111, 235, 0.4);
+}
+
+.sidebar li.active:hover {
+    background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+    transform: translateY(-2px);
+}
+
+/* 프로젝트 생성 폼 스타일 */
+#create-project-form {
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+#create-project-form input[type="text"] {
+    font-size: 0.95rem;
+    padding: 0.75rem;
     height: auto;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    color: #c9d1d9; 
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#create-project-form input[type="text"]:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+    background: #161b22;
+}
+
+#create-project-form button {
+    font-size: 0.95rem;
+    padding: 0.75rem 1.5rem;
+    height: auto;
+    background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+    border: 1px solid #238636;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+#create-project-form button:hover {
+    background: linear-gradient(135deg, #2ea043 0%, #238636 100%);
+    box-shadow: 0 3px 8px rgba(35, 134, 54, 0.3);
+    transform: translateY(-1px);
 }
 
 .content-view { 
@@ -103,6 +204,523 @@ pre { white-space: pre-wrap; word-wrap: break-word; }
     text-overflow: ellipsis;
     flex-grow: 1;
     margin-right: 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #c9d1d9;
+}
+
+.sidebar li.active > span {
+    color: white;
+    font-weight: 600;
+}
+
+/* AI 모델 선택 섹션 */
+.ai-model-section {
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.ai-model-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.model-card {
+    background: linear-gradient(135deg, #0d1117 0%, #161a1f 100%);
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.model-card:hover {
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border-color: #58a6ff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(88, 166, 255, 0.2);
+}
+
+.model-card.active {
+    background: linear-gradient(135deg, #1f6feb 0%, #58a6ff 100%);
+    border-color: #1f6feb;
+    color: white;
+    box-shadow: 0 3px 12px rgba(31, 111, 235, 0.4);
+}
+
+.model-card.active:hover {
+    background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+    transform: translateY(-2px);
+}
+
+.model-card-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.model-icon {
+    font-size: 1.2rem;
+}
+
+.model-details h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: inherit;
+}
+
+.model-details p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.8rem;
+    opacity: 0.8;
+    color: inherit;
+}
+
+.model-badge {
+    background: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+}
+
+.model-card.active .model-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 기존 select 숨기기 */
+#ai-model-select {
+    display: none;
+}
+
+/* 사이드바 반응형 디자인 */
+@media screen and (max-width: 1024px) {
+    :root {
+        --sidebar-width: 320px;
+    }
+    
+    .sidebar {
+        padding: 1.5rem 1rem;
+    }
+    
+    .sidebar .project-list-container,
+    .ai-model-section,
+    #create-project-form {
+        padding: 1rem;
+    }
+    
+    .model-card {
+        padding: 0.75rem;
+    }
+    
+    .model-details h4 {
+        font-size: 0.9rem;
+    }
+    
+    .model-details p {
+        font-size: 0.75rem;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .grid-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+    
+    .sidebar {
+        grid-column: 1;
+        grid-row: 1;
+        height: auto;
+        border-right: none;
+        border-bottom: 2px solid #21262d;
+        padding: 1rem;
+    }
+    
+    .resizer {
+        display: none;
+    }
+    
+    .main-content {
+        grid-column: 1;
+        grid-row: 2;
+        height: calc(100vh - 200px);
+    }
+    
+    .sidebar .project-list-container {
+        flex-grow: 0;
+        max-height: 150px;
+        margin-bottom: 1rem;
+    }
+    
+    .sidebar h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .sidebar li {
+        padding: 0.75rem;
+    }
+    
+    .model-card {
+        padding: 0.75rem;
+    }
+    
+    .model-card-info {
+        gap: 0.5rem;
+    }
+    
+    .model-details h4 {
+        font-size: 0.85rem;
+    }
+    
+    .model-details p {
+        font-size: 0.7rem;
+    }
+    
+    .model-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+    }
+}
+
+/* --- 세계관 탭 스타일링 --- */
+.worldview-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    padding: 2rem;
+    max-width: none;
+}
+
+.worldview-main-section {
+    background: linear-gradient(135deg, #0d1117 0%, #161a1f 100%);
+    border: 1px solid #21262d;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.worldview-cards-section {
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.worldview-section-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #30363d;
+    text-align: center;
+}
+
+.worldview-section-header h3 {
+    margin: 0 0 0.5rem 0;
+    color: #f0f6fc;
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.worldview-section-header p {
+    margin: 0;
+    color: #8b949e;
+    font-size: 0.95rem;
+}
+
+/* 메인 세계관 폼 스타일링 */
+.worldview-main-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.worldview-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.worldview-basic-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.worldview-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.worldview-input-group label {
+    font-weight: 600;
+    color: #c9d1d9;
+    font-size: 1rem;
+}
+
+.worldview-input-group input {
+    padding: 0.875rem;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #c9d1d9;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.worldview-input-group input:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+    background: #0d1117;
+}
+
+.worldview-rules-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.worldview-rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.worldview-rules-header label {
+    font-weight: 600;
+    color: #c9d1d9;
+    font-size: 1rem;
+}
+
+.worldview-rules-header button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.worldview-rules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.worldview-form-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 1rem;
+    border-top: 1px solid #21262d;
+}
+
+.worldview-form-actions button {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1f6feb 0%, #58a6ff 100%);
+    border: 1px solid #1f6feb;
+    color: white;
+    transition: all 0.2s ease;
+}
+
+.worldview-form-actions button:hover {
+    background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+    box-shadow: 0 4px 12px rgba(31, 111, 235, 0.3);
+    transform: translateY(-1px);
+}
+
+/* 세계관 카드 그리드 스타일링 */
+.worldview-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.worldview-card {
+    background: linear-gradient(135deg, #0d1117 0%, #161a1f 100%);
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 0;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    height: fit-content;
+    cursor: pointer;
+}
+
+.worldview-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+    border-color: #58a6ff;
+}
+
+.worldview-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem;
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border-bottom: 1px solid #21262d;
+}
+
+.worldview-card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f0f6fc;
+    line-height: 1.2;
+    flex-grow: 1;
+    margin-right: 1rem;
+}
+
+.worldview-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.worldview-card-actions button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    min-width: auto;
+    width: auto;
+}
+
+.worldview-card-content {
+    padding: 1rem;
+}
+
+.worldview-card-preview {
+    color: #c9d1d9;
+    margin: 0;
+    line-height: 1.4;
+    font-size: 0.9rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 그룹 섹션 스타일링 */
+.worldview-group-section {
+    margin-bottom: 2.5rem;
+}
+
+.worldview-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #21262d;
+}
+
+.worldview-group-header h4 {
+    margin: 0;
+    color: #f0f6fc;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.worldview-group-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.worldview-group-actions button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+}
+
+/* 빈 상태 스타일링 */
+.worldview-empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #7d8590;
+    background: #0d1117;
+    border: 2px dashed #21262d;
+    border-radius: 12px;
+}
+
+.worldview-empty-state p {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+}
+
+.worldview-empty-state small {
+    color: #656d76;
+    font-size: 0.9rem;
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 1200px) {
+    .worldview-form-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .worldview-rules-list {
+        max-height: 200px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .worldview-layout {
+        padding: 1rem;
+        gap: 2rem;
+    }
+    
+    .worldview-main-section,
+    .worldview-cards-section {
+        padding: 1.5rem;
+    }
+    
+    .worldview-section-header h3 {
+        font-size: 1.2rem;
+    }
+    
+    .worldview-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .worldview-card-header {
+        padding: 0.75rem;
+    }
+    
+    .worldview-card-content {
+        padding: 0.75rem;
+    }
+    
+    .worldview-card-title {
+        font-size: 1rem;
+    }
 }
 
 article strong:not(.label) { color: #F59E0B; font-weight: bold; }

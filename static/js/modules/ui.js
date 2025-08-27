@@ -259,42 +259,64 @@ function renderWorldviewTab(projectData) {
     
     eventManager.addEventListener(addRuleBtn, 'click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
 
-    // --- 서브 설정 카드 렌더링 로직 (기존과 동일) ---
+    // --- 서브 설정 카드 렌더링 로직 (현대적 그리드 시스템) ---
     const container = document.getElementById('worldview-card-list-container');
-    const groupsContainer = document.createElement('div');
-    groupsContainer.className = 'groups-container';
     container.innerHTML = ''; 
-    container.appendChild(groupsContainer);
 
+    // 그룹별로 섹션 생성
     (projectData.worldview_groups || []).forEach(group => {
-        const groupColumn = document.createElement('div');
-        groupColumn.className = 'group-column';
-        groupColumn.innerHTML = `
-            <div class="group-header"><h4>${group.name}</h4>
-                <button class="outline secondary delete-wv-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">삭제</button>
+        const groupSection = document.createElement('div');
+        groupSection.className = 'worldview-group-section';
+        
+        groupSection.innerHTML = `
+            <div class="worldview-group-header">
+                <h4>${group.name}</h4>
+                <div class="worldview-group-actions">
+                    <button class="secondary outline add-wv-card-btn" data-group-id="${group.id}">+ 새 카드</button>
+                    ${group.name !== '기본 설정' ? `<button class="outline secondary delete-wv-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">그룹 삭제</button>` : ''}
+                </div>
             </div>
-            <div class="cards-list worldview-cards-list" data-group-id="${group.id}"></div>
-            <button class="add-wv-card-btn" data-group-id="${group.id}" style="margin-top: 1rem;">+ 새 설정 카드</button>
+            <div class="worldview-cards-grid" data-group-id="${group.id}"></div>
         `;
-        const cardsListEl = groupColumn.querySelector('.cards-list');
+
+        const cardsGridEl = groupSection.querySelector('.worldview-cards-grid');
         if (group.worldview_cards?.length > 0) {
-            group.worldview_cards.forEach(card => cardsListEl.appendChild(createWorldviewCardElement(card, projectData.id, group.id)));
+            group.worldview_cards.forEach(card => {
+                cardsGridEl.appendChild(createEnhancedWorldviewCardElement(card, projectData.id, group.id));
+            });
         } else {
-            cardsListEl.innerHTML = '<p><small>카드가 없습니다.</small></p>';
+            cardsGridEl.innerHTML = '<div class="worldview-empty-state"><p>이 그룹에 설정 카드가 없습니다.</p><small>위의 "+ 새 카드" 버튼을 눌러 세계관 설정을 추가해보세요!</small></div>';
         }
-        groupsContainer.appendChild(groupColumn);
+
+        container.appendChild(groupSection);
     });
 
-    const addGroupColumn = document.createElement('div');
-    addGroupColumn.className = 'group-column';
-    addGroupColumn.innerHTML = `<h4>새 설정 그룹</h4><form id="create-wv-group-form" style="margin-top: 1rem;"><input type="text" name="name" placeholder="새 설정 그룹 이름" required autocomplete="off" style="margin-bottom: 0.5rem;"><button type="submit" class="contrast" style="width: 100%;">+ 새 설정 그룹</button></form>`;
-    groupsContainer.appendChild(addGroupColumn);
-
-    document.getElementById('create-wv-group-form')?.addEventListener('submit', (e) => app.handleCreateWorldviewGroup(e, projectData.id));
-    container.querySelectorAll('.delete-wv-group-btn').forEach(btn => btn.addEventListener('click', (e) => app.handleDeleteWorldviewGroup(e, projectData.id)));
-    container.querySelectorAll('.add-wv-card-btn').forEach(btn => btn.addEventListener('click', (e) => app.modals.openWorldviewCardModal(null, projectData.id, e.currentTarget.dataset.groupId)));
+    // 새 그룹 추가 섹션
+    const addGroupSection = document.createElement('div');
+    addGroupSection.className = 'worldview-group-section';
+    addGroupSection.innerHTML = `
+        <div class="worldview-group-header">
+            <h4>+ 새 설정 그룹 만들기</h4>
+        </div>
+        <form class="add-group-form">
+            <input type="text" name="name" placeholder="새 설정 그룹 이름 (예: 마법 시스템, 정치 구조, 지리)" required autocomplete="off">
+            <button type="submit" class="secondary">그룹 추가</button>
+        </form>
+    `;
     
-    app.setupSortable(container.querySelectorAll('.worldview-cards-list'), projectData.id, 'worldview');
+    const addGroupForm = addGroupSection.querySelector('.add-group-form');
+    eventManager.addEventListener(addGroupForm, 'submit', (e) => app.handleCreateWorldviewGroup(e, projectData.id));
+    container.appendChild(addGroupSection);
+
+    // 이벤트 등록
+    container.querySelectorAll('.delete-wv-group-btn').forEach(btn => {
+        eventManager.addEventListener(btn, 'click', (e) => app.handleDeleteWorldviewGroup(e, projectData.id));
+    });
+    container.querySelectorAll('.add-wv-card-btn').forEach(btn => {
+        eventManager.addEventListener(btn, 'click', (e) => app.modals.openWorldviewCardModal(null, projectData.id, e.currentTarget.dataset.groupId));
+    });
+    
+    app.setupSortable(container.querySelectorAll('.worldview-cards-grid'), projectData.id, 'worldview');
 }
 
 function addWorldviewRuleInput(value = '', projectId, container) {
@@ -344,6 +366,45 @@ function createWorldviewCardElement(card, projectId, groupId) {
     cardEl.dataset.cardId = card.id;
     cardEl.innerHTML = `<strong>${card.title || '제목 없는 카드'}</strong>`;
     cardEl.addEventListener('click', () => app.modals.openWorldviewCardModal(card, projectId, groupId));
+    return cardEl;
+}
+
+function createEnhancedWorldviewCardElement(card, projectId, groupId) {
+    const cardEl = document.createElement('article');
+    cardEl.className = 'worldview-card';
+    cardEl.dataset.cardId = card.id;
+    
+    // 내용 미리보기 (200자 제한)
+    const contentPreview = card.content ? 
+        (card.content.length > 200 ? card.content.substring(0, 200) + '...' : card.content) 
+        : '설정 내용이 없습니다.';
+    
+    cardEl.innerHTML = `
+        <div class="worldview-card-header">
+            <h4 class="worldview-card-title">${card.title || '제목 없는 설정'}</h4>
+            <div class="worldview-card-actions">
+                <button class="secondary outline worldview-edit-btn">✏️</button>
+            </div>
+        </div>
+        <div class="worldview-card-content">
+            <p class="worldview-card-preview">${contentPreview}</p>
+        </div>
+    `;
+    
+    cardEl.addEventListener('click', (e) => {
+        // 편집 버튼 클릭이 아닐 때만 모달 열기
+        if (!e.target.closest('.worldview-edit-btn')) {
+            app.modals.openWorldviewCardModal(card, projectId, groupId);
+        }
+    });
+    
+    // 편집 버튼 이벤트
+    const editBtn = cardEl.querySelector('.worldview-edit-btn');
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        app.modals.openWorldviewCardModal(card, projectId, groupId);
+    });
+    
     return cardEl;
 }
 

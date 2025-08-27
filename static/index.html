@@ -26,14 +26,36 @@
                     <input type="text" name="name" placeholder="새 프로젝트 이름..." required autocomplete="off">
                     <button type="submit">프로젝트 추가</button>
                 </form>
-                <hgroup><h3>✨ AI 모델</h3></hgroup>
-                <form>
-                    <label for="ai-model-select">사용할 모델 선택</label>
-                    <select id="ai-model-select">
+                <div class="ai-model-section">
+                    <hgroup><h3>✨ AI 모델</h3></hgroup>
+                    <div class="ai-model-selector">
+                        <div class="model-card active" data-value="gemini-2.5-flash">
+                            <div class="model-card-info">
+                                <span class="model-icon">⚡</span>
+                                <div class="model-details">
+                                    <h4>Gemini Flash</h4>
+                                    <p>균형잡힌 성능과 속도</p>
+                                </div>
+                            </div>
+                            <span class="model-badge">추천</span>
+                        </div>
+                        <div class="model-card" data-value="gemini-2.5-flash-lite">
+                            <div class="model-card-info">
+                                <span class="model-icon">🚀</span>
+                                <div class="model-details">
+                                    <h4>Gemini Flash Lite</h4>
+                                    <p>빠른 응답 속도</p>
+                                </div>
+                            </div>
+                            <span class="model-badge">빠름</span>
+                        </div>
+                    </div>
+                    <!-- 숨겨진 select 유지 (기존 JS 호환성을 위해) -->
+                    <select id="ai-model-select" style="display: none;">
                         <option value="gemini-2.5-flash-lite">Gemini-2.5 Flash Lite (빠름)</option>
                         <option value="gemini-2.5-flash" selected>Gemini-2.5 Flash (기본값, 추천)</option>
                     </select>
-                </form>
+                </div>
             </div>
         </aside>
 
@@ -61,37 +83,56 @@
                     </div>
 
                     <div id="tab-content-worldview" class="tab-content">
-                        <article>
-                            <hgroup>
-                                <h4>메인 세계관 (무대 설정)</h4>
-                                <p>이야기가 펼쳐질 '무대'의 규칙과 설정을 정의하는 공간입니다.</p>
-                            </hgroup>
-                            <form id="worldview-form">
-                                <div class="worldview-section">
-                                    <label for="worldview-logline" class="section-label"> 한 줄 정의 (Logline)</label>
-                                    <input type="text" id="worldview-logline" name="logline" class="main-input" placeholder="이 세계를 한 문장으로 정의합니다. (예: 마법이 기술을 대체한 스팀펑크 세계)">
-                                </div>
-
-                                <div class="worldview-section">
-                                    <label for="worldview-genre" class="section-label">🎭 장르 및 분위기 (Genre & Tone)</label>
-                                    <input type="text" id="worldview-genre" name="genre" class="main-input" placeholder="이 세계의 장르와 전반적인 분위기를 설명합니다. (예: 다크 판타지, 희망적인 디스토피아)">
-                                </div>
-
-                                <div class="worldview-section rules-section">
-                                    <label class="section-label">⚡ 세계관 핵심 설정</label>
-                                    <div id="worldview-rules-container" class="dynamic-input-container" style="gap: 0.75rem; margin-bottom: 1rem;">
-                                        <!-- 핵심 설정 필드가 여기에 동적으로 추가됩니다. -->
-                                    </div>
-                                    <button type="button" id="add-worldview-rule-btn" class="secondary outline" style="width: 100%;">핵심 설정 추가</button>
+                        <div class="worldview-layout">
+                            <!-- 메인 세계관 섹션 -->
+                            <div class="worldview-main-section">
+                                <div class="worldview-section-header">
+                                    <h3>🌍 메인 세계관</h3>
+                                    <p>이야기가 펼쳐질 무대의 핵심 설정을 정의합니다</p>
                                 </div>
                                 
-                                <button type="submit" id="save-worldview-btn">💾 메인 세계관 저장</button>
-                            </form>
-                        </article>
-                        <hr>
-                        <h4>서브 설정 카드</h4>
-                        <div id="worldview-card-list-container">
-                            <!-- 서브 설정 카드들이 여기에 동적으로 렌더링됩니다. -->
+                                <form id="worldview-form" class="worldview-main-form">
+                                    <div class="worldview-form-grid">
+                                        <!-- 왼쪽: 기본 정보 -->
+                                        <div class="worldview-basic-info">
+                                            <div class="worldview-input-group">
+                                                <label for="worldview-logline">🎯 한 줄 정의</label>
+                                                <input type="text" id="worldview-logline" name="logline" placeholder="이 세계를 한 문장으로 정의 (예: 마법이 기술을 대체한 스팀펑크 세계)">
+                                            </div>
+                                            <div class="worldview-input-group">
+                                                <label for="worldview-genre">🎭 장르 & 분위기</label>
+                                                <input type="text" id="worldview-genre" name="genre" placeholder="장르와 분위기 (예: 다크 판타지, 희망적인 디스토피아)">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 오른쪽: 핵심 설정 -->
+                                        <div class="worldview-rules-section">
+                                            <div class="worldview-rules-header">
+                                                <label>⚡ 핵심 설정</label>
+                                                <button type="button" id="add-worldview-rule-btn" class="secondary outline">+ 추가</button>
+                                            </div>
+                                            <div id="worldview-rules-container" class="worldview-rules-list">
+                                                <!-- 핵심 설정 필드가 여기에 동적으로 추가됩니다. -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="worldview-form-actions">
+                                        <button type="submit" id="save-worldview-btn" class="primary">💾 메인 세계관 저장</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- 서브 설정 카드 섹션 -->
+                            <div class="worldview-cards-section">
+                                <div class="worldview-section-header">
+                                    <h3>📚 서브 설정 카드</h3>
+                                    <p>세계관의 세부 설정을 카드별로 관리합니다</p>
+                                </div>
+                                <div id="worldview-card-list-container">
+                                    <!-- 서브 설정 카드들이 여기에 동적으로 렌더링됩니다. -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
