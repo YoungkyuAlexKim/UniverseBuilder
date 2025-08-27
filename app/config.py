@@ -162,7 +162,6 @@ class AIPrompts:
 }}
 """
 
-    # [수정] 전체 플롯 생성 프롬프트를 4막(기승전결) 구조로 변경
     scenario_draft: str = """[SYSTEM INSTRUCTION]
 당신은 '기승전결' 4막 구조에 능통한 전문 스토리 작가입니다.
 주어진 [CONTEXT]를 바탕으로, [TASK]에 명시된 규칙을 완벽하게 준수하여 흥미로운 플롯 아웃라인을 JSON 형식으로 생성해야 합니다.
@@ -304,7 +303,6 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 ```
 """
 
-    # [신규] 전체 플롯 포인트 목록을 수정하기 위한 프롬프트
     plot_points_edit: str = """[SYSTEM INSTRUCTION]
 당신은 이야기의 전체적인 흐름과 일관성을 꿰뚫어 보는 전문 스토리 편집자입니다.
 주어진 [CONTEXT]와 [EXISTING PLOT POINTS]를 바탕으로, 사용자의 [USER REQUEST]를 반영하여 전체 플롯을 수정해야 합니다.
@@ -348,6 +346,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 Your entire response must start with `{{` and end with `}}`. No other text, explanation, or formatting is permitted.
 """
 
+    # [수정] 장면 생성 프롬프트: surrounding_context를 사용하도록 변경
     scene_generation_novel: str = """당신은 독자의 감각을 자극하고 마음을 움직이는 묘사에 능한 베테랑 소설가입니다.
 주어진 상황과 설정을 바탕으로, 독자가 마치 그 장면 속에 직접 들어가 있는 듯한 몰입감을 선사하는 한 편의 장면을 소설 형식으로 서술해주세요.
 
@@ -357,9 +356,8 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 - **분량 조절:** {word_count_instruction}
 
 **[스토리 흐름]**
-{previous_scene_context}
+{surrounding_context}
 - **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
-{next_scene_context}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}{relationships_context}
@@ -368,13 +366,14 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
 2.  **감정선 중심 서술:** 인물의 행동뿐만 아니라, 그 행동을 하는 순간의 내면 심리, 감정 변화를 섬세하게 묘사해주세요.
 3.  **생생한 묘사:** 시각, 청각, 후각 등 오감을 자극하는 표현으로 장면의 분위기를 구체적으로 그려주세요.
-4.  **(중요) 흐름의 연결:** 만약 '이전' 또는 '다음' 장면 정보가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
+4.  **(중요) 흐름의 연결:** '주변 플롯 정보'가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
 
 다른 부가적인 설명 없이, 오직 완성된 소설 본문만 작성해주세요.
 ---
 [결과물]
 """
 
+    # [수정] 장면 생성 프롬프트: surrounding_context를 사용하도록 변경
     scene_generation_screenplay: str = """당신은 장면을 시각적으로 구성하고 배우의 연기를 이끌어내는 전문 시나리오 작가입니다.
 주어진 상황과 설정을 바탕으로, 표준 시나리오 형식(장면 제목, 지문, 대사)에 맞춰 한 편의 장면을 작성해주세요.
 
@@ -384,9 +383,8 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 - **분량 조절:** {word_count_instruction}
 
 **[스토리 흐름]**
-{previous_scene_context}
+{surrounding_context}
 - **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
-{next_scene_context}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}{relationships_context}
@@ -395,7 +393,7 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
 2.  **'보여주기(Showing)':** 감정이나 상황을 설명하지 말고, 인물의 행동, 표정, 대사를 통해 간접적으로 보여주세요.
 3.  **구체적인 지문:** 카메라가 무엇을 비춰야 할지, 배우가 어떤 톤으로 말해야 할지가 눈에 보이도록 구체적으로 작성해야 합니다.
-4.  **(중요) 흐름의 연결:** 만약 '이전' 또는 '다음' 장면 정보가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
+4.  **(중요) 흐름의 연결:** '주변 플롯 정보'가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
 
 다른 부가적인 설명 없이, 오직 완성된 시나리오 본문만 작성해주세요.
 ---
@@ -413,6 +411,7 @@ SCENE START
 SCENE END
 """
 
+    # [수정] 장면 생성 프롬프트: surrounding_context를 사용하도록 변경
     scene_generation_game_dialogue: str = """당신은 플레이어의 몰입을 극대화하는 게임 시나리오 작가입니다.
 주어진 상황과 설정을 바탕으로, 캐릭터의 성격이 명확히 드러나는 게임 대사 지문을 작성해주세요.
 
@@ -422,9 +421,8 @@ SCENE END
 - **분량 조절:** {word_count_instruction}
 
 **[스토리 흐름]**
-{previous_scene_context}
+{surrounding_context}
 - **이번 장면의 핵심 목표:** {plot_title} - {plot_content}
-{next_scene_context}
 
 **[활용 가능한 배우 목록 (등장인물)]**
 {characters_context}{relationships_context}
@@ -433,7 +431,7 @@ SCENE END
 1.  **핵심 인물 집중:** 이 장면의 목표 달성을 위해 **가장 중요한 인물에 집중**하세요. 제공된 모든 인물을 등장시킬 필요는 전혀 없습니다.
 2.  **성격이 드러나는 대사:** 각 대사는 해당 캐릭터의 성격, 가치관, 말투를 명확히 반영해야 합니다.
 3.  **간결하고 명확하게:** 플레이어가 쉽게 이해하고 따라갈 수 있도록 간결한 문장을 사용해주세요.
-4.  **(중요) 흐름의 연결:** 만약 '이전' 또는 '다음' 장면 정보가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
+4.  **(중요) 흐름의 연결:** '주변 플롯 정보'가 제공되었다면, 현재 장면이 그 흐름과 자연스럽게 이어지도록 서술해주세요.
 
 다른 부가적인 설명 없이, 오직 완성된 게임 대사 지문만 작성해주세요.
 ---
@@ -445,6 +443,7 @@ SCENE END
 [시스템]: [선택지나 특별한 이벤트 발생 시 괄호 안에 서술. 예: (갑자기 문이 열리며 낯선 이가 들어선다.)]
 """
 
+    # [수정] 장면 수정 프롬프트: surrounding_context를 사용하도록 변경
     scene_edit: str = """당신은 기존 장면을 기반으로 작가의 요청에 맞게 세밀하게 수정하는 전문 편집자입니다.
 기존 장면의 핵심 구조와 맥락을 유지하면서, 사용자의 요청사항을 자연스럽게 반영해주세요.
 
@@ -455,10 +454,9 @@ SCENE END
 - **분량 조절:** {word_count_instruction}
 
 **[스토리 흐름]**
-{previous_scene_context}
+{surrounding_context}
 **[기존 장면 내용 (수정 대상)]**
 {existing_scene_draft}
-{next_scene_context}
 
 **[활용 가능한 등장인물]**
 {characters_context}{relationships_context}
@@ -471,7 +469,7 @@ SCENE END
 2. **자연스러운 통합**: 수정사항이 기존 내용과 어색하지 않게 자연스럽게 어우러지도록 해주세요.
 3. **일관성 유지**: 등장인물의 성격이나 세계관 설정과 일치하도록 수정해주세요.
 4. **요청 중심 개선**: 사용자가 요청한 부분에 집중하여 수정하되, 불필요한 변경은 피해주세요.
-5. **(중요) 흐름의 연결:** '이전' 또는 '다음' 장면이 있다면, 수정된 장면이 그 흐름과 자연스럽게 이어지도록 각별히 신경 써주세요.
+5. **(중요) 흐름의 연결:** '주변 플롯 정보'가 있다면, 수정된 장면이 그 흐름과 자연스럽게 이어지도록 각별히 신경 써주세요.
 
 다른 부가적인 설명 없이, 오직 수정된 장면 본문만 작성해주세요.
 ---

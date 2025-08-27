@@ -107,6 +107,52 @@ def parse_scenario_fields(scenario_obj):
 
     return scenario_obj
 
+# [신규] 장면 생성/수정을 위한 주변 컨텍스트를 생성하는 헬퍼 함수
+def _get_surrounding_plot_context(current_plot_index: int, all_plot_points: List[PlotPointModel]) -> str:
+    """
+    현재 플롯의 앞/뒤 컨텍스트(장면 초안 및 요약)를 생성합니다.
+    - 바로 앞/뒤 플롯의 '장면 초안(scene_draft)'을 우선적으로 참고합니다.
+    - 추가로 앞 6개, 뒤 6개 플롯의 '요약(content)'을 참고하여 더 넓은 맥락을 제공합니다.
+    """
+    # 1. 바로 앞/뒤 장면 초안(scene_draft) 컨텍스트
+    previous_scene_context = ""
+    if current_plot_index > 0:
+        previous_plot = all_plot_points[current_plot_index - 1]
+        if previous_plot.scene_draft:
+            previous_scene_context = f"### 이전 장면 내용 (참고용)\n{previous_plot.scene_draft}\n"
+
+    next_scene_context = ""
+    if current_plot_index < len(all_plot_points) - 1:
+        next_plot = all_plot_points[current_plot_index + 1]
+        if next_plot.scene_draft:
+            next_scene_context = f"### 다음 장면 내용 (참고용)\n{next_plot.scene_draft}\n"
+
+    # 2. 주변 플롯 요약(content) 컨텍스트 (범위 확장)
+    surrounding_plots_summary = []
+    # 이전 플롯 6개 요약
+    start_index_prev = max(0, current_plot_index - 6)
+    for i in range(start_index_prev, current_plot_index):
+        plot = all_plot_points[i]
+        surrounding_plots_summary.append(f"- (이전) {plot.ordering + 1}. {plot.title}: {plot.content or '요약 없음'}")
+    
+    # 다음 플롯 6개 요약
+    end_index_next = min(len(all_plot_points), current_plot_index + 7)
+    for i in range(current_plot_index + 1, end_index_next):
+        plot = all_plot_points[i]
+        surrounding_plots_summary.append(f"- (다음) {plot.ordering + 1}. {plot.title}: {plot.content or '요약 없음'}")
+
+    summary_context = ""
+    if surrounding_plots_summary:
+        summary_context = "### 주변 플롯 요약 (전체 흐름 참고용)\n" + "\n".join(surrounding_plots_summary)
+
+    # 3. 모든 컨텍스트 결합
+    # 순서: 이전 장면 초안 -> 주변 요약 -> 다음 장면 초안
+    # 이렇게 배치하여 AI가 시간 순서대로 정보를 처리하도록 유도
+    final_context = f"{previous_scene_context}\n{summary_context}\n{next_scene_context}".strip()
+    
+    return final_context if final_context else "### 참고할 주변 플롯 정보가 없습니다.\n"
+
+
 # --- API 엔드포인트 ---
 
 @router.get("", response_model=List[Scenario])
@@ -401,19 +447,8 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     total_plots = len(all_plot_points)
     current_plot_index = plot_point.ordering
 
-    # [개선] 이전/다음 플롯 포인트 초안 컨텍스트 생성
-    previous_scene_context = ""
-    if current_plot_index > 0:
-        previous_plot = all_plot_points[current_plot_index - 1]
-        if previous_plot.scene_draft:
-            previous_scene_context = f"### 이전 장면 내용 (참고용)\n{previous_plot.scene_draft}\n"
-
-    next_scene_context = ""
-    if current_plot_index < total_plots - 1:
-        next_plot = all_plot_points[current_plot_index + 1]
-        if next_plot.scene_draft:
-            next_scene_context = f"### 다음 장면 내용 (참고용)\n{next_plot.scene_draft}\n"
-
+    # [수정] 새로운 헬퍼 함수를 사용하여 주변 컨텍스트 생성
+    surrounding_context = _get_surrounding_plot_context(current_plot_index, all_plot_points)
 
     plot_position_context = ""
     plot_pacing_instruction = ""
@@ -440,7 +475,6 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     character_names = ", ".join([c.name for c in characters]) if characters else "등장인물"
     
-    # 선택된 캐릭터들 간의 관계 정보 가져오기
     relationships_context = ""
     if len(character_ids) > 1:
         relationships = db.query(RelationshipModel).filter(
@@ -460,7 +494,6 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
             if relationship_descriptions:
                 relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
     
-    # 글자 수 지시사항 생성
     word_count_map = {
         "short": "이 장면은 약 1000자 내외의 간결하면서도 핵심적인 분량으로 작성해주세요. 핵심 포인트를 명확하게 담아주세요.",
         "medium": "이 장면은 약 2000자 내외의 적당한 분량으로 작성해주세요. 상황과 감정이 충분히 전달되도록 풍부하게 묘사해주세요.", 
@@ -481,10 +514,10 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         plot_position_context=plot_position_context,
         plot_pacing_instruction=plot_pacing_instruction,
         word_count_instruction=word_count_instruction,
-        previous_scene_context=previous_scene_context,
+        # [수정] 이전/다음 컨텍스트를 통합된 컨텍스트로 교체
+        surrounding_context=surrounding_context,
         plot_title=plot_point.title,
         plot_content=plot_point.content,
-        next_scene_context=next_scene_context,
         characters_context=characters_context,
         relationships_context=relationships_context
     )
@@ -603,20 +636,9 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     total_plots = len(all_plot_points)
     current_plot_index = next((i for i, p in enumerate(all_plot_points) if p.id == plot_point.id), 0)
 
-    # [개선] 이전/다음 플롯 포인트 초안 컨텍스트 생성
-    previous_scene_context = ""
-    if current_plot_index > 0:
-        previous_plot = all_plot_points[current_plot_index - 1]
-        if previous_plot.scene_draft:
-            previous_scene_context = f"### 이전 장면 내용 (참고용)\n{previous_plot.scene_draft}\n"
+    # [수정] 새로운 헬퍼 함수를 사용하여 주변 컨텍스트 생성
+    surrounding_context = _get_surrounding_plot_context(current_plot_index, all_plot_points)
 
-    next_scene_context = ""
-    if current_plot_index < total_plots - 1:
-        next_plot = all_plot_points[current_plot_index + 1]
-        if next_plot.scene_draft:
-            next_scene_context = f"### 다음 장면 내용 (참고용)\n{next_plot.scene_draft}\n"
-
-    # 플롯 위치 컨텍스트 생성
     plot_position_context = ""
     if total_plots > 0:
         percentage = (current_plot_index + 1) / total_plots
@@ -635,7 +657,6 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     
-    # 선택된 캐릭터들 간의 관계 정보 가져오기
     relationships_context = ""
     if len(character_ids) > 1:
         relationships = db.query(RelationshipModel).filter(
@@ -655,7 +676,6 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
             if relationship_descriptions:
                 relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
     
-    # 글자 수 지시사항 생성
     word_count_map = {
         "short": "약 1000자 내외의 간결한 분량으로 수정해주세요.",
         "medium": "약 2000자 내외의 적당한 분량으로 수정해주세요.", 
@@ -670,8 +690,8 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         plot_content=plot_point.content,
         output_format=request.output_format,
         word_count_instruction=word_count_instruction,
-        previous_scene_context=previous_scene_context,
-        next_scene_context=next_scene_context,
+        # [수정] 이전/다음 컨텍스트를 통합된 컨텍스트로 교체
+        surrounding_context=surrounding_context,
         characters_context=characters_context,
         relationships_context=relationships_context,
         user_edit_request=request.user_edit_request
