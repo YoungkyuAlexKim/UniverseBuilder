@@ -48,7 +48,7 @@ function handleEscKey(event) {
 }
 
 /**
- * [신규] AI가 수정한 전체 플롯 포인트를 비교하는 모달을 엽니다.
+ * [수정] AI가 수정한 전체 플롯 포인트를 비교하는 모달을 엽니다.
  * @param {Array} originalPlots - 원본 플롯 포인트 배열
  * @param {Array} suggestedPlots - AI가 제안한 플롯 포인트 배열
  * @param {Function} onAcceptCallback - '적용' 버튼 클릭 시 실행될 콜백 함수
@@ -69,23 +69,43 @@ export function openPlotPointsDiffModal(originalPlots, suggestedPlots, onAcceptC
     };
     
     originalContainer.innerHTML = renderPlots(originalPlots);
-    suggestionContainer.innerHTML = renderPlots(suggestedPlots);
-
-    // 변경된 부분 하이라이트
-    suggestedPlots.forEach((plot, index) => {
+    
+    // [수정] 제안된 플롯 렌더링 시, 변경된 항목에 체크박스 추가
+    suggestionContainer.innerHTML = suggestedPlots.map((plot, index) => {
         const originalPlot = originalPlots[index];
-        if (!originalPlot || originalPlot.title !== plot.title || originalPlot.content !== plot.content) {
-            const suggestedArticle = suggestionContainer.querySelector(`article[data-index="${index}"]`);
-            if (suggestedArticle) {
-                suggestedArticle.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
-                suggestedArticle.style.border = '1px solid rgba(245, 158, 11, 0.5)';
-            }
-        }
-    });
+        const isModified = !originalPlot || originalPlot.title !== plot.title || originalPlot.content !== plot.content;
+        const hasSceneDraft = originalPlot && originalPlot.scene_draft && originalPlot.scene_draft.trim().length > 0;
+        
+        const checkboxHTML = (isModified && hasSceneDraft) ? `
+            <div class="clear-draft-checkbox">
+                <label>
+                    <input type="checkbox" name="clear_draft" value="${plot.id}" checked>
+                    <small>기존 장면 초안 삭제</small>
+                </label>
+            </div>
+        ` : '';
+
+        return `
+            <article class="plot-point-item ${isModified ? 'modified' : ''}" data-index="${index}" data-plot-id="${plot.id}">
+                <div class="plot-item-header">
+                    <h6>${index + 1}. ${plot.title}</h6>
+                    ${checkboxHTML}
+                </div>
+                <p>${plot.content || '세부 내용 없음'}</p>
+            </article>
+        `;
+    }).join('');
     
     const newAcceptBtn = acceptBtn.cloneNode(true);
     acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
-    newAcceptBtn.addEventListener('click', () => onAcceptCallback(suggestedPlots));
+    
+    // [수정] 적용 콜백에 '삭제할 초안 ID 목록'을 전달
+    newAcceptBtn.addEventListener('click', () => {
+        const draftsToClear = Array.from(suggestionContainer.querySelectorAll('input[name="clear_draft"]:checked'))
+            .map(cb => cb.value);
+        
+        onAcceptCallback(suggestedPlots, draftsToClear);
+    });
 
     const newRejectBtn = rejectBtn.cloneNode(true);
     rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);

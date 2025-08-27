@@ -482,38 +482,32 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     if not plot_point:
         raise HTTPException(status_code=404, detail="플롯 포인트를 찾을 수 없습니다.")
 
-    # [수정] 스타일 가이드 컨텍스트를 'micro' 타입으로 가져옴
     style_guide_context = get_style_guide_content(request.style_guide_id, 'micro')
 
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
-    total_plots = len(all_plot_points)
-    current_plot_index = plot_point.ordering
-
-    surrounding_context = _get_surrounding_plot_context(current_plot_index, all_plot_points)
-
-    plot_position_context = ""
-    plot_pacing_instruction = ""
+    surrounding_context = _get_surrounding_plot_context(plot_point.ordering, all_plot_points)
     
-    if total_plots > 0:
-        percentage = (current_plot_index + 1) / total_plots
-        if percentage <= 0.25:
-            plot_position_context = "도입부 (기)"
-            plot_pacing_instruction = "등장인물과 배경을 소개하고, 앞으로 전개될 사건의 실마리를 제시하며 독자의 호기심을 자극하세요. 아직 중요한 비밀은 밝히지 마세요."
-        elif percentage <= 0.75:
-            plot_position_context = "전개 (승)"
-            plot_pacing_instruction = "이야기를 발전시키고 심화시키세요. 인물 간의 관계가 깊어지거나 갈등의 씨앗이 뿌려지는 과정을 보여주세요."
-        elif percentage <= 0.9:
-            plot_position_context = "전환 (전)"
-            plot_pacing_instruction = "이야기의 흐름을 완전히 바꾸는 예상치 못한 사건이나 반전을 등장시키세요. 이 장면을 통해 독자가 새로운 국면을 맞이하게 만들어야 합니다."
-        else:
-            plot_position_context = "결말 (결)"
-            plot_pacing_instruction = "지금까지의 모든 사건들을 하나로 묶어 명확한 결론을 내리세요. 인물의 최종적인 변화와 이야기의 주제를 드러내며 마무리하세요."
+    # [수정] 문체 일관성을 위한 지침 추가
+    if surrounding_context and "이전 장면 내용" in surrounding_context:
+        style_guide_context += "\n\n**[문체 일관성 지침]**\n제공된 '이전 장면 내용'의 문체와 톤앤매너를 최대한 일관성 있게 유지하여 현재 장면을 작성해주세요."
 
+    total_plots = len(all_plot_points)
+    plot_position_context, plot_pacing_instruction = "", ""
+    if total_plots > 0:
+        percentage = (plot_point.ordering + 1) / total_plots
+        if percentage <= 0.25:
+            plot_position_context, plot_pacing_instruction = "도입부 (기)", "등장인물과 배경을 소개하고, 사건의 실마리를 제시하세요."
+        elif percentage <= 0.75:
+            plot_position_context, plot_pacing_instruction = "전개 (승)", "이야기를 발전시키고 갈등을 심화시키세요."
+        elif percentage <= 0.9:
+            plot_position_context, plot_pacing_instruction = "전환 (전)", "예상치 못한 반전이나 사건으로 흐름을 바꾸세요."
+        else:
+            plot_position_context, plot_pacing_instruction = "결말 (결)", "사건을 마무리하고 주제를 드러내세요."
+            
     character_ids = request.character_ids or []
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
-    
     relationships_context = ""
     if len(character_ids) > 1:
         relationships = db.query(RelationshipModel).filter(
@@ -521,30 +515,17 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
             RelationshipModel.target_character_id.in_(character_ids),
             RelationshipModel.project_id == project.id
         ).all()
-        
         if relationships:
             char_name_map = {c.id: c.name for c in characters}
             relationship_descriptions = [f"- {char_name_map.get(r.source_character_id)} → {char_name_map.get(r.target_character_id)}: {r.type} ({r.description or ''})" for r in relationships]
             if relationship_descriptions:
                 relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
-    
-    word_count_map = {
-        "short": "이 장면은 약 1000자 내외의 간결하면서도 핵심적인 분량으로 작성해주세요. 핵심 포인트를 명확하게 담아주세요.",
-        "medium": "이 장면은 약 2000자 내외의 적당한 분량으로 작성해주세요. 상황과 감정이 충분히 전달되도록 풍부하게 묘사해주세요.", 
-        "long": "이 장면은 약 3000자 내외의 풍부하고 상세한 분량으로 작성해주세요. 세밀한 묘사와 깊이 있는 감정 표현으로 독자를 완전히 몰입시켜 주세요."
-    }
+    word_count_map = {"short": "약 1000자 내외로 간결하게", "medium": "약 2000자 내외로", "long": "약 3000자 내외로 풍부하게"}
     word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
-
-    format_map = {
-        "novel": ai_prompts.scene_generation_novel,
-        "screenplay": ai_prompts.scene_generation_screenplay,
-        "game_dialogue": ai_prompts.scene_generation_game_dialogue
-    }
+    format_map = {"novel": ai_prompts.scene_generation_novel, "screenplay": ai_prompts.scene_generation_screenplay, "game_dialogue": ai_prompts.scene_generation_game_dialogue}
     prompt_template = format_map.get(request.output_format)
     if not prompt_template:
         raise HTTPException(status_code=400, detail="지원하지 않는 출력 형식입니다.")
-
-    # [수정] 프롬프트에 스타일 가이드 컨텍스트 추가
     prompt = prompt_template.format(
         plot_position_context=plot_position_context,
         plot_pacing_instruction=plot_pacing_instruction,
@@ -554,9 +535,8 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         plot_content=plot_point.content,
         characters_context=characters_context,
         relationships_context=relationships_context,
-        style_guide_context=style_guide_context # 스타일 가이드 컨텍스트 주입
+        style_guide_context=style_guide_context
     )
-
     try:
         chosen_model = request.model_name or AVAILABLE_MODELS[0]
         model = genai.GenerativeModel(chosen_model)
@@ -566,21 +546,14 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
         }
-
         response = await model.generate_content_async(prompt, safety_settings=safety_settings)
-        
-        generated_text = response.text.strip()
-        
-        plot_point.scene_draft = generated_text
+        plot_point.scene_draft = response.text.strip()
         db.commit()
         db.refresh(plot_point)
-
         return plot_point
-
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"AI 장면 생성 중 오류가 발생했습니다: {e}")
-
+        raise HTTPException(status_code=500, detail=f"AI 장면 생성 중 오류 발생: {e}")
 
 @router.put("/plot_points/{plot_point_id}/edit-with-ai", response_model=PlotPoint)
 async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
@@ -666,19 +639,20 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     if not plot_point.scene_draft:
         raise HTTPException(status_code=400, detail="수정할 장면 초안이 없습니다. 먼저 'AI로 장면 생성'을 사용해주세요.")
 
-    # [수정] 스타일 가이드 컨텍스트를 'micro' 타입으로 가져옴
     style_guide_context = get_style_guide_content(request.style_guide_id, 'micro')
 
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
+    surrounding_context = _get_surrounding_plot_context(plot_point.ordering, all_plot_points)
+    
+    # [수정] 문체 일관성을 위한 지침 추가
+    if surrounding_context and "이전 장면 내용" in surrounding_context:
+        style_guide_context += "\n\n**[문체 일관성 지침]**\n제공된 '이전 장면 내용'의 문체와 톤앤매너를 최대한 일관성 있게 유지하여 현재 장면을 작성해주세요."
+
     total_plots = len(all_plot_points)
-    current_plot_index = next((i for i, p in enumerate(all_plot_points) if p.id == plot_point.id), 0)
-
-    surrounding_context = _get_surrounding_plot_context(current_plot_index, all_plot_points)
-
     plot_position_context = ""
     if total_plots > 0:
-        percentage = (current_plot_index + 1) / total_plots
+        percentage = (plot_point.ordering + 1) / total_plots
         if percentage <= 0.25:
             plot_position_context = "도입부 (기)"
         elif percentage <= 0.75:
@@ -687,11 +661,10 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
             plot_position_context = "전환 (전)"
         else:
             plot_position_context = "결말 (결)"
-    
+            
     character_ids = request.character_ids or []
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
-    
     relationships_context = ""
     if len(character_ids) > 1:
         relationships = db.query(RelationshipModel).filter(
@@ -699,7 +672,6 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
             RelationshipModel.target_character_id.in_(character_ids),
             RelationshipModel.project_id == project.id
         ).all()
-        
         if relationships:
             char_name_map = {c.id: c.name for c in characters}
             relationship_descriptions = [f"- {char_name_map.get(r.source_character_id)} → {char_name_map.get(r.target_character_id)}: {r.type} ({r.description or ''})" for r in relationships]
@@ -713,7 +685,6 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     }
     word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
 
-    # [수정] 프롬프트에 스타일 가이드 컨텍스트 추가
     prompt = ai_prompts.scene_edit.format(
         existing_scene_draft=plot_point.scene_draft,
         plot_position_context=plot_position_context,
@@ -725,7 +696,7 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         characters_context=characters_context,
         relationships_context=relationships_context,
         user_edit_request=request.user_edit_request,
-        style_guide_context=style_guide_context # 스타일 가이드 컨텍스트 주입
+        style_guide_context=style_guide_context
     )
 
     try:
@@ -740,14 +711,11 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
 
         response = await model.generate_content_async(prompt, safety_settings=safety_settings)
         
-        generated_text = response.text.strip()
-        
-        plot_point.scene_draft = generated_text
+        plot_point.scene_draft = response.text.strip()
         db.commit()
         db.refresh(plot_point)
 
         return plot_point
-
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"AI 장면 수정 중 오류가 발생했습니다: {e}")

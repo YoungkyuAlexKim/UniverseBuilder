@@ -559,6 +559,7 @@ export class App {
         const button = form.querySelector('button[type="submit"]');
         const selectedCharacterIds = Array.from(form.querySelectorAll('input[name="character_ids"]:checked')).map(cb => cb.value);
         const plotPointCount = parseInt(form.elements.plot_point_count.value, 10);
+        const styleGuideSelect = document.getElementById('draft-style-guide-select'); // [신규] 스토리 초안 모달의 스타일 선택 요소 가져오기
 
         if (selectedCharacterIds.length === 0) {
             alert('주요 등장인물을 1명 이상 선택해주세요.');
@@ -575,7 +576,8 @@ export class App {
             const requestBody = {
                 character_ids: selectedCharacterIds,
                 plot_point_count: plotPointCount,
-                model_name: document.getElementById('ai-model-select').value
+                model_name: document.getElementById('ai-model-select').value,
+                style_guide_id: styleGuideSelect.value // [신규] 선택된 스타일 가이드 ID 추가
             };
 
             await api.generateAiScenarioDraft(projectId, scenarioId, requestBody);

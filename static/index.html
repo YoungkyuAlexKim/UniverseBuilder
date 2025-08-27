@@ -261,7 +261,17 @@
                 <label for="plot-point-count">생성할 플롯 개수: <strong id="plot-point-count-value">10</strong>개</label>
                 <input type="range" id="plot-point-count" name="plot_point_count" value="10" min="5" max="50" step="1">
                 
-                <label for="scenario-characters" style="margin-top: 1rem;">주요 등장인물 선택</label>
+                <!-- [신규] 스토리 초안 생성 모달에도 문체 선택 드롭다운 추가 -->
+                <div style="margin-top: 1rem; margin-bottom: 1rem;">
+                    <label for="draft-style-guide-select"><strong>문체 스타일 선택 (AI)</strong></label>
+                    <select id="draft-style-guide-select">
+                        <option value="">기본 스타일 (AI 기본값)</option>
+                        <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
+                        <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                    </select>
+                </div>
+
+                <label for="scenario-characters">주요 등장인물 선택</label>
                 <div id="scenario-characters-container" class="checkbox-container" style="max-height: 200px;">
                     <p>캐릭터 정보 로딩 중...</p>
                 </div>
@@ -306,8 +316,8 @@
                             <label for="style-guide-select"><strong>문체 스타일 선택 (AI)</strong></label>
                             <select id="style-guide-select">
                                 <option value="">기본 스타일 (AI 기본값)</option>
-                                <option value="COMIC_REACTION_KR_01">1인칭 라노벨 스타일 (냉소적 남성 화자)</option>
-                                <option value="COMIC_REACTION_KR_01_F">1인칭 라노벨 스타일 (냉소적 여성 화자)</option>
+                                <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
+                                <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
                             </select>
                         </div>
 
