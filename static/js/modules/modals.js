@@ -108,51 +108,89 @@ export function openPlotPointsDiffModal(originalPlots, suggestedPlots, onAcceptC
 
 export function openCardModal(card, projectId) {
     if (!card) return;
-    document.getElementById('modal-card-name').innerHTML = card.name || '이름 없는 카드';
+    document.getElementById('modal-card-name').innerHTML = card.name || '이름 없는 캐릭터';
     const contentEl = document.getElementById('modal-card-content');
 
-    const createListHTML = (title, items) => {
+    // 태그 HTML 생성 함수
+    const createTagsHTML = (items, tagClass) => {
         if (!items || items.length === 0) return '';
-        const listItems = Array.isArray(items) ? items : [items];
-        return `
-            <p><strong class="label">${title}:</strong></p>
-            <ul>
-                ${listItems.map(item => `<li>${item}</li>`).join('')}
-            </ul>
-        `;
+        const itemsArray = Array.isArray(items) ? items : [items];
+        return itemsArray.map(item => `<span class="character-modal-tag ${tagClass}">${item}</span>`).join('');
+    };
+
+    // 대사 HTML 생성 함수
+    const createQuotesHTML = (quotes) => {
+        if (!quotes || quotes.length === 0) return '';
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+        return quotesArray.map(quote => `<div class="character-quote-item">"${quote}"</div>`).join('');
     };
 
     contentEl.innerHTML = `
-        <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--pico-muted-border-color); padding-bottom: 1rem;">
-            <button class="secondary outline" id="show-relationship-btn">📊 관계도 보기</button>
-        </div>
-
-        <div id="modal-desc">${card.description || ''}</div>
-        <div style="margin-top: 0.5rem; min-height: 30px;">
-            <button class="secondary outline highlight-btn" data-field="description" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">✨ 이름 하이라이팅</button>
-            <div class="highlight-actions" id="highlight-actions-description" style="display: none; gap: 0.5rem;">
-                <button class="secondary outline save-highlight-btn" data-field="description" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">💾 저장</button>
-                <button class="secondary outline cancel-highlight-btn" data-field="description" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">↩️ 취소</button>
+        <div class="character-modal-layout">
+            <!-- 상단 액션 버튼 -->
+            <div class="character-modal-actions">
+                <button class="secondary outline" id="show-relationship-btn">📊 관계도 보기</button>
             </div>
-        </div>
 
-        ${createListHTML('성격', card.personality)}
-        ${createListHTML('능력', card.abilities)}
-        ${createListHTML('목표', card.goal)}
-        ${createListHTML('대표 대사', card.quote)}
-        
-        ${card.introduction_story ? `
-            <hr>
-            <p><strong class="label">등장 서사:</strong></p>
-            <div id="modal-story">${card.introduction_story}</div>
-            <div style="margin-top: 0.5rem; min-height: 30px;">
-                <button class="secondary outline highlight-btn" data-field="introduction_story" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">✨ 이름 하이라이팅</button>
-                <div class="highlight-actions" id="highlight-actions-introduction_story" style="display: none; gap: 0.5rem;">
-                    <button class="secondary outline save-highlight-btn" data-field="introduction_story" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">💾 저장</button>
-                    <button class="secondary outline cancel-highlight-btn" data-field="introduction_story" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">↩️ 취소</button>
+            <!-- 기본 정보 섹션 -->
+            <div class="character-modal-section">
+                <h4 class="character-modal-section-title">기본 정보</h4>
+                <div class="character-modal-description" id="modal-desc">${card.description || '캐릭터 설명이 없습니다.'}</div>
+                <div class="character-highlight-controls">
+                    <button class="secondary outline highlight-btn" data-field="description">✨ 이름 하이라이팅</button>
+                    <div class="highlight-actions" id="highlight-actions-description" style="display: none;">
+                        <button class="secondary outline save-highlight-btn" data-field="description">💾 저장</button>
+                        <button class="secondary outline cancel-highlight-btn" data-field="description">↩️ 취소</button>
+                    </div>
                 </div>
             </div>
-        ` : ''}
+
+            <!-- 특성 태그 섹션 -->
+            ${(card.personality && card.personality.length > 0) || (card.abilities && card.abilities.length > 0) ? `
+                <div class="character-modal-section">
+                    <h4 class="character-modal-section-title">특성</h4>
+                    <div class="character-modal-tags-container">
+                        ${createTagsHTML(card.personality, 'personality-tag')}
+                        ${createTagsHTML(card.abilities, 'ability-tag')}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- 목표 섹션 -->
+            ${card.goal && card.goal.length > 0 ? `
+                <div class="character-modal-section">
+                    <h4 class="character-modal-section-title">목표</h4>
+                    <div class="character-modal-goals">
+                        ${Array.isArray(card.goal) ? card.goal.map(g => `<div class="character-goal-item">${g}</div>`).join('') : `<div class="character-goal-item">${card.goal}</div>`}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- 대표 대사 섹션 -->
+            ${card.quote && card.quote.length > 0 ? `
+                <div class="character-modal-section">
+                    <h4 class="character-modal-section-title">대표 대사</h4>
+                    <div class="character-modal-quotes">
+                        ${createQuotesHTML(card.quote)}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- 등장 서사 섹션 -->
+            ${card.introduction_story ? `
+                <div class="character-modal-section character-modal-story-section">
+                    <h4 class="character-modal-section-title">등장 서사</h4>
+                    <div class="character-modal-story" id="modal-story">${card.introduction_story}</div>
+                    <div class="character-highlight-controls">
+                        <button class="secondary outline highlight-btn" data-field="introduction_story">✨ 이름 하이라이팅</button>
+                        <div class="highlight-actions" id="highlight-actions-introduction_story" style="display: none;">
+                            <button class="secondary outline save-highlight-btn" data-field="introduction_story">💾 저장</button>
+                            <button class="secondary outline cancel-highlight-btn" data-field="introduction_story">↩️ 취소</button>
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
     `;
 
     contentEl.querySelector('#show-relationship-btn').addEventListener('click', (e) => {
