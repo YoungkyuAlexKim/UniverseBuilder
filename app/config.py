@@ -70,7 +70,7 @@ class AIPrompts:
 4. **강렬한 존재감**: 등장만으로도 분위기를 바꾸고, 다른 캐릭터들과 화학적 반응을 일으킬 수 있는 카리스마를 부여하세요
 5. **미래의 가능성**: 성장하고 변화할 여지가 있는, 스토리 전개에 능동적으로 참여할 수 있는 동적 캐릭터를 만드세요
 
-**📝 세부 창작 가이드:**
+**� 세부 창작 가이드:**
 - **이름**: 캐릭터의 본질과 세계관에 어울리는 인상적인 이름
 - **설명**: 외모뿐만 아니라 말투, 습관, 분위기까지 느껴지는 생생한 묘사
 - **목표**: 절박하고 구체적인 욕망, 독자가 공감하거나 이해할 수 있는 동기
@@ -173,6 +173,7 @@ class AIPrompts:
 {characters_context}
 {story_concept}
 {prologue_context}
+{style_guide_context}
 ---
 
 [TASK]
@@ -346,10 +347,9 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 Your entire response must start with `{{` and end with `}}`. No other text, explanation, or formatting is permitted.
 """
 
-    # [수정] 장면 생성 프롬프트: surrounding_context를 사용하도록 변경
     scene_generation_novel: str = """당신은 독자의 감각을 자극하고 마음을 움직이는 묘사에 능한 베테랑 소설가입니다.
 주어진 상황과 설정을 바탕으로, 독자가 마치 그 장면 속에 직접 들어가 있는 듯한 몰입감을 선사하는 한 편의 장면을 소설 형식으로 서술해주세요.
-
+{style_guide_context}
 **[장면의 역할과 목표]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **연출 지침:** {plot_pacing_instruction}
@@ -373,10 +373,9 @@ Your entire response must start with `{{` and end with `}}`. No other text, expl
 [결과물]
 """
 
-    # [수정] 장면 생성 프롬프트: surrounding_context를 사용하도록 변경
     scene_generation_screenplay: str = """당신은 장면을 시각적으로 구성하고 배우의 연기를 이끌어내는 전문 시나리오 작가입니다.
 주어진 상황과 설정을 바탕으로, 표준 시나리오 형식(장면 제목, 지문, 대사)에 맞춰 한 편의 장면을 작성해주세요.
-
+{style_guide_context}
 **[장면의 역할과 목표]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **연출 지침:** {plot_pacing_instruction}
@@ -411,10 +410,9 @@ SCENE START
 SCENE END
 """
 
-    # [수정] 장면 생성 프롬프트: surrounding_context를 사용하도록 변경
     scene_generation_game_dialogue: str = """당신은 플레이어의 몰입을 극대화하는 게임 시나리오 작가입니다.
 주어진 상황과 설정을 바탕으로, 캐릭터의 성격이 명확히 드러나는 게임 대사 지문을 작성해주세요.
-
+{style_guide_context}
 **[장면의 역할과 목표]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **연출 지침:** {plot_pacing_instruction}
@@ -443,10 +441,9 @@ SCENE END
 [시스템]: [선택지나 특별한 이벤트 발생 시 괄호 안에 서술. 예: (갑자기 문이 열리며 낯선 이가 들어선다.)]
 """
 
-    # [수정] 장면 수정 프롬프트: surrounding_context를 사용하도록 변경
     scene_edit: str = """당신은 기존 장면을 기반으로 작가의 요청에 맞게 세밀하게 수정하는 전문 편집자입니다.
 기존 장면의 핵심 구조와 맥락을 유지하면서, 사용자의 요청사항을 자연스럽게 반영해주세요.
-
+{style_guide_context}
 **[이 장면의 역할과 배경]**
 - 이 장면은 이야기의 **{plot_position_context}**에 해당합니다.
 - **장면의 핵심 목표:** {plot_title} - {plot_content}

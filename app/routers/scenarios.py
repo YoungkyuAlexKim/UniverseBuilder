@@ -5,6 +5,7 @@ import time
 import json
 import os
 import asyncio
+import re # [신규] 정규 표현식 모듈 추가
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -61,13 +62,13 @@ class GenerateDraftRequest(BaseModel):
     character_ids: List[str]
     plot_point_count: int = 10
     model_name: Optional[str] = None
+    style_guide_id: Optional[str] = None # [신규] 스타일 가이드 ID 필드 추가
 
 class AIEditPlotPointRequest(BaseModel):
     user_prompt: str
     character_ids: List[str]
     model_name: Optional[str] = None
 
-# [신규] 전체 플롯 수정 요청을 위한 모델
 class AIEditPlotsRequest(BaseModel):
     user_prompt: str
     model_name: Optional[str] = None
@@ -76,7 +77,8 @@ class GenerateSceneRequest(BaseModel):
     output_format: str
     character_ids: Optional[List[str]] = None
     model_name: Optional[str] = None
-    word_count: Optional[str] = "medium"  # "short", "medium", "long"
+    word_count: Optional[str] = "medium"
+    style_guide_id: Optional[str] = None # [신규] 스타일 가이드 ID 필드 추가
 
 class EditSceneRequest(BaseModel):
     user_edit_request: str
@@ -84,6 +86,7 @@ class EditSceneRequest(BaseModel):
     character_ids: Optional[List[str]] = None
     model_name: Optional[str] = None
     word_count: Optional[str] = "medium"
+    style_guide_id: Optional[str] = None # [신규] 스타일 가이드 ID 필드 추가
 
 
 # --- 라우터 생성 ---
@@ -92,7 +95,59 @@ router = APIRouter(
     tags=["Scenarios"]
 )
 
-# --- 유틸리티 함수 ---
+# --- [신규] 스타일 가이드 처리 유틸리티 함수 ---
+def get_style_guide_content(style_guide_id: str, task_type: str) -> str:
+    """
+    스타일 가이드 파일을 읽고, 작업 유형(task_type)에 따라 내용을 필터링하여 반환합니다.
+    - task_type: 'macro' (플롯 생성용), 'micro' (장면 묘사용)
+    """
+    if not style_guide_id:
+        return ""
+
+    # 보안을 위해 파일 이름에 디렉토리 경로 문자가 없는지 확인
+    if ".." in style_guide_id or "/" in style_guide_id or "\\" in style_guide_id:
+        return ""
+
+    file_path = f"app/style_guides/{style_guide_id}.txt"
+    if not os.path.exists(file_path):
+        return ""
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            full_content = f.read()
+
+        if task_type == 'macro':
+            # 거시적(플롯) 작업에는 '서사 및 전개론'과 '작가의 습관' 부분만 추출
+            # '플롯 전개 형식'이 '서사 및 전개론' 섹션에 포함될 것을 가정
+            sections_to_extract = [
+                r"IV\.\s*서사\s*및\s*전개론",
+                r"VI\.\s*종합:\s*작가의\s*고유\s*습관"
+            ]
+            extracted_parts = []
+            
+            for section_pattern in sections_to_extract:
+                # 정규 표현식을 사용하여 섹션 제목을 찾음
+                match = re.search(f"({section_pattern}.*?)(?=\n[IVX]+\.|\Z)", full_content, re.DOTALL)
+                if match:
+                    extracted_parts.append(match.group(1).strip())
+            
+            if not extracted_parts:
+                return ""
+            
+            macro_context = "\n\n---\n\n".join(extracted_parts)
+            return f"\n\n### 참고할 문체 가이드 (거시적 전개 방식)\n{macro_context}\n"
+
+        elif task_type == 'micro':
+            # 미시적(장면) 작업에는 가이드라인 전체를 제공
+            return f"\n\n### 반드시 준수해야 할 문체 가이드라인\n{full_content}\n"
+            
+        return ""
+    except Exception:
+        # 파일 읽기 오류 발생 시 빈 문자열 반환
+        return ""
+
+
+# --- 기존 유틸리티 함수 ---
 def parse_scenario_fields(scenario_obj):
     if scenario_obj.themes and isinstance(scenario_obj.themes, str):
         try:
@@ -107,14 +162,7 @@ def parse_scenario_fields(scenario_obj):
 
     return scenario_obj
 
-# [신규] 장면 생성/수정을 위한 주변 컨텍스트를 생성하는 헬퍼 함수
 def _get_surrounding_plot_context(current_plot_index: int, all_plot_points: List[PlotPointModel]) -> str:
-    """
-    현재 플롯의 앞/뒤 컨텍스트(장면 초안 및 요약)를 생성합니다.
-    - 바로 앞/뒤 플롯의 '장면 초안(scene_draft)'을 우선적으로 참고합니다.
-    - 추가로 앞 6개, 뒤 6개 플롯의 '요약(content)'을 참고하여 더 넓은 맥락을 제공합니다.
-    """
-    # 1. 바로 앞/뒤 장면 초안(scene_draft) 컨텍스트
     previous_scene_context = ""
     if current_plot_index > 0:
         previous_plot = all_plot_points[current_plot_index - 1]
@@ -127,15 +175,12 @@ def _get_surrounding_plot_context(current_plot_index: int, all_plot_points: List
         if next_plot.scene_draft:
             next_scene_context = f"### 다음 장면 내용 (참고용)\n{next_plot.scene_draft}\n"
 
-    # 2. 주변 플롯 요약(content) 컨텍스트 (범위 확장)
     surrounding_plots_summary = []
-    # 이전 플롯 6개 요약
     start_index_prev = max(0, current_plot_index - 6)
     for i in range(start_index_prev, current_plot_index):
         plot = all_plot_points[i]
         surrounding_plots_summary.append(f"- (이전) {plot.ordering + 1}. {plot.title}: {plot.content or '요약 없음'}")
     
-    # 다음 플롯 6개 요약
     end_index_next = min(len(all_plot_points), current_plot_index + 7)
     for i in range(current_plot_index + 1, end_index_next):
         plot = all_plot_points[i]
@@ -145,9 +190,6 @@ def _get_surrounding_plot_context(current_plot_index: int, all_plot_points: List
     if surrounding_plots_summary:
         summary_context = "### 주변 플롯 요약 (전체 흐름 참고용)\n" + "\n".join(surrounding_plots_summary)
 
-    # 3. 모든 컨텍스트 결합
-    # 순서: 이전 장면 초안 -> 주변 요약 -> 다음 장면 초안
-    # 이렇게 배치하여 AI가 시간 순서대로 정보를 처리하도록 유도
     final_context = f"{previous_scene_context}\n{summary_context}\n{next_scene_context}".strip()
     
     return final_context if final_context else "### 참고할 주변 플롯 정보가 없습니다.\n"
@@ -185,6 +227,9 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
 
+    # [수정] 스타일 가이드 컨텍스트를 'macro' 타입으로 가져옴
+    style_guide_context = get_style_guide_content(request.style_guide_id, 'macro')
+
     world_data = {"logline": "", "genre": "", "rules": []}
     if project.worldview and project.worldview.content:
         try:
@@ -206,14 +251,16 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
     model = genai.GenerativeModel(chosen_model)
 
+    # [수정] 프롬프트에 스타일 가이드 컨텍스트 추가
     prompt = ai_prompts.scenario_draft.format(
         worldview_rules_context=worldview_rules_context,
         story_genre_context=story_genre_context,
         scenario_themes=scenario_themes,
         characters_context=characters_context,
         story_concept=story_concept,
-        prologue_context=synopsis_context, # prologue_context is a legacy name
-        plot_point_count=request.plot_point_count
+        prologue_context=synopsis_context,
+        plot_point_count=request.plot_point_count,
+        style_guide_context=style_guide_context # 스타일 가이드 컨텍스트 주입
     )
     
     try:
@@ -290,7 +337,6 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
             raise e
         raise HTTPException(status_code=500, detail=f"AI 플롯 생성 중 서버 오류 발생: {e}")
 
-# [신규] 전체 플롯 수정 API 엔드포인트
 @router.put("/{scenario_id}/edit-plots-with-ai")
 async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     if not api_key:
@@ -302,7 +348,6 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
     if not scenario.plot_points:
         raise HTTPException(status_code=400, detail="수정할 플롯 포인트가 없습니다. 먼저 플롯을 생성해주세요.")
 
-    # AI에게 전달할 컨텍스트 준비
     world_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
     worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(world_data.get("rules", [])) if world_data.get("rules") else ""
     story_genre_context = f"### 이야기 장르 및 분위기\n{world_data.get('genre', '정의되지 않음')}"
@@ -318,7 +363,6 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
     plot_points_context = "\n".join([f"{i+1}. {p.title}: {p.content or ''}" for i, p in enumerate(sorted_plots)])
     plot_point_count = len(sorted_plots)
 
-    # 프롬프트 생성
     prompt = ai_prompts.plot_points_edit.format(
         worldview_rules_context=worldview_rules_context,
         story_genre_context=story_genre_context,
@@ -347,11 +391,9 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
         cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
         ai_result = json.loads(cleaned_response_text)
 
-        # AI 응답 검증 (플롯 개수가 동일한지)
         if "plot_points" not in ai_result or len(ai_result["plot_points"]) != plot_point_count:
             raise HTTPException(status_code=500, detail=f"AI가 요청된 플롯 개수({plot_point_count}개)와 다른 수({len(ai_result.get('plot_points', []))}개)의 플롯을 반환했습니다.")
 
-        # 프론트엔드로 수정 제안을 반환 (DB에 바로 저장하지 않음)
         return ai_result
 
     except json.JSONDecodeError:
@@ -385,14 +427,12 @@ def create_plot_point(scenario_id: str, plot_point_data: PlotPointBase, project:
     db.refresh(new_plot_point)
     return new_plot_point
 
-# [신규] 모든 플롯 포인트 삭제 API 엔드포인트
 @router.delete("/{scenario_id}/plot_points")
 def delete_all_plot_points(scenario_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
     scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
 
-    # 해당 시나리오에 속한 모든 플롯 포인트 삭제
     num_deleted = db.query(PlotPointModel).filter(PlotPointModel.scenario_id == scenario_id).delete(synchronize_session=False)
     db.commit()
     
@@ -442,12 +482,14 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     if not plot_point:
         raise HTTPException(status_code=404, detail="플롯 포인트를 찾을 수 없습니다.")
 
+    # [수정] 스타일 가이드 컨텍스트를 'micro' 타입으로 가져옴
+    style_guide_context = get_style_guide_content(request.style_guide_id, 'micro')
+
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
     total_plots = len(all_plot_points)
     current_plot_index = plot_point.ordering
 
-    # [수정] 새로운 헬퍼 함수를 사용하여 주변 컨텍스트 생성
     surrounding_context = _get_surrounding_plot_context(current_plot_index, all_plot_points)
 
     plot_position_context = ""
@@ -468,12 +510,9 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
             plot_position_context = "결말 (결)"
             plot_pacing_instruction = "지금까지의 모든 사건들을 하나로 묶어 명확한 결론을 내리세요. 인물의 최종적인 변화와 이야기의 주제를 드러내며 마무리하세요."
 
-    worldview_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
-    
     character_ids = request.character_ids or []
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
-    character_names = ", ".join([c.name for c in characters]) if characters else "등장인물"
     
     relationships_context = ""
     if len(character_ids) > 1:
@@ -485,12 +524,7 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         
         if relationships:
             char_name_map = {c.id: c.name for c in characters}
-            relationship_descriptions = []
-            for rel in relationships:
-                source_name = char_name_map.get(rel.source_character_id, "알 수 없는 캐릭터")
-                target_name = char_name_map.get(rel.target_character_id, "알 수 없는 캐릭터")
-                relationship_descriptions.append(f"- {source_name} → {target_name}: {rel.type} ({rel.description or '세부 설명 없음'})")
-            
+            relationship_descriptions = [f"- {char_name_map.get(r.source_character_id)} → {char_name_map.get(r.target_character_id)}: {r.type} ({r.description or ''})" for r in relationships]
             if relationship_descriptions:
                 relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
     
@@ -510,16 +544,17 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     if not prompt_template:
         raise HTTPException(status_code=400, detail="지원하지 않는 출력 형식입니다.")
 
+    # [수정] 프롬프트에 스타일 가이드 컨텍스트 추가
     prompt = prompt_template.format(
         plot_position_context=plot_position_context,
         plot_pacing_instruction=plot_pacing_instruction,
         word_count_instruction=word_count_instruction,
-        # [수정] 이전/다음 컨텍스트를 통합된 컨텍스트로 교체
         surrounding_context=surrounding_context,
         plot_title=plot_point.title,
         plot_content=plot_point.content,
         characters_context=characters_context,
-        relationships_context=relationships_context
+        relationships_context=relationships_context,
+        style_guide_context=style_guide_context # 스타일 가이드 컨텍스트 주입
     )
 
     try:
@@ -631,12 +666,14 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     if not plot_point.scene_draft:
         raise HTTPException(status_code=400, detail="수정할 장면 초안이 없습니다. 먼저 'AI로 장면 생성'을 사용해주세요.")
 
+    # [수정] 스타일 가이드 컨텍스트를 'micro' 타입으로 가져옴
+    style_guide_context = get_style_guide_content(request.style_guide_id, 'micro')
+
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
     total_plots = len(all_plot_points)
     current_plot_index = next((i for i, p in enumerate(all_plot_points) if p.id == plot_point.id), 0)
 
-    # [수정] 새로운 헬퍼 함수를 사용하여 주변 컨텍스트 생성
     surrounding_context = _get_surrounding_plot_context(current_plot_index, all_plot_points)
 
     plot_position_context = ""
@@ -650,8 +687,6 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
             plot_position_context = "전환 (전)"
         else:
             plot_position_context = "결말 (결)"
-
-    worldview_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
     
     character_ids = request.character_ids or []
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
@@ -667,12 +702,7 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         
         if relationships:
             char_name_map = {c.id: c.name for c in characters}
-            relationship_descriptions = []
-            for rel in relationships:
-                source_name = char_name_map.get(rel.source_character_id, "알 수 없는 캐릭터")
-                target_name = char_name_map.get(rel.target_character_id, "알 수 없는 캐릭터")
-                relationship_descriptions.append(f"- {source_name} → {target_name}: {rel.type} ({rel.description or '세부 설명 없음'})")
-            
+            relationship_descriptions = [f"- {char_name_map.get(r.source_character_id)} → {char_name_map.get(r.target_character_id)}: {r.type} ({r.description or ''})" for r in relationships]
             if relationship_descriptions:
                 relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
     
@@ -683,6 +713,7 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     }
     word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
 
+    # [수정] 프롬프트에 스타일 가이드 컨텍스트 추가
     prompt = ai_prompts.scene_edit.format(
         existing_scene_draft=plot_point.scene_draft,
         plot_position_context=plot_position_context,
@@ -690,11 +721,11 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         plot_content=plot_point.content,
         output_format=request.output_format,
         word_count_instruction=word_count_instruction,
-        # [수정] 이전/다음 컨텍스트를 통합된 컨텍스트로 교체
         surrounding_context=surrounding_context,
         characters_context=characters_context,
         relationships_context=relationships_context,
-        user_edit_request=request.user_edit_request
+        user_edit_request=request.user_edit_request,
+        style_guide_context=style_guide_context # 스타일 가이드 컨텍스트 주입
     )
 
     try:

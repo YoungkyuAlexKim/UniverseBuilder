@@ -743,6 +743,7 @@ export class App {
         const formatSelect = document.getElementById('scene-format-select');
         const sceneDraftTextarea = document.getElementById('plot-point-scene-draft');
         const wordCountSlider = document.getElementById('word-count-slider');
+        const styleGuideSelect = document.getElementById('style-guide-select'); // [신규] 스타일 가이드 select 요소 가져오기
 
         const project = this.stateManager.getState().currentProject;
         
@@ -758,7 +759,8 @@ export class App {
             output_format: formatSelect.value,
             character_ids: selectedCharacterIds,
             model_name: document.getElementById('ai-model-select').value,
-            word_count: wordCount
+            word_count: wordCount,
+            style_guide_id: styleGuideSelect.value // [신규] 선택된 스타일 가이드 ID 추가
         };
 
         button.setAttribute('aria-busy', 'true');
@@ -797,6 +799,7 @@ export class App {
         const button = document.getElementById('plot-point-ai-edit-btn');
         const formatSelect = document.getElementById('scene-format-select');
         const wordCountSlider = document.getElementById('word-count-slider');
+        const styleGuideSelect = document.getElementById('style-guide-select'); // [신규] 스타일 가이드 select 요소 가져오기
 
         const project = this.stateManager.getState().currentProject;
         
@@ -813,7 +816,8 @@ export class App {
             output_format: formatSelect.value,
             character_ids: selectedCharacterIds,
             model_name: document.getElementById('ai-model-select').value,
-            word_count: wordCount
+            word_count: wordCount,
+            style_guide_id: styleGuideSelect.value // [신규] 선택된 스타일 가이드 ID 추가
         };
 
         button.setAttribute('aria-busy', 'true');
