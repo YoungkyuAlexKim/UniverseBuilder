@@ -93,53 +93,70 @@ export function activateTab(tabId) {
 function renderCharacterTab(projectData) {
     const container = document.getElementById('card-list-container');
 
-    eventManager.replaceContentSafely(container, `<div style="margin-bottom: 1.5rem;"><button id="show-generator-btn">✨ 새 인물 AI 생성</button></div>`, (container) => {
+    eventManager.replaceContentSafely(container, `
+        <div class="character-tab-header">
+            <button id="show-generator-btn" class="contrast">✨ 새 인물 AI 생성</button>
+        </div>
+    `, (container) => {
         const generatorBtn = container.querySelector('#show-generator-btn');
         if (generatorBtn) {
             eventManager.addEventListener(generatorBtn, 'click', () => app.openCharacterGenerationModal(projectData.id));
         }
     });
 
-    const groupsContainer = document.createElement('div');
-    groupsContainer.className = 'groups-container';
-    container.appendChild(groupsContainer);
-
+    // 그룹별 섹션으로 캐릭터들을 표시
     (projectData.groups || []).forEach(group => {
-        const groupColumn = document.createElement('div');
-        groupColumn.className = 'group-column';
-        groupColumn.innerHTML = `
-            <div class="group-header"><h4>${group.name}</h4>
-                ${group.name !== '미분류' ? `<button class="outline secondary delete-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">삭제</button>` : ''}
+        const groupSection = document.createElement('div');
+        groupSection.className = 'character-group-section';
+        
+        groupSection.innerHTML = `
+            <div class="character-group-header">
+                <h3>${group.name}</h3>
+                <div class="character-group-actions">
+                    ${group.name !== '미분류' ? `<button class="outline secondary delete-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">삭제</button>` : ''}
+                </div>
             </div>
-            <div class="cards-list" data-group-id="${group.id}"></div>
+            <div class="character-cards-grid" data-group-id="${group.id}"></div>
         `;
-        const cardsListEl = groupColumn.querySelector('.cards-list');
+
+        const cardsGridEl = groupSection.querySelector('.character-cards-grid');
         if (group.cards?.length > 0) {
-            group.cards.forEach(card => cardsListEl.appendChild(createCardElement(card, projectData.id, group.id)));
+            group.cards.forEach(card => {
+                cardsGridEl.appendChild(createEnhancedCardElement(card, projectData.id, group.id));
+            });
         } else {
-            cardsListEl.innerHTML = '<p><small>카드가 없습니다.</small></p>';
+            cardsGridEl.innerHTML = '<div class="character-empty-state"><p>이 그룹에 캐릭터가 없습니다.</p><small>위의 "새 인물 AI 생성" 버튼을 눌러 캐릭터를 만들어보세요!</small></div>';
         }
-        groupsContainer.appendChild(groupColumn);
+
+        container.appendChild(groupSection);
     });
+
+    // 새 그룹 생성 섹션 추가
+    const addGroupSection = document.createElement('div');
+    addGroupSection.className = 'character-group-section add-group-section';
+    addGroupSection.innerHTML = `
+        <div class="character-group-header">
+            <h3>+ 새 그룹 만들기</h3>
+        </div>
+        <form class="add-group-form">
+            <input type="text" name="name" placeholder="새 그룹 이름 (예: 주인공들, 조연, 악역)" required autocomplete="off">
+            <button type="submit" class="secondary">그룹 추가</button>
+        </form>
+    `;
     
-    const addGroupColumn = document.createElement('div');
-    addGroupColumn.className = 'group-column';
-    addGroupColumn.innerHTML = `<h4>새 그룹 추가</h4><form id="create-group-form" style="margin-top: 1rem;"><input type="text" name="name" placeholder="새 그룹 이름" required autocomplete="off" style="margin-bottom: 0.5rem;"><button type="submit" class="contrast" style="width: 100%;">+ 새 그룹 추가</button></form>`;
-    groupsContainer.appendChild(addGroupColumn);
+    const addGroupForm = addGroupSection.querySelector('.add-group-form');
+    eventManager.addEventListener(addGroupForm, 'submit', (e) => app.handleCreateGroup(e, projectData.id));
+    container.appendChild(addGroupSection);
 
-    const createGroupForm = document.getElementById('create-group-form');
-    if (createGroupForm) {
-        eventManager.addEventListener(createGroupForm, 'submit', (e) => app.handleCreateGroup(e, projectData.id));
-    }
-
+    // 기존 그룹 삭제 이벤트 등록
     container.querySelectorAll('.delete-group-btn').forEach(button => {
         eventManager.addEventListener(button, 'click', (e) => {
             const { groupId, groupName } = e.currentTarget.dataset;
             app.handleDeleteGroup(projectData.id, groupId, groupName);
         });
     });
-    
-    app.setupSortable(container.querySelectorAll('.cards-list'), projectData.id, 'character');
+
+    app.setupSortable(container.querySelectorAll('.character-cards-grid'), projectData.id, 'character');
 }
 
 function createCardElement(card, projectId, groupId) {
@@ -151,6 +168,61 @@ function createCardElement(card, projectId, groupId) {
         const cardData = { ...card, group_id: groupId };
         app.modals.openCardModal(cardData, projectId);
     });
+    return cardEl;
+}
+
+function createEnhancedCardElement(card, projectId, groupId) {
+    const cardEl = document.createElement('article');
+    cardEl.className = 'character-card';
+    cardEl.dataset.cardId = card.id;
+    
+    // 설명 미리보기 (80자 제한)
+    const descriptionPreview = card.description ? 
+        (card.description.length > 80 ? card.description.substring(0, 80) + '...' : card.description) 
+        : '설명이 없습니다';
+    
+    // 핵심 태그들만 (최대 2개씩)
+    const personalityTags = Array.isArray(card.personality) ? card.personality.slice(0, 2) : [];
+    const abilityTags = Array.isArray(card.abilities) ? card.abilities.slice(0, 2) : [];
+    
+    // 태그 HTML - 성격을 우선적으로 표시
+    const allTags = [...personalityTags.map(trait => ({type: 'personality', text: trait})), 
+                     ...abilityTags.map(ability => ({type: 'ability', text: ability}))];
+    const displayTags = allTags.slice(0, 3); // 최대 3개만
+    
+    const tagsHTML = displayTags.map(tag => 
+        `<span class="character-tag ${tag.type}-tag">${tag.text}</span>`
+    ).join('');
+    
+    cardEl.innerHTML = `
+        <div class="character-card-header">
+            <h4 class="character-card-name">${card.name || '이름 없는 캐릭터'}</h4>
+            <div class="character-card-actions">
+                <button class="secondary outline character-edit-btn">✏️</button>
+            </div>
+        </div>
+        <div class="character-card-content">
+            <p class="character-description">${descriptionPreview}</p>
+            ${tagsHTML ? `<div class="character-tags-container">${tagsHTML}</div>` : ''}
+        </div>
+    `;
+    
+    cardEl.addEventListener('click', (e) => {
+        // 편집 버튼 클릭이 아닐 때만 모달 열기
+        if (!e.target.closest('.character-edit-btn')) {
+            const cardData = { ...card, group_id: groupId };
+            app.modals.openCardModal(cardData, projectId);
+        }
+    });
+    
+    // 편집 버튼 이벤트
+    const editBtn = cardEl.querySelector('.character-edit-btn');
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cardData = { ...card, group_id: groupId };
+        app.modals.openCardModal(cardData, projectId);
+    });
+    
     return cardEl;
 }
 
@@ -353,15 +425,37 @@ function renderScenarioTab(projectData) {
             plotPointsHTML = mainScenario.plot_points.map(plot => {
                 const plotDataString = JSON.stringify(plot);
                 const escapedPlotDataString = plotDataString.replace(/'/g, '&#39;');
+                const hasScene = plot.scene_draft && plot.scene_draft.trim().length > 0;
+                const contentPreview = plot.content ? 
+                    (plot.content.length > 150 ? plot.content.substring(0, 150) + '...' : plot.content) 
+                    : '세부 내용 없음';
+                
                 return `
-                <article class="plot-point-item" style="position: relative; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 6px;">
-                    <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}' style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.1rem 0.5rem; font-size: 0.75rem;">
-                        편집
-                    </button>
-                    <h6>${plot.ordering + 1}. ${plot.title}</h6>
-                    <p style="margin:0; padding-right: 4rem;">${plot.content || '세부 내용 없음'}</p>
+                <article class="plot-point-card" data-plot-id="${plot.id}">
+                    <div class="plot-card-header">
+                        <div class="plot-card-number">${plot.ordering + 1}</div>
+                        <h5 class="plot-card-title">${plot.title}</h5>
+                        <div class="plot-card-badges">
+                            ${hasScene ? '<span class="plot-badge scene-ready">💡 장면</span>' : '<span class="plot-badge no-scene">📝 요약만</span>'}
+                        </div>
+                    </div>
+                    <div class="plot-card-content">
+                        <p class="plot-card-summary">${contentPreview}</p>
+                        ${hasScene ? `<div class="plot-scene-preview">
+                            <small>장면 미리보기:</small>
+                            <p>${plot.scene_draft.substring(0, 80)}...</p>
+                        </div>` : ''}
+                    </div>
+                    <div class="plot-card-actions">
+                        <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}'>
+                            ✏️ 편집
+                        </button>
+                        <button class="contrast outline ai-quick-edit-btn" data-plot-point='${escapedPlotDataString}'>
+                            ✨ AI 수정
+                        </button>
+                    </div>
                 </article>
-            `;
+                `;
             }).join('');
         } else {
             plotPointsHTML = '<p>아직 작성된 플롯이 없습니다.</p>';
