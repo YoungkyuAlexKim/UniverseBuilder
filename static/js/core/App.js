@@ -624,7 +624,7 @@ export class App {
             };
             const result = await api.editAllPlotPointsWithAi(currentProject.id, mainScenario.id, requestBody);
             
-            const onAccept = async (suggestedPlots) => {
+            const onAccept = async (suggestedPlots, draftsToClear = []) => {
                 const acceptBtn = document.getElementById('plot-points-diff-accept-btn');
                 acceptBtn.setAttribute('aria-busy', 'true');
                 
@@ -634,7 +634,9 @@ export class App {
                         const originalPlot = mainScenario.plot_points[index];
                         const plotData = {
                             title: plot.title,
-                            content: plot.content
+                            content: plot.content,
+                            // 기존 초안을 보존하되, 체크박스가 선택된 경우에만 삭제
+                            scene_draft: draftsToClear.includes(originalPlot.id) ? null : originalPlot.scene_draft
                         };
                         return api.updatePlotPoint(currentProject.id, mainScenario.id, originalPlot.id, plotData);
                     });
