@@ -330,11 +330,11 @@ def create_project(project_request: CreateProjectRequest, db: Session = Depends(
     default_worldview = WorldviewModel(project_id=new_project_id, content=default_worldview_content)
     
     default_scenario = ScenarioModel(
-        id=f"scen-{timestamp}",
-        project_id=new_project_id,
-        title="메인 시나리오",
-        prologue=""
-    )
+    id=f"scen-{timestamp}",
+    project_id=new_project_id,
+    title="메인 시나리오",
+    synopsis="" # 'prologue'를 'synopsis'로 변경
+)
     
     db.add(new_project)
     db.add(uncategorized_group)
