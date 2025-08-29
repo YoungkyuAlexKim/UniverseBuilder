@@ -110,7 +110,24 @@ def clear_manuscript_blocks(project: ProjectModel = Depends(get_project_if_acces
     db.commit()
     return None
 
-@router.put("/blocks/{block_id}", response_model=ManuscriptBlock)
+@router.put("/blocks/order")  # <--- 이 함수를 위로 이동
+def update_manuscript_block_order(
+    update_request: ManuscriptBlockOrderUpdateRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    집필 블록들의 순서를 업데이트합니다.
+    """
+    for index, block_id in enumerate(update_request.block_ids):
+        db.query(ManuscriptBlockModel).filter(
+            ManuscriptBlockModel.id == block_id,
+            ManuscriptBlockModel.project_id == project.id
+        ).update({"ordering": index})
+    db.commit()
+    return {"message": "블록 순서가 성공적으로 업데이트되었습니다."}
+
+@router.put("/blocks/{block_id}", response_model=ManuscriptBlock)  # <--- 이 함수는 아래로 이동
 def update_manuscript_block(
     block_id: str,
     update_data: ManuscriptBlockUpdateRequest,
@@ -140,19 +157,3 @@ def update_manuscript_block(
     db.refresh(block)
     return block
 
-@router.put("/blocks/order")
-def update_manuscript_block_order(
-    update_request: ManuscriptBlockOrderUpdateRequest,
-    project: ProjectModel = Depends(get_project_if_accessible),
-    db: Session = Depends(database.get_db)
-):
-    """
-    집필 블록들의 순서를 업데이트합니다.
-    """
-    for index, block_id in enumerate(update_request.block_ids):
-        db.query(ManuscriptBlockModel).filter(
-            ManuscriptBlockModel.id == block_id,
-            ManuscriptBlockModel.project_id == project.id
-        ).update({"ordering": index})
-    db.commit()
-    return {"message": "블록 순서가 성공적으로 업데이트되었습니다."}
