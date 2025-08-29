@@ -23,6 +23,8 @@ class ManuscriptBlock(BaseModel):
     title: str
     content: Optional[str] = None
     ordering: int
+    word_count: Optional[int] = 0
+    char_count: Optional[int] = 0
     class Config:
         from_attributes = True
 
@@ -181,6 +183,22 @@ router = APIRouter(
 
 # [수정] SQLAlchemy ORM 객체를 Pydantic 응답 모델로 변환하는 중앙 집중식 함수 (오류 수정)
 def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
+    # manuscript_blocks 처리 로직 추가 (글자 수 계산 포함)
+    manuscript_blocks_list = []
+    for mb in project_orm.manuscript_blocks:
+        block_dict = mb.__dict__
+        if mb.content is not None:
+            if mb.char_count is None:
+                block_dict['char_count'] = len(mb.content)
+            if mb.word_count is None:
+                block_dict['word_count'] = len(mb.content.split()) if mb.content else 0
+        else:
+            if mb.char_count is None:
+                block_dict['char_count'] = 0
+            if mb.word_count is None:
+                block_dict['word_count'] = 0
+        manuscript_blocks_list.append(block_dict)
+
     project_dict = {
         "id": project_orm.id,
         "name": project_orm.name,
@@ -188,14 +206,14 @@ def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
         "worldview_groups": [],
         "relationships": [rel.__dict__ for rel in project_orm.relationships],
         "scenarios": [],
-        "manuscript_blocks": sorted([mb.__dict__ for mb in project_orm.manuscript_blocks], key=lambda mb: mb.get("ordering", 0)) # manuscript_blocks 처리 로직 추가
+        "manuscript_blocks": sorted(manuscript_blocks_list, key=lambda mb: mb.get("ordering", 0))
     }
 
     for group_orm in project_orm.groups:
         group_dict = {
-            "id": group_orm.id, 
-            "project_id": group_orm.project_id, 
-            "name": group_orm.name, 
+            "id": group_orm.id,
+            "project_id": group_orm.project_id,
+            "name": group_orm.name,
             "cards": []
         }
         sorted_cards = sorted(group_orm.cards, key=lambda c: (c.ordering is None, c.ordering))

@@ -126,6 +126,8 @@ class ManuscriptBlock(Base):
     title = Column(String, nullable=False)
     content = Column(Text)
     ordering = Column(Integer, nullable=False)
+    word_count = Column(Integer, nullable=True, default=0)
+    char_count = Column(Integer, nullable=True, default=0)
     project = relationship("Project", back_populates="manuscript_blocks")
 
 # --- 데이터베이스 연결 및 초기화 함수 ---

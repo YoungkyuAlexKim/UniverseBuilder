@@ -16,6 +16,8 @@ class ManuscriptBlock(BaseModel):
     title: str
     content: Optional[str] = None
     ordering: int
+    word_count: Optional[int] = 0
+    char_count: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -43,6 +45,20 @@ def get_manuscript_blocks(project: ProjectModel = Depends(get_project_if_accessi
     blocks = db.query(ManuscriptBlockModel).filter(
         ManuscriptBlockModel.project_id == project.id
     ).order_by(ManuscriptBlockModel.ordering).all()
+
+    # 이전에 생성되어 count가 NULL인 블록들의 값을 동적으로 계산
+    for block in blocks:
+        if block.content is not None:
+            if block.char_count is None:
+                block.char_count = len(block.content)
+            if block.word_count is None:
+                block.word_count = len(block.content.split()) if block.content else 0
+        else: # content가 없는 경우 0으로 처리
+            if block.char_count is None:
+                block.char_count = 0
+            if block.word_count is None:
+                block.word_count = 0
+
     return blocks
 
 @router.post("/import", response_model=List[ManuscriptBlock])
@@ -64,19 +80,23 @@ def import_plot_points_to_manuscript(project: ProjectModel = Depends(get_project
     # 3. 플롯 포인트를 기반으로 새로운 ManuscriptBlock 생성
     new_blocks = []
     for plot in plot_points:
+        content = plot.scene_draft or f"({plot.content})"
         new_block = ManuscriptBlockModel(
             id=f"ms-block-{int(time.time() * 1000)}_{plot.ordering}",
             project_id=project.id,
             title=plot.title,
-            content=plot.scene_draft or f"({plot.content})", # scene_draft가 없으면 content를 괄호에 넣어 사용
-            ordering=plot.ordering
+            content=content,
+            ordering=plot.ordering,
+            # 글자 수 및 단어 수 계산 로직 추가
+            char_count=len(content),
+            word_count=len(content.split()) if content else 0
         )
         new_blocks.append(new_block)
 
     db.add_all(new_blocks)
     db.commit()
 
-    # 4. 생성된 블록들을 다시 조회하여 반환
+# 4. 생성된 블록들을 다시 조회하여 반환
     return db.query(ManuscriptBlockModel).filter(ManuscriptBlockModel.project_id == project.id).order_by(ManuscriptBlockModel.ordering).all()
 
 @router.delete("/blocks", status_code=204)
@@ -112,6 +132,9 @@ def update_manuscript_block(
         block.title = update_data.title
     if update_data.content is not None:
         block.content = update_data.content
+        # 글자 수 및 단어 수 계산 로직 추가
+        block.char_count = len(update_data.content)
+        block.word_count = len(update_data.content.split()) if update_data.content else 0
 
     db.commit()
     db.refresh(block)

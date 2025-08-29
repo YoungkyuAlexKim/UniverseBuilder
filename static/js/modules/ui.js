@@ -569,6 +569,9 @@ function renderManuscriptTab(projectData) {
     const saveButton = container.querySelector('#manuscript-save-btn');
     const importButton = container.querySelector('#manuscript-import-btn');
     const clearButton = container.querySelector('#manuscript-clear-btn');
+    // 글자 수/단어 수 표시를 위한 요소 추가
+    const charCountDisplay = container.querySelector('#char-count-display');
+    const wordCountDisplay = container.querySelector('#word-count-display');
 
     const blocks = projectData.manuscript_blocks || [];
     const mainScenario = projectData.scenarios && projectData.scenarios[0];
@@ -598,6 +601,9 @@ function renderManuscriptTab(projectData) {
         contentTextarea.disabled = true;
         saveButton.disabled = true;
         saveButton.removeAttribute('data-current-block-id');
+        // 카운터 초기화 추가
+        if(charCountDisplay) charCountDisplay.textContent = '0';
+        if(wordCountDisplay) wordCountDisplay.textContent = '0';
     };
     clearEditor();
 
@@ -614,28 +620,29 @@ function renderManuscriptTab(projectData) {
         const li = e.target.closest('li[data-block-id]');
         if (!li) return;
 
-        // 모든 블록의 'active' 스타일 제거
         blockListEl.querySelectorAll('li').forEach(item => {
             item.style.backgroundColor = 'transparent';
             item.style.borderColor = 'transparent';
         });
-        // 선택된 블록에 'active' 스타일 적용
         li.style.backgroundColor = 'var(--pico-secondary-background)';
         li.style.borderColor = 'var(--pico-secondary-border)';
-
 
         const blockId = li.dataset.blockId;
         const selectedBlock = blocks.find(b => b.id === blockId);
 
         if (selectedBlock) {
             titleInput.value = selectedBlock.title;
-            contentTextarea.value = selectedBlock.content || '';
+            const content = selectedBlock.content || '';
+            contentTextarea.value = content;
             titleInput.disabled = false;
             contentTextarea.disabled = false;
             saveButton.disabled = false;
             saveButton.setAttribute('data-current-block-id', blockId);
 
-            // 우측 컨텍스트 패널 업데이트
+            // 저장된 글자 수/단어 수 표시
+            if(charCountDisplay) charCountDisplay.textContent = selectedBlock.char_count || 0;
+            if(wordCountDisplay) wordCountDisplay.textContent = selectedBlock.word_count || 0;
+
             const originalPlot = mainScenario?.plot_points.find(p => p.ordering === selectedBlock.ordering);
             if (originalPlot) {
                 contextContentEl.innerHTML = `
@@ -646,6 +653,16 @@ function renderManuscriptTab(projectData) {
                 contextContentEl.innerHTML = '<p class="empty-message">원본 플롯 정보를 찾을 수 없습니다.</p>';
             }
         }
+    });
+    
+    // [수정] 실시간 글자 수 계산 이벤트 리스너 추가
+    eventManager.addEventListener(contentTextarea, 'input', () => {
+        const content = contentTextarea.value;
+        const charCount = content.length;
+        const wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
+
+        if(charCountDisplay) charCountDisplay.textContent = charCount;
+        if(wordCountDisplay) wordCountDisplay.textContent = wordCount;
     });
 
     // 저장 버튼 이벤트
