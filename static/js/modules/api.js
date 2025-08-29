@@ -10,6 +10,11 @@ async function handleResponse(response) {
         const errorData = await response.json();
         throw new Error(errorData.detail || `서버 오류: ${response.statusText}`);
     }
+    
+    if (response.status === 204) {
+        return {};
+    }
+
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         return response.json();
@@ -515,6 +520,50 @@ export async function enhanceSynopsis(requestBody) {
         method: 'POST',
         headers: getAuthHeaders(requestBody.project_id),
         body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
+// -------------------------
+// 집필 (Manuscript)
+// -------------------------
+
+export async function fetchManuscriptBlocks(projectId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks`, {
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+export async function importManuscriptFromScenario(projectId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/import`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
+export async function clearManuscriptBlocks(projectId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
+export async function updateManuscriptBlock(projectId, blockId, updateData) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(updateData)
+    });
+    return handleResponse(response);
+}
+
+export async function updateManuscriptBlockOrder(projectId, blockIds) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/order`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify({ block_ids: blockIds })
     });
     return handleResponse(response);
 }

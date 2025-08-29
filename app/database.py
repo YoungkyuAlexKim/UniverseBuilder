@@ -38,6 +38,7 @@ class Project(Base):
     worldview_groups = relationship("WorldviewGroup", back_populates="project", cascade="all, delete-orphan")
     relationships = relationship("Relationship", back_populates="project", cascade="all, delete-orphan")
     scenarios = relationship("Scenario", back_populates="project", cascade="all, delete-orphan")
+    manuscript_blocks = relationship("ManuscriptBlock", back_populates="project", cascade="all, delete-orphan")
 
 class Group(Base):
     __tablename__ = "groups"
@@ -118,6 +119,14 @@ class PlotPoint(Base):
     scene_draft = Column(Text, nullable=True) # [신규] 장면 초안을 저장할 컬럼
     scenario = relationship("Scenario", back_populates="plot_points")
 
+class ManuscriptBlock(Base):
+    __tablename__ = "manuscript_blocks"
+    id = Column(String, primary_key=True, index=True)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text)
+    ordering = Column(Integer, nullable=False)
+    project = relationship("Project", back_populates="manuscript_blocks")
 
 # --- 데이터베이스 연결 및 초기화 함수 ---
 

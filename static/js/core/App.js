@@ -861,7 +861,86 @@ export class App {
             alert(`AI 수정 실패: ${error.message}`);
         }
     }
+    async handleImportManuscript(projectId, scenarioId) {
+        if (!confirm("정말로 시나리오 플롯을 불러오시겠습니까?\n현재 집필 탭에 작성된 모든 내용이 삭제되고, 시나리오의 플롯 포인트로 덮어씌워집니다.")) return;
 
+        const button = document.getElementById('manuscript-import-btn');
+        if (button) button.setAttribute('aria-busy', 'true');
+
+        try {
+            await api.importManuscriptFromScenario(projectId);
+            alert('시나리오 플롯을 성공적으로 불러왔습니다.');
+            await this.stateManager.refreshCurrentProject();
+        } catch (error) {
+            console.error('플롯 불러오기 실패:', error);
+            alert(error.message);
+        } finally {
+            const newButton = document.getElementById('manuscript-import-btn');
+            if (newButton) newButton.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    async handleClearManuscript(projectId) {
+        if (!confirm("정말로 집필 탭의 모든 내용을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")) return;
+
+        const button = document.getElementById('manuscript-clear-btn');
+        if (button) button.setAttribute('aria-busy', 'true');
+
+        try {
+            await api.clearManuscriptBlocks(projectId);
+            alert('모든 집필 내용이 삭제되었습니다.');
+            await this.stateManager.refreshCurrentProject();
+        } catch (error) {
+            console.error('전체 삭제 실패:', error);
+            alert(error.message);
+        } finally {
+            const newButton = document.getElementById('manuscript-clear-btn');
+            if (newButton) newButton.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    async handleSaveManuscriptBlock(projectId, blockId) {
+        const titleInput = document.getElementById('manuscript-block-title');
+        const contentTextarea = document.getElementById('manuscript-block-content');
+        const saveButton = document.getElementById('manuscript-save-btn');
+
+        if (!blockId || !titleInput || !contentTextarea || !saveButton) return;
+
+        saveButton.setAttribute('aria-busy', 'true');
+        const updateData = {
+            title: titleInput.value,
+            content: contentTextarea.value
+        };
+
+        try {
+            await api.updateManuscriptBlock(projectId, blockId, updateData);
+            // 저장 성공 시 시각적 피드백 (예: 버튼 텍스트 변경)
+            saveButton.textContent = '저장 완료!';
+            setTimeout(() => { saveButton.textContent = '저장'; }, 1500);
+
+            // StateManager를 통해 데이터 리프레시
+            await this.stateManager.refreshCurrentProject();
+
+        } catch (error) {
+            console.error('원고 블록 저장 실패:', error);
+            alert(error.message);
+        } finally {
+            saveButton.setAttribute('aria-busy', 'false');
+        }
+    }
+    
+    async handleUpdateManuscriptOrder(projectId, blockIds) {
+        try {
+            await api.updateManuscriptBlockOrder(projectId, blockIds);
+            // 순서 변경은 UI에 즉시 반영되므로, 별도의 alert 없이 상태만 새로고침
+            await this.stateManager.refreshCurrentProject();
+        } catch (error) {
+            console.error('원고 순서 변경 실패:', error);
+            alert('원고 순서 변경에 실패했습니다. 페이지를 새로고침합니다.');
+            window.location.reload();
+        }
+    }
+    
     async handleEnhanceSynopsis() {
         const synopsisTextarea = document.getElementById('scenario-synopsis');
         const originalSynopsis = synopsisTextarea.value.trim();

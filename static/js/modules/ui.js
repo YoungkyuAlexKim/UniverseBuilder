@@ -55,6 +55,7 @@ export function renderProjectDetail(projectData) {
     renderCharacterTab(projectData);
     renderWorldviewTab(projectData);
     renderScenarioTab(projectData);
+    renderManuscriptTab(projectData); // 이 줄 추가
 
     // 활성화된 탭이 없다면 캐릭터 탭을 기본으로 활성화
     if (!document.querySelector('.tab-link.active')) {
@@ -553,6 +554,116 @@ function renderScenarioTab(projectData) {
                 app.modals.openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
             }
         });
+    });
+}
+
+function renderManuscriptTab(projectData) {
+    const container = document.getElementById('tab-content-manuscript');
+    if (!container) return;
+
+    // 필요한 DOM 요소들을 가져옵니다.
+    const blockListEl = container.querySelector('#manuscript-block-list');
+    const titleInput = container.querySelector('#manuscript-block-title');
+    const contentTextarea = container.querySelector('#manuscript-block-content');
+    const contextContentEl = container.querySelector('#manuscript-context-content');
+    const saveButton = container.querySelector('#manuscript-save-btn');
+    const importButton = container.querySelector('#manuscript-import-btn');
+    const clearButton = container.querySelector('#manuscript-clear-btn');
+
+    const blocks = projectData.manuscript_blocks || [];
+    const mainScenario = projectData.scenarios && projectData.scenarios[0];
+
+    // --- 1. 왼쪽 '개요' 패널 렌더링 ---
+    blockListEl.innerHTML = ''; // 목록 초기화
+    if (blocks.length > 0) {
+        blocks.forEach(block => {
+            const li = document.createElement('li');
+            li.dataset.blockId = block.id;
+            li.style.cursor = 'pointer';
+            li.style.padding = '0.5rem';
+            li.style.border = '1px solid transparent';
+            li.innerHTML = `<span>${block.ordering + 1}. ${block.title}</span>`;
+            blockListEl.appendChild(li);
+        });
+    } else {
+        blockListEl.innerHTML = '<li class="empty-message">작업할 내용이 없습니다. \'불러오기\'를 눌러 시작하세요.</li>';
+    }
+
+    // --- 2. 에디터 및 컨텍스트 패널 초기화 ---
+    const clearEditor = () => {
+        titleInput.value = '';
+        contentTextarea.value = '';
+        contextContentEl.innerHTML = '<p class="empty-message">편집할 블록을 선택하세요.</p>';
+        titleInput.disabled = true;
+        contentTextarea.disabled = true;
+        saveButton.disabled = true;
+        saveButton.removeAttribute('data-current-block-id');
+    };
+    clearEditor();
+
+
+    // --- 3. 이벤트 리스너 (재)설정 ---
+    eventManager.removeAllEventListenersInContainer(container); // 기존 이벤트 모두 제거
+
+    // 불러오기 및 전체 삭제 버튼
+    eventManager.addEventListener(importButton, 'click', () => app.handleImportManuscript(projectData.id, mainScenario?.id));
+    eventManager.addEventListener(clearButton, 'click', () => app.handleClearManuscript(projectData.id));
+
+    // 개요 목록의 각 블록 클릭 이벤트
+    eventManager.addEventListener(blockListEl, 'click', (e) => {
+        const li = e.target.closest('li[data-block-id]');
+        if (!li) return;
+
+        // 모든 블록의 'active' 스타일 제거
+        blockListEl.querySelectorAll('li').forEach(item => {
+            item.style.backgroundColor = 'transparent';
+            item.style.borderColor = 'transparent';
+        });
+        // 선택된 블록에 'active' 스타일 적용
+        li.style.backgroundColor = 'var(--pico-secondary-background)';
+        li.style.borderColor = 'var(--pico-secondary-border)';
+
+
+        const blockId = li.dataset.blockId;
+        const selectedBlock = blocks.find(b => b.id === blockId);
+
+        if (selectedBlock) {
+            titleInput.value = selectedBlock.title;
+            contentTextarea.value = selectedBlock.content || '';
+            titleInput.disabled = false;
+            contentTextarea.disabled = false;
+            saveButton.disabled = false;
+            saveButton.setAttribute('data-current-block-id', blockId);
+
+            // 우측 컨텍스트 패널 업데이트
+            const originalPlot = mainScenario?.plot_points.find(p => p.ordering === selectedBlock.ordering);
+            if (originalPlot) {
+                contextContentEl.innerHTML = `
+                    <h6>원본 플롯: ${originalPlot.title}</h6>
+                    <p><small>${originalPlot.content || '세부 내용 없음'}</small></p>
+                `;
+            } else {
+                contextContentEl.innerHTML = '<p class="empty-message">원본 플롯 정보를 찾을 수 없습니다.</p>';
+            }
+        }
+    });
+
+    // 저장 버튼 이벤트
+    eventManager.addEventListener(saveButton, 'click', () => {
+        const blockId = saveButton.getAttribute('data-current-block-id');
+        if (blockId) {
+            app.handleSaveManuscriptBlock(projectData.id, blockId);
+        }
+    });
+
+    // --- 4. 드래그 앤 드롭 순서 변경 기능 활성화 ---
+    new Sortable(blockListEl, {
+        animation: 150,
+        ghostClass: 'pico-color-azure-200',
+        onEnd: (evt) => {
+            const blockIds = Array.from(evt.target.children).map(li => li.dataset.blockId);
+            app.handleUpdateManuscriptOrder(projectData.id, blockIds);
+        }
     });
 }
 

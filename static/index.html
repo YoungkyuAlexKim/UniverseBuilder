@@ -74,7 +74,8 @@
                         <ul>
                             <li><a href="#" class="tab-link active" data-tab="characters">캐릭터</a></li>
                             <li><a href="#" class="tab-link" data-tab="worldview">세계관</a></li>
-                            <li><a href="#" class="tab-link" data-tab="scenario">시나리오</a></li> </ul>
+                            <li><a href="#" class="tab-link" data-tab="scenario">시나리오</a></li>
+                            <li><a href="#" class="tab-link" data-tab="manuscript">집필</a></li> </ul>
                     </nav>
                 </div>
                 <div class="tabs-container">
@@ -190,6 +191,39 @@
                                 <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
                                 <button type="submit" style="width: auto;">+ 플롯 추가</button>
                             </form>
+                        </div>
+                    </div>
+                    <div id="tab-content-manuscript" class="tab-content">
+                        <div class="manuscript-layout">
+                            <aside class="manuscript-hierarchy-panel">
+                                <header>
+                                    <h5>개요</h5>
+                                    <div class="manuscript-actions">
+                                        <button id="manuscript-import-btn" class="secondary outline" title="시나리오 탭에서 플롯 불러오기">불러오기</button>
+                                        <button id="manuscript-clear-btn" class="secondary outline" title="모든 집필 내용 삭제">전체 삭제</button>
+                                    </div>
+                                </header>
+                                <ul id="manuscript-block-list" class="block-list">
+                                    <li class="empty-message">작업할 내용이 없습니다. '불러오기'를 눌러 시작하세요.</li>
+                                </ul>
+                            </aside>
+                    
+                            <main class="manuscript-editor-panel">
+                                <div id="editor-toolbar">
+                                    <input type="text" id="manuscript-block-title" placeholder="블록 제목을 입력하세요...">
+                                    <button id="manuscript-save-btn">저장</button>
+                                </div>
+                                <textarea id="manuscript-block-content" placeholder="이곳에 원고를 작성하세요..."></textarea>
+                            </main>
+                    
+                            <aside class="manuscript-context-panel">
+                                <header>
+                                    <h5>원본 플롯 정보</h5>
+                                </header>
+                                <div id="manuscript-context-content">
+                                    <p class="empty-message">편집할 블록을 선택하세요.</p>
+                                </div>
+                            </aside>
                         </div>
                     </div>
                 </div>

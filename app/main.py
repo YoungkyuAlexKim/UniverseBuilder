@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
-from .routers import projects, generators, scenarios # [수정] scenarios 라우터 import 추가
-from . import database 
+from .routers import projects, generators, scenarios, manuscript 
 
 # 삭제: from alembic.config import Config
 # 삭제: from alembic import command
@@ -31,4 +30,5 @@ def read_root():
 
 app.include_router(projects.router)
 app.include_router(generators.router)
-app.include_router(scenarios.router) # [신규] scenarios 라우터 등록
+app.include_router(scenarios.router) 
+app.include_router(manuscript.router) 

@@ -17,6 +17,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # --- Pydantic 데이터 모델 ---
 
+class ManuscriptBlock(BaseModel):
+    id: str
+    project_id: str
+    title: str
+    content: Optional[str] = None
+    ordering: int
+    class Config:
+        from_attributes = True
+
 class PlotPoint(BaseModel):
     id: str
     scenario_id: str
@@ -103,6 +112,7 @@ class Project(BaseModel):
     worldview_groups: List[WorldviewGroup] = []
     relationships: List[Relationship] = []
     scenarios: List[Scenario] = []
+    manuscript_blocks: List[ManuscriptBlock] = [] 
     class Config:
         from_attributes = True
 
@@ -177,11 +187,11 @@ def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
         "groups": [],
         "worldview_groups": [],
         "relationships": [rel.__dict__ for rel in project_orm.relationships],
-        "scenarios": []
+        "scenarios": [],
+        "manuscript_blocks": sorted([mb.__dict__ for mb in project_orm.manuscript_blocks], key=lambda mb: mb.get("ordering", 0)) # manuscript_blocks 처리 로직 추가
     }
 
     for group_orm in project_orm.groups:
-        # [오류 수정] 누락되었던 project_id 필드 추가
         group_dict = {
             "id": group_orm.id, 
             "project_id": group_orm.project_id, 
@@ -209,15 +219,14 @@ def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
         project_dict["worldview_groups"].append(wv_group_dict)
 
     for scenario_orm in project_orm.scenarios:
-        # [수정] synopsis 필드를 안전하게 처리
         scenario_dict = {
             "id": scenario_orm.id,
             "project_id": scenario_orm.project_id,
             "title": scenario_orm.title,
             "summary": scenario_orm.summary,
-            "synopsis": getattr(scenario_orm, 'synopsis', ''),  # synopsis 필드 안전 처리
+            "synopsis": getattr(scenario_orm, 'synopsis', ''),
         }
-        
+
         themes_value = getattr(scenario_orm, 'themes', None)
         if themes_value and isinstance(themes_value, str):
             try:
@@ -267,7 +276,8 @@ def get_projects(db: Session = Depends(database.get_db)):
         joinedload(ProjectModel.worldview),
         joinedload(ProjectModel.worldview_groups).joinedload(WorldviewGroupModel.worldview_cards),
         joinedload(ProjectModel.relationships),
-        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points)
+        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points),
+        joinedload(ProjectModel.manuscript_blocks) # 이 줄 추가
     ).order_by(ProjectModel.name).all()
 
     response_projects = [convert_project_orm_to_pydantic(p) for p in projects_from_db]
