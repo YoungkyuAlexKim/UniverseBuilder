@@ -567,9 +567,9 @@ function renderManuscriptTab(projectData) {
     const contentTextarea = container.querySelector('#manuscript-block-content');
     const contextContentEl = container.querySelector('#manuscript-context-content');
     const saveButton = container.querySelector('#manuscript-save-btn');
+    const aiEditButton = container.querySelector('#manuscript-ai-edit-btn'); // [신규] AI 수정 버튼
     const importButton = container.querySelector('#manuscript-import-btn');
     const clearButton = container.querySelector('#manuscript-clear-btn');
-    // 글자 수/단어 수 표시를 위한 요소 추가
     const charCountDisplay = container.querySelector('#char-count-display');
     const wordCountDisplay = container.querySelector('#word-count-display');
 
@@ -600,8 +600,8 @@ function renderManuscriptTab(projectData) {
         titleInput.disabled = true;
         contentTextarea.disabled = true;
         saveButton.disabled = true;
+        aiEditButton.disabled = true; // [신규] AI 버튼 비활성화
         saveButton.removeAttribute('data-current-block-id');
-        // 카운터 초기화 추가
         if(charCountDisplay) charCountDisplay.textContent = '0';
         if(wordCountDisplay) wordCountDisplay.textContent = '0';
     };
@@ -611,9 +611,10 @@ function renderManuscriptTab(projectData) {
     // --- 3. 이벤트 리스너 (재)설정 ---
     eventManager.removeAllEventListenersInContainer(container); // 기존 이벤트 모두 제거
 
-    // 불러오기 및 전체 삭제 버튼
+    // 불러오기, 전체 삭제, AI 수정 버튼
     eventManager.addEventListener(importButton, 'click', () => app.handleImportManuscript(projectData.id, mainScenario?.id));
     eventManager.addEventListener(clearButton, 'click', () => app.handleClearManuscript(projectData.id));
+    eventManager.addEventListener(aiEditButton, 'click', () => app.openManuscriptAIModal()); // [신규] AI 수정 모달 열기 이벤트
 
     // 개요 목록의 각 블록 클릭 이벤트
     eventManager.addEventListener(blockListEl, 'click', (e) => {
@@ -637,9 +638,9 @@ function renderManuscriptTab(projectData) {
             titleInput.disabled = false;
             contentTextarea.disabled = false;
             saveButton.disabled = false;
+            aiEditButton.disabled = false; // [신규] AI 버튼 활성화
             saveButton.setAttribute('data-current-block-id', blockId);
 
-            // 저장된 글자 수/단어 수 표시
             if(charCountDisplay) charCountDisplay.textContent = selectedBlock.char_count || 0;
             if(wordCountDisplay) wordCountDisplay.textContent = selectedBlock.word_count || 0;
 
@@ -655,7 +656,6 @@ function renderManuscriptTab(projectData) {
         }
     });
     
-    // [수정] 실시간 글자 수 계산 이벤트 리스너 추가
     eventManager.addEventListener(contentTextarea, 'input', () => {
         const content = contentTextarea.value;
         const charCount = content.length;

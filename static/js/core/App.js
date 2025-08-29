@@ -69,9 +69,6 @@ export class App {
                 ui.activateTab(e.target.dataset.tab);
             }
         });
-
-        // [수정] 중복되는 전역 이벤트 리스너를 삭제하여 버그를 해결합니다.
-        // document.addEventListener('click', (e) => { ... });
     }
     
     /**
@@ -1210,5 +1207,124 @@ export class App {
         }
         
         return formatted;
+    }
+
+    // [신규] 원고 AI 수정 모달 열기
+    openManuscriptAIModal() {
+        const modal = document.getElementById('manuscript-ai-edit-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+        const saveButton = document.getElementById('manuscript-save-btn');
+        const currentBlockId = saveButton.getAttribute('data-current-block-id');
+
+        if (!currentBlockId) {
+            alert('먼저 수정할 원고 블록을 선택해주세요.');
+            return;
+        }
+
+        const originalContentEl = document.getElementById('manuscript-ai-original');
+        const suggestionEl = document.getElementById('manuscript-ai-suggestion');
+        const promptEl = document.getElementById('manuscript-ai-user-prompt');
+        const generateBtn = document.getElementById('manuscript-ai-generate-btn');
+        const acceptBtn = document.getElementById('manuscript-ai-accept-btn');
+        const rejectBtn = document.getElementById('manuscript-ai-reject-btn');
+        
+        // 모달 초기화
+        originalContentEl.value = document.getElementById('manuscript-block-content').value;
+        suggestionEl.value = '결과가 여기에 표시됩니다...';
+        promptEl.value = '';
+        acceptBtn.style.display = 'none';
+
+        // 컨텍스트 정보 로딩
+        this.loadManuscriptModalContext();
+        
+        // 이벤트 리스너 (재)설정
+        generateBtn.onclick = () => this.executeManuscriptEdit(currentBlockId);
+        acceptBtn.onclick = () => this.applyManuscriptEdit();
+        rejectBtn.onclick = () => modals.closeModal();
+        modal.querySelector('.close').onclick = (e) => { e.preventDefault(); modals.closeModal(); };
+
+        modal.classList.add('active');
+        backdrop.classList.add('active');
+    }
+    
+    // [신규] 원고 AI 수정 모달에 컨텍스트 정보 로드
+    loadManuscriptModalContext() {
+        const { currentProject } = this.stateManager.getState();
+        const charactersContainer = document.getElementById('manuscript-ai-characters-container');
+        const worldviewContainer = document.getElementById('manuscript-ai-worldview-cards-container');
+
+        // 캐릭터 목록 로드
+        let charactersHTML = '';
+        currentProject.groups.forEach(group => {
+            if (group.cards && group.cards.length > 0) {
+                charactersHTML += `<fieldset><legend>${group.name}</legend>`;
+                charactersHTML += group.cards.map(card => `<label><input type="checkbox" name="ms-ai-char" value="${card.id}">${card.name}</label>`).join('');
+                charactersHTML += `</fieldset>`;
+            }
+        });
+        charactersContainer.innerHTML = charactersHTML || '<small>캐릭터가 없습니다.</small>';
+
+        // 세계관 카드 목록 로드
+        let worldviewHTML = '';
+        currentProject.worldview_groups.forEach(group => {
+            if (group.worldview_cards && group.worldview_cards.length > 0) {
+                worldviewHTML += `<fieldset><legend>${group.name}</legend>`;
+                worldviewHTML += group.worldview_cards.map(card => `<label><input type="checkbox" name="ms-ai-wv" value="${card.id}">${card.title}</label>`).join('');
+                worldviewHTML += `</fieldset>`;
+            }
+        });
+        worldviewContainer.innerHTML = worldviewHTML || '<small>서브 설정이 없습니다.</small>';
+    }
+
+    // [신규] 원고 AI 수정 실행
+    async executeManuscriptEdit(blockId) {
+        const promptEl = document.getElementById('manuscript-ai-user-prompt');
+        const userPrompt = promptEl.value.trim();
+        if (!userPrompt) {
+            alert('AI에게 요청할 내용을 입력해주세요.');
+            return;
+        }
+
+        const generateBtn = document.getElementById('manuscript-ai-generate-btn');
+        const suggestionEl = document.getElementById('manuscript-ai-suggestion');
+        const acceptBtn = document.getElementById('manuscript-ai-accept-btn');
+        
+        generateBtn.setAttribute('aria-busy', 'true');
+        suggestionEl.value = "AI가 원고를 수정하고 있습니다...";
+
+        try {
+            const projectId = this.stateManager.getState().currentProject.id;
+            const requestBody = {
+                user_edit_request: userPrompt,
+                style_guide_id: document.getElementById('manuscript-ai-style-guide').value,
+                model_name: document.getElementById('ai-model-select').value,
+                character_ids: Array.from(document.querySelectorAll('input[name="ms-ai-char"]:checked')).map(cb => cb.value),
+                worldview_card_ids: Array.from(document.querySelectorAll('input[name="ms-ai-wv"]:checked')).map(cb => cb.value),
+            };
+
+            const result = await api.editManuscriptBlockWithAi(projectId, blockId, requestBody);
+            suggestionEl.value = result.edited_content;
+            acceptBtn.style.display = 'inline-block';
+
+        } catch (error) {
+            suggestionEl.value = `오류 발생: ${error.message}`;
+        } finally {
+            generateBtn.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    // [신규] AI 수정 제안 적용
+    applyManuscriptEdit() {
+        const suggestion = document.getElementById('manuscript-ai-suggestion').value;
+        const mainEditor = document.getElementById('manuscript-block-content');
+        mainEditor.value = suggestion;
+        
+        // 변경된 내용을 저장하기 위해 save 핸들러 호출
+        const projectId = this.stateManager.getState().currentProject.id;
+        const blockId = document.getElementById('manuscript-save-btn').getAttribute('data-current-block-id');
+        this.handleSaveManuscriptBlock(projectId, blockId);
+
+        modals.closeModal();
+        alert('AI의 제안이 적용 및 저장되었습니다.');
     }
 }

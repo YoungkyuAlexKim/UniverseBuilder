@@ -567,3 +567,12 @@ export async function updateManuscriptBlockOrder(projectId, blockIds) {
     });
     return handleResponse(response);
 }
+
+export async function editManuscriptBlockWithAi(projectId, blockId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/edit-with-ai`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}

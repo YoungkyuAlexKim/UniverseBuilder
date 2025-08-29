@@ -3,10 +3,56 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 import time
+import json
+import os
 
-from .. import database
-from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, ManuscriptBlock as ManuscriptBlockModel
+# Gemini AI 관련 임포트
+import google.generativeai as genai
+from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockThreshold
+
+# --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
+from .. import database # <--- 오류 수정을 위해 이 줄을 추가했습니다.
+from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, ManuscriptBlock as ManuscriptBlockModel, Card as CardModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
 from .projects import get_project_if_accessible
+from ..config import ai_prompts # 프롬프트 설정을 불러옵니다.
+
+# --- Gemini API 설정 ---
+AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
+api_key = os.getenv("GOOGLE_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+
+# --- 유틸리티 함수 ---
+def get_style_guide_content(style_guide_id: str) -> str:
+    if not style_guide_id:
+        return ""
+    if ".." in style_guide_id or "/" in style_guide_id or "\\" in style_guide_id:
+        return ""
+    file_path = f"app/style_guides/{style_guide_id}.txt"
+    if not os.path.exists(file_path):
+        return ""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            full_content = f.read()
+        return f"\n\n### 반드시 준수해야 할 문체 가이드라인\n{full_content}\n"
+    except Exception:
+        return ""
+
+def _get_surrounding_plot_context(current_plot_index: int, all_plot_points: List[PlotPointModel]) -> str:
+    surrounding_plots_summary = []
+    start_index = max(0, current_plot_index - 3)
+    end_index = min(len(all_plot_points), current_plot_index + 4)
+    for i in range(start_index, end_index):
+        if i == current_plot_index:
+            continue
+        plot = all_plot_points[i]
+        position = "이전" if i < current_plot_index else "다음"
+        surrounding_plots_summary.append(f"- ({position}) {plot.ordering + 1}. {plot.title}: {plot.content or '요약 없음'}")
+    
+    if not surrounding_plots_summary:
+        return "### 참고할 주변 플롯 정보가 없습니다."
+    return "### 주변 플롯 요약 (전체 흐름 참고용)\n" + "\n".join(surrounding_plots_summary)
+
 
 # --- Pydantic 데이터 모델 ---
 
@@ -28,6 +74,13 @@ class ManuscriptBlockUpdateRequest(BaseModel):
 
 class ManuscriptBlockOrderUpdateRequest(BaseModel):
     block_ids: List[str]
+
+class ManuscriptBlockAIEditRequest(BaseModel):
+    user_edit_request: str
+    style_guide_id: Optional[str] = None
+    model_name: Optional[str] = None
+    character_ids: Optional[List[str]] = None
+    worldview_card_ids: Optional[List[str]] = None
 
 
 # --- 라우터 생성 ---
@@ -96,7 +149,7 @@ def import_plot_points_to_manuscript(project: ProjectModel = Depends(get_project
     db.add_all(new_blocks)
     db.commit()
 
-# 4. 생성된 블록들을 다시 조회하여 반환
+    # 4. 생성된 블록들을 다시 조회하여 반환
     return db.query(ManuscriptBlockModel).filter(ManuscriptBlockModel.project_id == project.id).order_by(ManuscriptBlockModel.ordering).all()
 
 @router.delete("/blocks", status_code=204)
@@ -110,7 +163,7 @@ def clear_manuscript_blocks(project: ProjectModel = Depends(get_project_if_acces
     db.commit()
     return None
 
-@router.put("/blocks/order")  # <--- 이 함수를 위로 이동
+@router.put("/blocks/order")
 def update_manuscript_block_order(
     update_request: ManuscriptBlockOrderUpdateRequest,
     project: ProjectModel = Depends(get_project_if_accessible),
@@ -127,7 +180,7 @@ def update_manuscript_block_order(
     db.commit()
     return {"message": "블록 순서가 성공적으로 업데이트되었습니다."}
 
-@router.put("/blocks/{block_id}", response_model=ManuscriptBlock)  # <--- 이 함수는 아래로 이동
+@router.put("/blocks/{block_id}", response_model=ManuscriptBlock)
 def update_manuscript_block(
     block_id: str,
     update_data: ManuscriptBlockUpdateRequest,
@@ -156,4 +209,72 @@ def update_manuscript_block(
     db.commit()
     db.refresh(block)
     return block
+
+@router.post("/blocks/{block_id}/edit-with-ai")
+async def edit_manuscript_block_with_ai(
+    block_id: str,
+    request: ManuscriptBlockAIEditRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
+
+    block_to_edit = db.query(ManuscriptBlockModel).filter(ManuscriptBlockModel.id == block_id).first()
+    if not block_to_edit:
+        raise HTTPException(status_code=404, detail="수정할 원고 블록을 찾을 수 없습니다.")
+
+    scenario = db.query(ScenarioModel).filter(ScenarioModel.project_id == project.id).first()
+    all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering) if scenario else []
+    
+    original_plot = next((p for p in all_plot_points if p.ordering == block_to_edit.ordering), None)
+    
+    plot_title = original_plot.title if original_plot else "알 수 없음"
+    plot_content = original_plot.content if original_plot else "원본 플롯 정보 없음"
+    surrounding_context = _get_surrounding_plot_context(block_to_edit.ordering, all_plot_points)
+    
+    characters_context = ""
+    if request.character_ids:
+        characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
+        characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
+
+    relationships_context = ""
+    if request.character_ids and len(request.character_ids) > 1:
+        relationships = db.query(RelationshipModel).filter(
+            RelationshipModel.source_character_id.in_(request.character_ids),
+            RelationshipModel.target_character_id.in_(request.character_ids)
+        ).all()
+        if relationships:
+            char_map = {c.id: c.name for c in db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()}
+            rel_descs = [f"- {char_map.get(r.source_character_id)} → {char_map.get(r.target_character_id)}: {r.type}" for r in relationships]
+            relationships_context = "\n\n**[캐릭터 간 관계]**\n" + "\n".join(rel_descs)
+
+    style_guide_context = get_style_guide_content(request.style_guide_id)
+
+    prompt = ai_prompts.manuscript_edit.format(
+        style_guide_context=style_guide_context,
+        plot_title=plot_title,
+        plot_content=plot_content,
+        surrounding_context=surrounding_context,
+        existing_manuscript_content=block_to_edit.content or "",
+        characters_context=characters_context,
+        relationships_context=relationships_context,
+        user_edit_request=request.user_edit_request
+    )
+
+    try:
+        chosen_model = request.model_name or AVAILABLE_MODELS[0]
+        model = genai.GenerativeModel(chosen_model)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        response = await model.generate_content_async(prompt, safety_settings=safety_settings)
+        
+        return {"edited_content": response.text.strip()}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 원고 수정 중 오류 발생: {e}")
 

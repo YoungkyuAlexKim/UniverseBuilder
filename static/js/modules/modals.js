@@ -15,8 +15,8 @@ const plotPointEditModal = document.getElementById('plot-point-edit-modal');
 const refineConceptModal = document.getElementById('refine-concept-modal'); 
 const refineWorldviewRuleModal = document.getElementById('refine-worldview-rule-modal');
 const commonAiModal = document.getElementById('common-ai-modal');
-// [신규] 플롯 포인트 비교 모달을 위한 DOM 요소 추가
 const plotPointsDiffModal = document.getElementById('plot-points-diff-modal');
+const manuscriptAiEditModal = document.getElementById('manuscript-ai-edit-modal'); // [수정] 새 모달 변수 추가
 
 
 // App 인스턴스를 저장할 변수
@@ -31,7 +31,8 @@ export function initializeModals(appInstance) {
 }
 
 export function closeModal() {
-    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal, plotPointsDiffModal].forEach(el => {
+    // [수정] 닫을 모달 목록에 manuscriptAiEditModal 추가
+    [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal, plotPointsDiffModal, manuscriptAiEditModal].forEach(el => {
         if (el) el.classList.remove('active');
     });
     cardDetailsModal.classList.remove('shifted');
@@ -147,12 +148,10 @@ export function openCardModal(card, projectId) {
 
     contentEl.innerHTML = `
         <div class="character-modal-layout">
-            <!-- 상단 액션 버튼 -->
             <div class="character-modal-actions">
                 <button class="secondary outline" id="show-relationship-btn">📊 관계도 보기</button>
             </div>
 
-            <!-- 기본 정보 섹션 -->
             <div class="character-modal-section">
                 <h4 class="character-modal-section-title">기본 정보</h4>
                 <div class="character-modal-description" id="modal-desc">${card.description || '캐릭터 설명이 없습니다.'}</div>
@@ -165,7 +164,6 @@ export function openCardModal(card, projectId) {
                 </div>
             </div>
 
-            <!-- 특성 태그 섹션 -->
             ${(card.personality && card.personality.length > 0) || (card.abilities && card.abilities.length > 0) ? `
                 <div class="character-modal-section">
                     <h4 class="character-modal-section-title">특성</h4>
@@ -176,7 +174,6 @@ export function openCardModal(card, projectId) {
                 </div>
             ` : ''}
 
-            <!-- 목표 섹션 -->
             ${card.goal && card.goal.length > 0 ? `
                 <div class="character-modal-section">
                     <h4 class="character-modal-section-title">목표</h4>
@@ -186,7 +183,6 @@ export function openCardModal(card, projectId) {
                 </div>
             ` : ''}
 
-            <!-- 대표 대사 섹션 -->
             ${card.quote && card.quote.length > 0 ? `
                 <div class="character-modal-section">
                     <h4 class="character-modal-section-title">대표 대사</h4>
@@ -196,7 +192,6 @@ export function openCardModal(card, projectId) {
                 </div>
             ` : ''}
 
-            <!-- 등장 서사 섹션 -->
             ${card.introduction_story ? `
                 <div class="character-modal-section character-modal-story-section">
                     <h4 class="character-modal-section-title">등장 서사</h4>

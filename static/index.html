@@ -212,6 +212,7 @@
                                 <div id="editor-toolbar">
                                     <input type="text" id="manuscript-block-title" placeholder="블록 제목을 입력하세요...">
                                     <button id="manuscript-save-btn">저장</button>
+                                    <button id="manuscript-ai-edit-btn" class="secondary" disabled>✨ AI로 수정</button>
                                 </div>
                                 <div id="editor-info-bar" style="padding: 0.5rem 1rem; font-size: 0.8rem; color: var(--pico-muted-color); background: var(--pico-secondary-background); border-bottom: 1px solid var(--pico-border-color);">
                                     <span>글자 수: <strong id="char-count-display">0</strong></span> | 
@@ -583,6 +584,64 @@
                 <div class="grid" style="justify-content: flex-end;">
                     <button id="plot-points-diff-reject-btn" class="secondary outline" style="width: auto;">반려</button>
                     <button id="plot-points-diff-accept-btn" style="width: auto;">이 내용으로 적용</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+
+    <!-- [신규] AI 원고 수정 모달 -->
+    <div id="manuscript-ai-edit-modal" class="modal-container">
+        <article style="max-width: 90vw; width: 1200px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✨ AI 원고 수정</h3>
+            </header>
+            <div class="grid">
+                <article>
+                    <header><strong>현재 원고</strong></header>
+                    <textarea id="manuscript-ai-original" readonly rows="15"></textarea>
+                </article>
+                <article>
+                    <header><strong>AI 수정 제안</strong></header>
+                    <textarea id="manuscript-ai-suggestion" readonly rows="15">결과가 여기에 표시됩니다...</textarea>
+                </article>
+            </div>
+            <div style="margin-top: 1rem;">
+                <label for="manuscript-ai-user-prompt"><strong>AI에게 요청할 내용:</strong></label>
+                <textarea id="manuscript-ai-user-prompt" rows="3" placeholder="어떻게 수정하고 싶으신지 자유롭게 설명해주세요... (예: 이 부분을 좀 더 긴장감 넘치게 바꿔줘)"></textarea>
+            </div>
+            <div class="grid" style="margin-top: 1rem;">
+                <div>
+                    <label for="manuscript-ai-style-guide"><strong>문체 스타일 선택</strong></label>
+                    <select id="manuscript-ai-style-guide">
+                        <option value="">기본 스타일 (AI 기본값)</option>
+                        <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
+                        <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                    </select>
+                </div>
+            </div>
+            <details style="margin-top: 1rem;">
+                <summary>참조할 정보 선택 (선택사항)</summary>
+                <div class="grid">
+                    <div>
+                        <fieldset><legend><strong>참고할 캐릭터</strong></legend></fieldset>
+                        <div id="manuscript-ai-characters-container" class="checkbox-container" style="max-height: 150px; overflow-y: auto;">
+                            <p>캐릭터 정보 로딩 중...</p>
+                        </div>
+                    </div>
+                    <div>
+                        <fieldset><legend><strong>참고할 서브 설정</strong></legend></fieldset>
+                        <div id="manuscript-ai-worldview-cards-container" class="checkbox-container" style="max-height: 150px; overflow-y: auto;">
+                            <p>서브 설정 정보 로딩 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </details>
+            <footer>
+                <div class="grid" style="justify-content: flex-end; grid-template-columns: repeat(3, auto); gap: 0.5rem;">
+                    <button id="manuscript-ai-reject-btn" class="secondary outline" style="width: auto;">반려</button>
+                    <button id="manuscript-ai-generate-btn" style="width: auto;">AI 수정 실행</button>
+                    <button id="manuscript-ai-accept-btn" style="width: auto; display: none;">이 내용으로 적용</button>
                 </div>
             </footer>
         </article>
