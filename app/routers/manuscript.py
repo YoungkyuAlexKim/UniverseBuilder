@@ -89,6 +89,15 @@ class ManuscriptBlockPartialRefineRequest(BaseModel):
     style_guide_id: Optional[str] = None
     model_name: Optional[str] = None
 
+class MergeManuscriptBlocksRequest(BaseModel):
+    block_ids: List[str]
+    new_title: Optional[str] = None
+
+class SplitManuscriptBlockRequest(BaseModel):
+    split_position: int
+    first_part_title: Optional[str] = None
+    second_part_title: Optional[str] = None
+
 # --- 라우터 생성 ---
 router = APIRouter(
     prefix="/api/v1/projects/{project_id}/manuscript",
@@ -347,3 +356,167 @@ async def refine_partial_manuscript_block(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"AI 원고 부분 수정 중 오류 발생: {e}")
+
+@router.post("/blocks/merge", response_model=ManuscriptBlock)
+def merge_manuscript_blocks(
+    request: MergeManuscriptBlocksRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    여러 집필 블록들을 하나로 합칩니다.
+    """
+    if len(request.block_ids) < 2:
+        raise HTTPException(status_code=400, detail="합칠 블록을 2개 이상 선택해주세요.")
+
+    # 선택된 블록들을 가져옵니다.
+    blocks = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.id.in_(request.block_ids),
+        ManuscriptBlockModel.project_id == project.id
+    ).order_by(ManuscriptBlockModel.ordering).all()
+
+    if len(blocks) != len(request.block_ids):
+        raise HTTPException(status_code=404, detail="일부 블록을 찾을 수 없습니다.")
+
+    # 합칠 내용들을 결합합니다.
+    merged_content = "\n\n".join([block.content or "" for block in blocks])
+    merged_title = request.new_title or f"{blocks[0].title} 외 {len(blocks)-1}개"
+
+    # 새로운 블록을 생성합니다.
+    new_block = ManuscriptBlockModel(
+        id=f"ms-block-{int(time.time() * 1000)}_{blocks[0].ordering}",
+        project_id=project.id,
+        title=merged_title,
+        content=merged_content,
+        ordering=blocks[0].ordering,
+        char_count=len(merged_content),
+        word_count=len(merged_content.split()) if merged_content else 0
+    )
+
+    # 기존 블록들을 삭제합니다.
+    for block in blocks:
+        db.delete(block)
+
+    # 새로운 블록을 추가합니다.
+    db.add(new_block)
+
+    # 남은 블록들의 순서를 재정렬합니다.
+    remaining_blocks = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.project_id == project.id
+    ).order_by(ManuscriptBlockModel.ordering).all()
+
+    for i, block in enumerate(remaining_blocks):
+        block.ordering = i
+
+    db.commit()
+    db.refresh(new_block)
+    return new_block
+
+@router.post("/blocks/{block_id}/split", response_model=List[ManuscriptBlock])
+def split_manuscript_block(
+    block_id: str,
+    request: SplitManuscriptBlockRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    하나의 집필 블록을 지정된 위치에서 둘로 나눕니다.
+    """
+    print(f"DEBUG: Split request - block_id: {block_id}, split_position: {request.split_position}, first_title: {request.first_part_title}, second_title: {request.second_part_title}")
+
+    try:
+        block = db.query(ManuscriptBlockModel).filter(
+            ManuscriptBlockModel.id == block_id,
+            ManuscriptBlockModel.project_id == project.id
+        ).first()
+
+        if not block:
+            raise HTTPException(status_code=404, detail="나눌 블록을 찾을 수 없습니다.")
+
+        if not block.content:
+            raise HTTPException(status_code=400, detail="블록에 내용이 없습니다.")
+
+        if request.split_position <= 0:
+            raise HTTPException(status_code=400, detail="분할 위치는 1 이상이어야 합니다.")
+
+        if request.split_position >= len(block.content):
+            raise HTTPException(status_code=400, detail="분할 위치가 콘텐츠 길이를 초과합니다.")
+
+        # 콘텐츠를 분할합니다.
+        first_part_content = block.content[:request.split_position].strip()
+        second_part_content = block.content[request.split_position:].strip()
+
+        if not first_part_content and not second_part_content:
+            raise HTTPException(status_code=400, detail="분할 결과 두 부분 중 하나는 내용이 있어야 합니다.")
+
+        # 제목을 설정합니다.
+        first_part_title = request.first_part_title or f"{block.title} (1부)"
+        second_part_title = request.second_part_title or f"{block.title} (2부)"
+
+        # 첫 번째 블록을 업데이트합니다.
+        block.title = first_part_title
+        block.content = first_part_content
+        block.char_count = len(first_part_content)
+        block.word_count = len(first_part_content.split()) if first_part_content else 0
+
+        # 두 번째 블록을 생성합니다.
+        second_block = ManuscriptBlockModel(
+            id=f"ms-block-{int(time.time() * 1000)}_{block.ordering}_part2",
+            project_id=project.id,
+            title=second_part_title,
+            content=second_part_content,
+            ordering=block.ordering + 1,
+            char_count=len(second_part_content),
+            word_count=len(second_part_content.split()) if second_part_content else 0
+        )
+
+        # 두 번째 블록 이후의 블록들의 순서를 조정합니다.
+        db.query(ManuscriptBlockModel).filter(
+            ManuscriptBlockModel.project_id == project.id,
+            ManuscriptBlockModel.ordering > block.ordering
+        ).update({"ordering": ManuscriptBlockModel.ordering + 1})
+
+        # 두 번째 블록을 추가합니다.
+        db.add(second_block)
+        db.commit()
+        db.refresh(block)
+        db.refresh(second_block)
+
+        return [block, second_block]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 예상치 못한 에러에 대한 디버깅 정보 추가
+        raise HTTPException(
+            status_code=500,
+            detail=f"블록 분할 중 오류 발생: {str(e)}. block_id: {block_id}, split_position: {getattr(request, 'split_position', 'N/A')}"
+        )
+
+@router.delete("/blocks/{block_id}")
+def delete_manuscript_block(
+    block_id: str,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    특정 집필 블록을 삭제합니다.
+    """
+    block = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.id == block_id,
+        ManuscriptBlockModel.project_id == project.id
+    ).first()
+
+    if not block:
+        raise HTTPException(status_code=404, detail="삭제할 블록을 찾을 수 없습니다.")
+
+    db.delete(block)
+
+    # 삭제된 블록 이후의 블록들의 순서를 재정렬합니다.
+    db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.project_id == project.id,
+        ManuscriptBlockModel.ordering > block.ordering
+    ).update({"ordering": ManuscriptBlockModel.ordering - 1})
+
+    db.commit()
+    return {"message": "블록이 성공적으로 삭제되었습니다."}

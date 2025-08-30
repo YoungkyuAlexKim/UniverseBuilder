@@ -227,6 +227,18 @@ export class App {
         return this.manuscriptController.openPartialRefineModal(selectedText, surroundingContext);
     }
 
+    async handleMergeManuscriptBlocks(projectId, blockIds) {
+        return this.manuscriptController.handleMergeManuscriptBlocks(projectId, blockIds);
+    }
+
+    async handleSplitManuscriptBlock(projectId, blockId, splitPosition) {
+        return this.manuscriptController.handleSplitManuscriptBlock(projectId, blockId, splitPosition);
+    }
+
+    async handleDeleteManuscriptBlock(projectId, blockId) {
+        return this.manuscriptController.handleDeleteManuscriptBlock(projectId, blockId);
+    }
+
     // 캐릭터 생성 관련
     openCharacterGenerationModal(projectId) {
         return this.characterGenerationController.openCharacterGenerationModal(projectId);

@@ -233,6 +233,87 @@ export class ManuscriptController {
     /**
      * 부분 AI 수정 모달을 엽니다.
      */
+    /**
+     * 선택된 블록들을 합칩니다.
+     */
+    async handleMergeManuscriptBlocks(projectId, blockIds) {
+        if (blockIds.length < 2) {
+            alert('합칠 블록을 2개 이상 선택해주세요.');
+            return;
+        }
+
+        const newTitle = prompt('합쳐진 블록의 제목을 입력하세요:', '');
+        if (newTitle === null) return; // 취소
+
+        try {
+            await api.mergeManuscriptBlocks(projectId, {
+                block_ids: blockIds,
+                new_title: newTitle || undefined
+            });
+            alert('블록들이 성공적으로 합쳐졌습니다.');
+            await this.stateManager.refreshCurrentProject();
+        } catch (error) {
+            console.error('블록 합치기 실패:', error);
+            alert(error.message);
+        }
+    }
+
+    /**
+     * 선택된 블록을 분할합니다.
+     */
+    async handleSplitManuscriptBlock(projectId, blockId, splitPosition) {
+        if (!blockId) {
+            alert('분할할 블록을 선택해주세요.');
+            return;
+        }
+
+        const firstPartTitle = prompt('첫 번째 부분의 제목을 입력하세요:', '');
+        if (firstPartTitle === null) return; // 취소
+
+        const secondPartTitle = prompt('두 번째 부분의 제목을 입력하세요:', '');
+        if (secondPartTitle === null) return; // 취소
+
+        try {
+            const requestBody = {
+                split_position: splitPosition
+            };
+
+            if (firstPartTitle && firstPartTitle.trim()) {
+                requestBody.first_part_title = firstPartTitle.trim();
+            }
+
+            if (secondPartTitle && secondPartTitle.trim()) {
+                requestBody.second_part_title = secondPartTitle.trim();
+            }
+
+            console.log('Split request:', { blockId, splitPosition, firstPartTitle, secondPartTitle, requestBody });
+
+            await api.splitManuscriptBlock(projectId, blockId, requestBody);
+            alert('블록이 성공적으로 분할되었습니다.');
+            await this.stateManager.refreshCurrentProject();
+        } catch (error) {
+            console.error('블록 분할 실패:', error);
+            console.error('Error details:', error.response || error);
+            alert(`블록 분할 실패: ${error.message || '알 수 없는 오류'}`);
+        }
+    }
+
+    /**
+     * 선택된 블록을 삭제합니다.
+     */
+    async handleDeleteManuscriptBlock(projectId, blockId) {
+        if (!confirm('정말로 이 블록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+
+        try {
+            await api.deleteManuscriptBlock(projectId, blockId);
+            alert('블록이 성공적으로 삭제되었습니다.');
+            await this.stateManager.refreshCurrentProject();
+        } catch (error) {
+            console.error('블록 삭제 실패:', error);
+            alert(error.message);
+        }
+    }
+
     openPartialRefineModal(selectedText, surroundingContext) {
         const modal = document.getElementById('partial-refine-modal');
         const backdrop = document.getElementById('modal-backdrop');

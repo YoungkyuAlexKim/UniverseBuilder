@@ -222,6 +222,8 @@
                                     <div class="manuscript-actions">
                                         <button id="manuscript-import-btn" class="secondary outline" title="시나리오 탭에서 플롯 불러오기">불러오기</button>
                                         <button id="manuscript-clear-btn" class="secondary outline" title="모든 집필 내용 삭제">전체 삭제</button>
+                                        <button id="manuscript-merge-btn" class="secondary outline" title="선택된 블록들 합치기" disabled>합치기</button>
+                                        <button id="manuscript-split-btn" class="secondary outline" title="현재 블록 분할하기" disabled>분할</button>
                                     </div>
                                 </header>
                                 <ul id="manuscript-block-list" class="block-list">
@@ -695,6 +697,29 @@
             </footer>
         </article>
     </div>
+
+    <!-- 컨텍스트 메뉴 -->
+    <div id="manuscript-context-menu" class="context-menu" style="display: none; position: fixed; z-index: 1000; background: var(--pico-background-color); border: 1px solid var(--pico-border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 150px;">
+        <ul style="list-style: none; margin: 0; padding: 0.5rem 0;">
+            <li><button id="context-merge-selected" class="context-menu-item" style="width: 100%; padding: 0.5rem 1rem; border: none; background: none; text-align: left; cursor: pointer; border-radius: 0;"><i data-lucide="merge" style="margin-right: 0.5rem;"></i>선택된 블록 합치기</button></li>
+            <li><button id="context-split-block" class="context-menu-item" style="width: 100%; padding: 0.5rem 1rem; border: none; background: none; text-align: left; cursor: pointer; border-radius: 0;"><i data-lucide="scissors" style="margin-right: 0.5rem;"></i>블록 분할</button></li>
+            <li><hr style="margin: 0.25rem 0;"></li>
+            <li><button id="context-delete-block" class="context-menu-item" style="width: 100%; padding: 0.5rem 1rem; border: none; background: none; text-align: left; cursor: pointer; border-radius: 0; color: var(--pico-form-element-invalid-active-border-color);"><i data-lucide="trash-2" style="margin-right: 0.5rem;"></i>블록 삭제</button></li>
+        </ul>
+    </div>
+
+    <style>
+        .context-menu-item:hover {
+            background-color: var(--pico-secondary-background) !important;
+        }
+        .manuscript-block-checkbox {
+            cursor: pointer;
+        }
+        .manuscript-block-checkbox:focus {
+            outline: 2px solid var(--pico-primary);
+            outline-offset: 2px;
+        }
+    </style>
 
     <!-- 아이콘 렌더링 스크립트 -->
     <script>

@@ -462,6 +462,8 @@ function renderManuscriptTab(projectData) {
     const partialRefineButton = container.querySelector('#manuscript-partial-refine-btn'); // [신규] 부분 다듬기 버튼
     const importButton = container.querySelector('#manuscript-import-btn');
     const clearButton = container.querySelector('#manuscript-clear-btn');
+    const mergeButton = container.querySelector('#manuscript-merge-btn');
+    const splitButton = container.querySelector('#manuscript-split-btn');
     const charCountDisplay = container.querySelector('#char-count-display');
     const wordCountDisplay = container.querySelector('#word-count-display');
 
@@ -477,7 +479,24 @@ function renderManuscriptTab(projectData) {
             li.style.cursor = 'pointer';
             li.style.padding = '0.5rem';
             li.style.border = '1px solid transparent';
-            li.innerHTML = `<span><i data-lucide="file-text"></i> ${block.ordering + 1}. ${block.title}</span>`;
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.gap = '0.5rem';
+
+            // 체크박스 추가
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'manuscript-block-checkbox';
+            checkbox.dataset.blockId = block.id;
+            checkbox.style.marginRight = '0.5rem';
+
+            // 블록 제목 span
+            const titleSpan = document.createElement('span');
+            titleSpan.innerHTML = `<i data-lucide="file-text"></i> ${block.ordering + 1}. ${block.title}`;
+            titleSpan.style.flex = '1';
+
+            li.appendChild(checkbox);
+            li.appendChild(titleSpan);
             blockListEl.appendChild(li);
         });
     } else {
@@ -508,6 +527,49 @@ function renderManuscriptTab(projectData) {
     eventManager.addEventListener(importButton, 'click', () => app.handleImportManuscript(projectData.id, mainScenario?.id));
     eventManager.addEventListener(clearButton, 'click', () => app.handleClearManuscript(projectData.id));
     eventManager.addEventListener(aiEditButton, 'click', () => app.openManuscriptAIModal());
+
+    // [신규] 합치기 버튼 이벤트
+    eventManager.addEventListener(mergeButton, 'click', () => {
+        const selectedBlockIds = Array.from(container.querySelectorAll('.manuscript-block-checkbox:checked'))
+            .map(cb => cb.dataset.blockId);
+        if (selectedBlockIds.length >= 2) {
+            app.handleMergeManuscriptBlocks(projectData.id, selectedBlockIds);
+        }
+    });
+
+    // [신규] 분할 버튼 이벤트
+    eventManager.addEventListener(splitButton, 'click', () => {
+        const currentBlockId = saveButton.getAttribute('data-current-block-id');
+        if (currentBlockId) {
+            const contentTextarea = container.querySelector('#manuscript-block-content');
+            const { selectionStart, selectionEnd, value } = contentTextarea;
+
+            if (!value || value.trim().length === 0) {
+                alert('분할할 내용이 없습니다.');
+                return;
+            }
+
+            // 커서 위치 또는 선택된 텍스트의 중간 위치 사용
+            let splitPosition = selectionStart;
+            if (selectionStart === selectionEnd) {
+                // 텍스트가 선택되지 않은 경우, 커서 위치 사용
+                if (selectionStart === 0) {
+                    splitPosition = Math.floor(value.length / 2); // 중간 지점
+                }
+            } else {
+                // 텍스트가 선택된 경우, 선택 영역의 중간 사용
+                splitPosition = Math.floor((selectionStart + selectionEnd) / 2);
+            }
+
+            if (splitPosition > 0 && splitPosition < value.length) {
+                app.handleSplitManuscriptBlock(projectData.id, currentBlockId, splitPosition);
+            } else {
+                alert('분할할 수 있는 위치를 찾을 수 없습니다.');
+            }
+        } else {
+            alert('분할할 블록을 먼저 선택해주세요.');
+        }
+    });
     
     // [신규] 부분 다듬기 버튼 클릭 이벤트
     eventManager.addEventListener(partialRefineButton, 'click', () => {
@@ -523,10 +585,26 @@ function renderManuscriptTab(projectData) {
     });
 
 
+    // 체크박스 상태 업데이트 함수
+    const updateButtonStates = () => {
+        const checkedBoxes = container.querySelectorAll('.manuscript-block-checkbox:checked');
+        const hasMultipleSelection = checkedBoxes.length >= 2;
+        const hasCurrentBlock = saveButton.getAttribute('data-current-block-id');
+
+        mergeButton.disabled = !hasMultipleSelection;
+        splitButton.disabled = !hasCurrentBlock;
+    };
+
     // 개요 목록의 각 블록 클릭 이벤트
     eventManager.addEventListener(blockListEl, 'click', (e) => {
         const li = e.target.closest('li[data-block-id]');
         if (!li) return;
+
+        // 체크박스 클릭은 별도 처리
+        if (e.target.type === 'checkbox') {
+            updateButtonStates();
+            return;
+        }
 
         blockListEl.querySelectorAll('li').forEach(item => {
             item.style.backgroundColor = 'transparent';
@@ -550,7 +628,7 @@ function renderManuscriptTab(projectData) {
 
             if(charCountDisplay) charCountDisplay.textContent = selectedBlock.char_count || 0;
             if(wordCountDisplay) wordCountDisplay.textContent = selectedBlock.word_count || 0;
-            
+
             // [신규] 텍스트 선택 시 버튼 활성화 로직
             partialRefineButton.disabled = true;
 
@@ -564,8 +642,90 @@ function renderManuscriptTab(projectData) {
                 contextContentEl.innerHTML = '<p class="empty-message">원본 플롯 정보를 찾을 수 없습니다.</p>';
             }
         }
+
+        updateButtonStates();
     });
-    
+
+    // [신규] 컨텍스트 메뉴 이벤트
+    const contextMenu = document.getElementById('manuscript-context-menu');
+    let currentContextBlockId = null;
+
+    // 우클릭 이벤트
+    eventManager.addEventListener(blockListEl, 'contextmenu', (e) => {
+        e.preventDefault();
+        const li = e.target.closest('li[data-block-id]');
+        if (!li) return;
+
+        currentContextBlockId = li.dataset.blockId;
+
+        // 메뉴 위치 설정
+        contextMenu.style.left = e.pageX + 'px';
+        contextMenu.style.top = e.pageY + 'px';
+        contextMenu.style.display = 'block';
+
+        // 메뉴 항목 활성화 상태 설정
+        const checkedBoxes = container.querySelectorAll('.manuscript-block-checkbox:checked');
+        const mergeItem = contextMenu.querySelector('#context-merge-selected');
+        mergeItem.disabled = checkedBoxes.length < 2;
+        mergeItem.style.opacity = checkedBoxes.length < 2 ? '0.5' : '1';
+    });
+
+    // 컨텍스트 메뉴 항목 클릭 이벤트
+    eventManager.addEventListener(contextMenu.querySelector('#context-merge-selected'), 'click', () => {
+        const selectedBlockIds = Array.from(container.querySelectorAll('.manuscript-block-checkbox:checked'))
+            .map(cb => cb.dataset.blockId);
+        if (selectedBlockIds.length >= 2) {
+            app.handleMergeManuscriptBlocks(projectData.id, selectedBlockIds);
+        }
+        contextMenu.style.display = 'none';
+    });
+
+    eventManager.addEventListener(contextMenu.querySelector('#context-split-block'), 'click', () => {
+        if (currentContextBlockId) {
+            const contentTextarea = container.querySelector('#manuscript-block-content');
+            const { selectionStart, selectionEnd, value } = contentTextarea;
+
+            if (!value || value.trim().length === 0) {
+                alert('분할할 내용이 없습니다.');
+                contextMenu.style.display = 'none';
+                return;
+            }
+
+            // 커서 위치 또는 선택된 텍스트의 중간 위치 사용
+            let splitPosition = selectionStart;
+            if (selectionStart === selectionEnd) {
+                // 텍스트가 선택되지 않은 경우, 커서 위치 사용
+                if (selectionStart === 0) {
+                    splitPosition = Math.floor(value.length / 2); // 중간 지점
+                }
+            } else {
+                // 텍스트가 선택된 경우, 선택 영역의 중간 사용
+                splitPosition = Math.floor((selectionStart + selectionEnd) / 2);
+            }
+
+            if (splitPosition > 0 && splitPosition < value.length) {
+                app.handleSplitManuscriptBlock(projectData.id, currentContextBlockId, splitPosition);
+            } else {
+                alert('분할할 수 있는 위치를 찾을 수 없습니다.');
+            }
+        }
+        contextMenu.style.display = 'none';
+    });
+
+    eventManager.addEventListener(contextMenu.querySelector('#context-delete-block'), 'click', () => {
+        if (currentContextBlockId) {
+            app.handleDeleteManuscriptBlock(projectData.id, currentContextBlockId);
+        }
+        contextMenu.style.display = 'none';
+    });
+
+    // 문서 클릭 시 컨텍스트 메뉴 숨기기
+    document.addEventListener('click', (e) => {
+        if (!contextMenu.contains(e.target)) {
+            contextMenu.style.display = 'none';
+        }
+    });
+
     // 글자 수 계산 및 부분 수정 버튼 활성화/비활성화
     const handleTextareaInput = () => {
         const content = contentTextarea.value;
@@ -601,8 +761,12 @@ function renderManuscriptTab(projectData) {
     new Sortable(blockListEl, {
         animation: 150,
         ghostClass: 'pico-color-azure-200',
+        handle: 'span', // span 요소만 드래그 핸들로 사용 (체크박스 제외)
+        filter: 'input[type="checkbox"]', // 체크박스는 드래그 대상에서 제외
         onEnd: (evt) => {
-            const blockIds = Array.from(evt.target.children).map(li => li.dataset.blockId);
+            const blockIds = Array.from(evt.target.children)
+                .filter(li => li.dataset.blockId) // 유효한 li만
+                .map(li => li.dataset.blockId);
             app.handleUpdateManuscriptOrder(projectData.id, blockIds);
         }
     });

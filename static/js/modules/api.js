@@ -606,3 +606,29 @@ export async function refinePartialManuscript(projectId, blockId, requestBody) {
     });
     return handleResponse(response);
 }
+
+export async function mergeManuscriptBlocks(projectId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/merge`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
+export async function splitManuscriptBlock(projectId, blockId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/split`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}
+
+export async function deleteManuscriptBlock(projectId, blockId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
