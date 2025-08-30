@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // AI 모델 토글 카드 기능 초기화
     initAiModelToggle();
+
+    // 스타일 가이드 선택 요소 초기화
+    initializeStyleGuides();
 });
 
 /**
@@ -150,6 +153,197 @@ function setupRealTimeValidation(app) {
     } catch (error) {
         console.warn('실시간 검증 초기화 중 오류:', error);
     }
+}
+
+/**
+ * 스타일 가이드 선택 요소들을 초기화합니다.
+ */
+async function initializeStyleGuides() {
+    try {
+        // DOM 요소들이 로드될 때까지 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 스타일 가이드 선택 요소들을 동적으로 채움
+        await populateStyleGuideSelects();
+
+        // 스타일 가이드 변경 이벤트 리스너 추가
+        const styleGuideSelects = [
+            'draft-style-guide-select',
+            'style-guide-select',
+            'manuscript-ai-style-guide',
+            'partial-refine-style-guide'
+        ];
+
+        styleGuideSelects.forEach(selectId => {
+            const selectElement = document.getElementById(selectId);
+            if (selectElement) {
+                selectElement.addEventListener('change', (event) => {
+                    const selectedValue = event.target.value;
+                    const infoElementId = `${selectId}-info`;
+
+                    // 선택된 스타일 가이드 정보를 표시
+                    updateStyleGuideInfo(selectedValue, infoElementId);
+                });
+
+                // 초기 선택값에 대한 정보 표시
+                if (selectElement.value) {
+                    const infoElementId = `${selectId}-info`;
+                    updateStyleGuideInfo(selectElement.value, infoElementId);
+                }
+            }
+        });
+
+        console.log('스타일 가이드 초기화 완료');
+    } catch (error) {
+        console.warn('스타일 가이드 초기화 실패:', error);
+        // 실패 시 폴백으로 수동 초기화 시도
+        fallbackInitializeStyleGuides();
+    }
+}
+
+/**
+ * 스타일 가이드 초기화 실패 시 폴백 함수
+ * 실제 존재하는 파일들을 기반으로 동적으로 옵션 생성
+ */
+function fallbackInitializeStyleGuides() {
+    console.log('폴백 스타일 가이드 초기화 시작');
+
+    const styleGuideSelects = [
+        'draft-style-guide-select',
+        'style-guide-select',
+        'manuscript-ai-style-guide',
+        'partial-refine-style-guide'
+    ];
+
+    // 실제 존재하는 스타일 가이드 파일들
+    // TODO: 향후 서버 API를 통해 동적으로 가져올 수 있도록 개선 가능
+    const existingStyleGuides = [
+        {
+            id: 'COMIC_REACTION_KR_01_F',
+            title: '현실주의 코미디 스타일',
+            category: '코미디'
+        },
+        {
+            id: 'COMIC_REACTION_KR_01',
+            title: '냉소적 코미디 스타일',
+            category: '코미디'
+        }
+    ];
+
+    // 동적으로 옵션 생성
+    const fallbackOptions = existingStyleGuides.map(sg => ({
+        value: sg.id,
+        text: `${sg.title} (${sg.category})`
+    }));
+
+    styleGuideSelects.forEach(selectId => {
+        const selectElement = document.getElementById(selectId);
+        if (selectElement && selectElement.options.length <= 1) {
+            fallbackOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                selectElement.appendChild(option);
+            });
+        }
+    });
+
+    console.log(`폴백 스타일 가이드 초기화 완료: ${fallbackOptions.length}개 옵션 추가`);
+}
+
+/**
+ * 스타일 가이드 선택 요소들을 동적으로 채웁니다.
+ */
+async function populateStyleGuideSelects() {
+    try {
+        const styleGuides = await api.getStyleGuides();
+
+        // 모든 스타일 가이드 select 요소들을 찾습니다
+        const selectElements = [
+            'draft-style-guide-select',
+            'style-guide-select',
+            'manuscript-ai-style-guide',
+            'partial-refine-style-guide'
+        ];
+
+        selectElements.forEach(selectId => {
+            const selectElement = document.getElementById(selectId);
+            if (selectElement) {
+                // 기존 옵션들을 모두 제거 (첫 번째 옵션 제외)
+                while (selectElement.options.length > 1) {
+                    selectElement.remove(1);
+                }
+
+                // 새로운 스타일 가이드 옵션들을 추가
+                styleGuides.forEach(styleGuide => {
+                    const option = document.createElement('option');
+                    option.value = styleGuide.id;
+                    option.textContent = `${styleGuide.title} (${styleGuide.category})`;
+                    option.title = styleGuide.description;
+                    selectElement.appendChild(option);
+                });
+            }
+        });
+
+        console.log(`${styleGuides.length}개의 스타일 가이드를 로드했습니다.`);
+    } catch (error) {
+        console.error('스타일 가이드 로드 실패:', error);
+
+        // 폴백: 기존 하드코딩된 옵션들
+        const selectElements = [
+            'draft-style-guide-select',
+            'style-guide-select',
+            'manuscript-ai-style-guide',
+            'partial-refine-style-guide'
+        ];
+
+        selectElements.forEach(selectId => {
+            const selectElement = document.getElementById(selectId);
+            if (selectElement && selectElement.options.length <= 1) {
+                const fallbackOptions = [
+                    { value: 'COMIC_REACTION_KR_01_F', text: '현실주의 코미디 스타일 (코미디)' },
+                    { value: 'COMIC_REACTION_KR_01', text: '냉소적 코미디 스타일 (코미디)' }
+                ];
+
+                fallbackOptions.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    selectElement.appendChild(option);
+                });
+            }
+        });
+    }
+}
+
+/**
+ * 스타일 가이드 정보를 표시하는 요소를 업데이트합니다.
+ */
+function updateStyleGuideInfo(styleGuideId, infoElementId) {
+    const infoElement = document.getElementById(infoElementId);
+    if (!infoElement || !styleGuideId) {
+        if (infoElement) infoElement.style.display = 'none';
+        return;
+    }
+
+    // 선택된 스타일 가이드 정보를 표시
+    api.getStyleGuideDetail(styleGuideId)
+        .then(styleGuide => {
+            infoElement.innerHTML = `
+                <div style="padding: 0.5rem; background: var(--pico-warning-background-color); border: 1px solid var(--pico-warning-border-color); border-radius: 6px; margin-top: 0.5rem;">
+                    <strong>${styleGuide.title}</strong><br>
+                    <small style="color: var(--pico-warning-text-color);">
+                        ${styleGuide.description}<br>
+                        카테고리: ${styleGuide.category} | 언어: ${styleGuide.language}
+                    </small>
+                </div>
+            `;
+            infoElement.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('스타일 가이드 정보 로드 실패:', error);
+            infoElement.style.display = 'none';
+        });
 }
 
 // 리팩토링 완료: 모든 비즈니스 로직은 App.js와 StateManager로 이동됨

@@ -35,12 +35,52 @@
 
 .manuscript-actions {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
 }
 
+.manuscript-actions .button-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.manuscript-actions .button-row:first-child {
+    justify-content: flex-start;
+}
+
+.manuscript-actions .button-row:last-child {
+    justify-content: flex-start;
+}
+
 .manuscript-actions button {
-    padding: 0.2rem 0.6rem;
-    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+/* 첫 번째 행 버튼들 (불러오기, 내보내기) */
+.manuscript-actions .button-row:first-child button {
+    flex: 1;
+    min-width: 80px;
+}
+
+/* 두 번째 행 버튼들 (전체 삭제, 합치기, 분할) */
+.manuscript-actions .button-row:last-child button {
+    flex: 1;
+    min-width: 65px;
+}
+
+.manuscript-actions button i {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.manuscript-actions button span {
+    flex: 1;
+    text-align: center;
 }
 
 .manuscript-hierarchy-panel .block-list {

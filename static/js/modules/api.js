@@ -641,3 +641,35 @@ export async function exportManuscriptToScenario(projectId, requestBody) {
     });
     return handleResponse(response);
 }
+
+// === 스타일 가이드 API ===
+
+export async function getStyleGuides() {
+    const response = await fetch('/api/v1/style-guides/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+    return handleResponse(response);
+}
+
+export async function getStyleGuideDetail(styleGuideId) {
+    const response = await fetch(`/api/v1/style-guides/${styleGuideId}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+    return handleResponse(response);
+}
+
+export async function getStyleGuideContent(styleGuideId) {
+    const response = await fetch(`/api/v1/style-guides/${styleGuideId}/content`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+    return handleResponse(response);
+}

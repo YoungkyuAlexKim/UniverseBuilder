@@ -25,19 +25,107 @@ if api_key:
     genai.configure(api_key=api_key)
 
 # --- 유틸리티 함수 ---
+# --- 스타일 가이드 관리 시스템 ---
+
+def get_available_style_guides() -> List[dict]:
+    """사용 가능한 모든 스타일 가이드를 스캔하여 반환"""
+    style_guides = []
+    style_guide_dir = "app/style_guides"
+
+    if not os.path.exists(style_guide_dir):
+        return style_guides
+
+    try:
+        for filename in os.listdir(style_guide_dir):
+            if filename.endswith('.txt'):
+                file_path = os.path.join(style_guide_dir, filename)
+                style_guide_id = filename[:-4]  # .txt 확장자 제거
+
+                # 파일 메타데이터 추출 시도
+                metadata = extract_style_guide_metadata(file_path)
+
+                style_guides.append({
+                    "id": style_guide_id,
+                    "filename": filename,
+                    "title": metadata.get("title", style_guide_id.replace("_", " ").title()),
+                    "description": metadata.get("description", ""),
+                    "category": metadata.get("category", "기본"),
+                    "language": metadata.get("language", "ko"),
+                    "created_at": metadata.get("created_at", ""),
+                    "updated_at": metadata.get("updated_at", ""),
+                    "file_size": os.path.getsize(file_path)
+                })
+
+        # 제목 기준으로 정렬
+        style_guides.sort(key=lambda x: x["title"])
+        return style_guides
+
+    except Exception as e:
+        print(f"스타일 가이드 스캔 중 오류: {e}")
+        return []
+
+def extract_style_guide_metadata(file_path: str) -> dict:
+    """스타일 가이드 파일에서 메타데이터 추출"""
+    metadata = {}
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        # 파일 상단의 메타데이터 파싱 (주석 형식)
+        for line in lines[:10]:  # 상단 10줄만 확인
+            line = line.strip()
+            if line.startswith("# TITLE:"):
+                metadata["title"] = line[8:].strip()
+            elif line.startswith("# DESCRIPTION:"):
+                metadata["description"] = line[14:].strip()
+            elif line.startswith("# CATEGORY:"):
+                metadata["category"] = line[11:].strip()
+            elif line.startswith("# LANGUAGE:"):
+                metadata["language"] = line[11:].strip()
+            elif line.startswith("# CREATED:"):
+                metadata["created_at"] = line[10:].strip()
+            elif line.startswith("# UPDATED:"):
+                metadata["updated_at"] = line[10:].strip()
+
+        # 파일 수정 시간으로 기본 메타데이터 설정
+        if not metadata.get("updated_at"):
+            import time
+            mtime = os.path.getmtime(file_path)
+            metadata["updated_at"] = time.strftime("%Y-%m-%d", time.localtime(mtime))
+
+    except Exception as e:
+        print(f"메타데이터 추출 중 오류: {e}")
+
+    return metadata
+
 def get_style_guide_content(style_guide_id: str) -> str:
+    """스타일 가이드 내용 불러오기 (하위 호환성 유지)"""
     if not style_guide_id:
         return ""
+
+    # 보안 체크
     if ".." in style_guide_id or "/" in style_guide_id or "\\" in style_guide_id:
         return ""
+
     file_path = f"app/style_guides/{style_guide_id}.txt"
     if not os.path.exists(file_path):
         return ""
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             full_content = f.read()
-        return f"\n\n### 반드시 준수해야 할 문체 가이드라인\n{full_content}\n"
-    except Exception:
+
+        # 메타데이터 라인 제거 (AI 프롬프트에 포함되지 않도록)
+        lines = full_content.split('\n')
+        content_lines = []
+        for line in lines:
+            if not line.strip().startswith('# ') or not any(keyword in line.upper() for keyword in ['TITLE:', 'DESCRIPTION:', 'CATEGORY:', 'LANGUAGE:', 'CREATED:', 'UPDATED:']):
+                content_lines.append(line)
+
+        clean_content = '\n'.join(content_lines).strip()
+        return f"\n\n### 반드시 준수해야 할 문체 가이드라인\n{clean_content}\n"
+    except Exception as e:
+        print(f"스타일 가이드 불러오기 중 오류: {e}")
         return ""
 
 def _get_surrounding_plot_context(current_plot_index: int, all_plot_points: List[PlotPointModel]) -> str:
@@ -104,10 +192,28 @@ class ExportToScenarioRequest(BaseModel):
     confirm_overwrite: bool = False  # 덮어쓰기 확인
     max_plots: Optional[int] = 50  # AI 제한 고려한 최대 플롯 수
 
+# --- Pydantic 모델 ---
+class StyleGuideInfo(BaseModel):
+    id: str
+    filename: str
+    title: str
+    description: str
+    category: str
+    language: str
+    created_at: str
+    updated_at: str
+    file_size: int
+
 # --- 라우터 생성 ---
 router = APIRouter(
     prefix="/api/v1/projects/{project_id}/manuscript",
     tags=["Manuscript"]
+)
+
+# 스타일 가이드 전용 라우터 (프로젝트 ID 불필요)
+style_guide_router = APIRouter(
+    prefix="/api/v1/style-guides",
+    tags=["Style Guides"]
 )
 
 # --- API 엔드포인트 ---
@@ -568,6 +674,38 @@ def export_manuscript_to_scenario(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"응답 데이터 변환 중 오류 발생: {str(e)}")
+
+# --- 스타일 가이드 API 엔드포인트 ---
+@style_guide_router.get("/", response_model=List[StyleGuideInfo])
+def get_style_guides():
+    """사용 가능한 모든 스타일 가이드 목록을 반환"""
+    return get_available_style_guides()
+
+@style_guide_router.get("/{style_guide_id}")
+def get_style_guide_detail(style_guide_id: str):
+    """특정 스타일 가이드의 상세 정보와 내용을 반환"""
+    style_guides = get_available_style_guides()
+    style_guide = next((sg for sg in style_guides if sg["id"] == style_guide_id), None)
+
+    if not style_guide:
+        raise HTTPException(status_code=404, detail="스타일 가이드를 찾을 수 없습니다.")
+
+    content = get_style_guide_content(style_guide_id)
+    if not content:
+        raise HTTPException(status_code=500, detail="스타일 가이드 내용을 불러올 수 없습니다.")
+
+    return {
+        **style_guide,
+        "content": content
+    }
+
+@style_guide_router.get("/{style_guide_id}/content")
+def get_style_guide_content_only(style_guide_id: str):
+    """스타일 가이드 내용만 반환 (AI 프롬프트용)"""
+    content = get_style_guide_content(style_guide_id)
+    if not content:
+        raise HTTPException(status_code=404, detail="스타일 가이드를 찾을 수 없습니다.")
+    return {"content": content}
 
 @router.delete("/blocks/{block_id}")
 def delete_manuscript_block(

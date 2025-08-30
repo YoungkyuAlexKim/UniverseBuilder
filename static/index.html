@@ -220,11 +220,15 @@
                                 <header>
                                     <h5>개요</h5>
                                     <div class="manuscript-actions">
-                                        <button id="manuscript-import-btn" class="secondary outline" title="시나리오 탭에서 플롯 불러오기">불러오기</button>
-                                        <button id="manuscript-clear-btn" class="secondary outline" title="모든 집필 내용 삭제">전체 삭제</button>
-                                        <button id="manuscript-merge-btn" class="secondary outline" title="선택된 블록들 합치기" disabled>합치기</button>
-                                        <button id="manuscript-split-btn" class="secondary outline" title="현재 블록 분할하기" disabled>분할</button>
-                                        <button id="manuscript-export-btn" class="secondary outline" title="시나리오 탭으로 내보내기"><i data-lucide="upload"></i>내보내기</button>
+                                        <div class="button-row">
+                                            <button id="manuscript-import-btn" class="secondary outline" title="시나리오 탭에서 플롯을 불러와 집필을 시작합니다"><i data-lucide="download"></i><span>불러오기</span></button>
+                                            <button id="manuscript-export-btn" class="secondary outline" title="집필 내용을 시나리오 탭으로 내보냅니다"><i data-lucide="upload"></i><span>내보내기</span></button>
+                                        </div>
+                                        <div class="button-row">
+                                            <button id="manuscript-clear-btn" class="secondary outline" title="모든 집필 블록을 삭제합니다"><i data-lucide="trash-2"></i><span>전체 삭제</span></button>
+                                            <button id="manuscript-merge-btn" class="secondary outline" title="선택된 블록들을 하나로 합칩니다" disabled><i data-lucide="combine"></i><span>합치기</span></button>
+                                            <button id="manuscript-split-btn" class="secondary outline" title="현재 블록을 둘로 분할합니다" disabled><i data-lucide="split"></i><span>분할</span></button>
+                                        </div>
                                     </div>
                                 </header>
                                 <ul id="manuscript-block-list" class="block-list">
@@ -328,10 +332,9 @@
                 <div style="margin-top: 1rem; margin-bottom: 1rem;">
                     <label for="draft-style-guide-select"><strong>문체 스타일 선택 (AI)</strong></label>
                     <select id="draft-style-guide-select">
-                        <option value="">기본 스타일 (AI 기본값)</option>
-                        <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
-                        <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                        <option value="">스타일 가이드 선택...</option>
                     </select>
+                    <div id="draft-style-guide-select-info" style="display: none;"></div>
                 </div>
 
                 <label for="scenario-characters">주요 등장인물 선택</label>
@@ -376,10 +379,9 @@
                         <div style="margin-bottom: 1rem;">
                             <label for="style-guide-select"><strong>문체 스타일 선택 (AI)</strong></label>
                             <select id="style-guide-select">
-                                <option value="">기본 스타일 (AI 기본값)</option>
-                                <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
-                                <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                                <option value="">스타일 가이드 선택...</option>
                             </select>
+                            <div id="style-guide-select-info" style="display: none;"></div>
                         </div>
 
                         <div>
@@ -634,10 +636,9 @@
                 <div>
                     <label for="manuscript-ai-style-guide"><strong>문체 스타일 선택</strong></label>
                     <select id="manuscript-ai-style-guide">
-                        <option value="">기본 스타일 (AI 기본값)</option>
-                        <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
-                        <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                        <option value="">스타일 가이드 선택...</option>
                     </select>
+                    <div id="manuscript-ai-style-guide-info" style="display: none;"></div>
                 </div>
             </div>
             <details style="margin-top: 1rem;">
@@ -680,10 +681,9 @@
                 <div>
                     <label for="partial-refine-style-guide"><strong>문체 스타일 선택</strong></label>
                     <select id="partial-refine-style-guide">
-                        <option value="">기본 스타일 (AI 기본값)</option>
-                        <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
-                        <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                        <option value="">스타일 가이드 선택...</option>
                     </select>
+                    <div id="partial-refine-style-guide-info" style="display: none;"></div>
                 </div>
             </div>
             <div id="partial-refine-suggestions-container" style="padding: 0 1rem 1rem 1rem; overflow-y: auto; max-height: 50vh;">
