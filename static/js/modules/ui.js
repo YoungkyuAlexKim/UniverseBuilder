@@ -44,13 +44,15 @@ export function renderProjectList(projects) {
             li.innerHTML = `
                 <span class="project-name-span" data-id="${project.id}" title="${project.name}">${project.name}</span>
                 <div>
-                    <button class="secondary outline update-project-btn" data-project-id="${project.id}" data-current-name="${project.name}" style="padding: 0.1rem 0.4rem; font-size: 0.75rem; margin-right: 0.5rem;">수정</button>
-                    <button class="secondary outline delete-project-btn" data-project-id="${project.id}" data-project-name="${project.name}" style="padding: 0.1rem 0.4rem; font-size: 0.75rem;">삭제</button>
+                    <button class="secondary outline update-project-btn icon-only" data-project-id="${project.id}" data-current-name="${project.name}" title="이름 수정"><i data-lucide="pencil"></i></button>
+                    <button class="secondary outline delete-project-btn icon-only" data-project-id="${project.id}" data-project-name="${project.name}" title="프로젝트 삭제"><i data-lucide="trash-2"></i></button>
                 </div>
             `;
             projectList.appendChild(li);
         });
     }
+    // *** FIX: 프로젝트 목록을 렌더링한 직후 아이콘을 생성하도록 호출합니다. ***
+    lucide.createIcons();
 }
 
 /**
@@ -74,6 +76,8 @@ export function renderProjectDetail(projectData) {
     if (!document.querySelector('.tab-link.active')) {
         activateTab('characters');
     }
+    // 아이콘 렌더링
+    lucide.createIcons();
 }
 
 /**
@@ -109,7 +113,7 @@ function renderCharacterTab(projectData) {
 
     eventManager.replaceContentSafely(container, `
         <div class="character-tab-header">
-            <button id="show-generator-btn" class="contrast">✨ 새 인물 AI 생성</button>
+            <button id="show-generator-btn" class="contrast"><i data-lucide="user-plus"></i>새 인물 AI 생성</button>
         </div>
     `, (container) => {
         const generatorBtn = container.querySelector('#show-generator-btn');
@@ -125,9 +129,9 @@ function renderCharacterTab(projectData) {
         
         groupSection.innerHTML = `
             <div class="character-group-header">
-                <h3>${group.name}</h3>
+                <h3><i data-lucide="users"></i>${group.name}</h3>
                 <div class="character-group-actions">
-                    ${group.name !== '미분류' ? `<button class="outline secondary delete-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">삭제</button>` : ''}
+                    ${group.name !== '미분류' ? `<button class="outline secondary icon-only delete-group-btn" data-group-id="${group.id}" data-group-name="${group.name}" title="그룹 삭제"><i data-lucide="trash-2"></i></button>` : ''}
                 </div>
             </div>
             <div class="character-cards-grid" data-group-id="${group.id}"></div>
@@ -154,7 +158,7 @@ function renderCharacterTab(projectData) {
         </div>
         <form class="add-group-form">
             <input type="text" name="name" placeholder="새 그룹 이름 (예: 주인공들, 조연, 악역)" required autocomplete="off">
-            <button type="submit" class="secondary">그룹 추가</button>
+            <button type="submit" class="secondary"><i data-lucide="plus"></i>그룹 추가</button>
         </form>
     `;
     
@@ -221,10 +225,10 @@ function renderWorldviewTab(projectData) {
         
         groupSection.innerHTML = `
             <div class="worldview-group-header">
-                <h4>${group.name}</h4>
+                <h4><i data-lucide="folder"></i>${group.name}</h4>
                 <div class="worldview-group-actions">
-                    <button class="secondary outline add-wv-card-btn" data-group-id="${group.id}">+ 새 카드</button>
-                    ${group.name !== '기본 설정' ? `<button class="outline secondary delete-wv-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">그룹 삭제</button>` : ''}
+                    <button class="secondary outline add-wv-card-btn" data-group-id="${group.id}"><i data-lucide="plus"></i>새 카드</button>
+                    ${group.name !== '기본 설정' ? `<button class="outline secondary icon-only delete-wv-group-btn" data-group-id="${group.id}" data-group-name="${group.name}" title="그룹 삭제"><i data-lucide="trash-2"></i></button>` : ''}
                 </div>
             </div>
             <div class="worldview-cards-grid" data-group-id="${group.id}"></div>
@@ -251,7 +255,7 @@ function renderWorldviewTab(projectData) {
         </div>
         <form class="add-group-form">
             <input type="text" name="name" placeholder="새 설정 그룹 이름 (예: 마법 시스템, 정치 구조, 지리)" required autocomplete="off">
-            <button type="submit" class="secondary">그룹 추가</button>
+            <button type="submit" class="secondary"><i data-lucide="plus"></i>그룹 추가</button>
         </form>
     `;
     
@@ -294,13 +298,13 @@ function renderScenarioTab(projectData) {
             <form id="scenario-details-form">
                 <div class="input-with-button">
                     <label for="scenario-summary">이야기 핵심 컨셉 (Logline)</label>
-                    <button type="button" id="refine-concept-btn" class="secondary outline">✨ 컨셉 다듬기 (AI)</button>
+                    <button type="button" id="refine-concept-btn" class="secondary outline"><i data-lucide="lightbulb"></i>컨셉 다듬기 (AI)</button>
                 </div>
                 <input type="text" id="scenario-summary" name="summary" placeholder="이 이야기를 한 문장으로 요약합니다. (예: 몰락한 왕국의 기사가 현대로 넘어와 자신의 세계를 구원할 방법을 찾는다.)">
                 
                 <div class="input-with-button">
                     <label for="scenario-synopsis">시놉시스 / 전체 줄거리 (Synopsis)</label>
-                    <button type="button" id="enhance-synopsis-btn" class="secondary outline">✨ AI 스토리 구체화</button>
+                    <button type="button" id="enhance-synopsis-btn" class="secondary outline"><i data-lucide="pen-tool"></i>AI 스토리 구체화</button>
                 </div>
                 <textarea id="scenario-synopsis" name="synopsis" rows="5" placeholder="이야기의 전체적인 흐름과 구조를 자유롭게 서술합니다. 한 줄 아이디어부터 상세한 줄거리까지, AI와 함께 발전시켜 나갈 수 있습니다."></textarea>
 
@@ -325,8 +329,8 @@ function renderScenarioTab(projectData) {
             <div class="plot-points-header">
                 <h4>플롯 포인트</h4>
                 <div class="plot-buttons-group">
-                    <button type="button" id="ai-draft-btn" class="contrast">✨ AI로 전체 스토리 초안 생성</button>
-                    <button type="button" id="ai-edit-plots-btn" class="secondary">✏️ AI로 전체 플롯 수정</button>
+                    <button type="button" id="ai-draft-btn" class="contrast"><i data-lucide="file-plus-2"></i>AI로 전체 스토리 초안 생성</button>
+                    <button type="button" id="ai-edit-plots-btn" class="secondary"><i data-lucide="pencil-ruler"></i>AI로 전체 플롯 수정</button>
                     <button id="delete-all-plots-btn" class="secondary outline">전체 삭제</button>
                 </div>
             </div>
@@ -337,7 +341,7 @@ function renderScenarioTab(projectData) {
                 <label for="new-plot-title"><strong>새 플롯 추가</strong></label>
                 <input type="text" id="new-plot-title" name="title" placeholder="플롯 제목 (예: 주인공의 각성)" required>
                 <textarea name="content" rows="3" placeholder="세부 내용 (선택 사항)"></textarea>
-                <button type="submit" style="width: auto;">+ 플롯 추가</button>
+                <button type="submit" style="width: auto;"><i data-lucide="plus"></i>플롯 추가</button>
             </form>
         </div>
     `;
@@ -377,10 +381,10 @@ function renderScenarioTab(projectData) {
                     </div>
                     <div class="plot-card-actions">
                         <button class="secondary outline open-plot-modal-btn" data-plot-point='${escapedPlotDataString}'>
-                            ✏️ 편집
+                            <i data-lucide="edit"></i>편집
                         </button>
-                        <button class="contrast outline ai-quick-edit-btn" data-plot-point='${escapedPlotDataString}'>
-                            ✨ AI 수정
+                        <button class="contrast outline ai-quick-edit-btn" data-plot-point='${escapedPlotDataString}' title="AI로 내용 수정">
+                            <i data-lucide="sparkles"></i>AI 수정
                         </button>
                     </div>
                 </article>
@@ -453,7 +457,7 @@ function renderManuscriptTab(projectData) {
             li.style.cursor = 'pointer';
             li.style.padding = '0.5rem';
             li.style.border = '1px solid transparent';
-            li.innerHTML = `<span>${block.ordering + 1}. ${block.title}</span>`;
+            li.innerHTML = `<span><i data-lucide="file-text"></i> ${block.ordering + 1}. ${block.title}</span>`;
             blockListEl.appendChild(li);
         });
     } else {
@@ -583,10 +587,4 @@ function renderManuscriptTab(projectData) {
         }
     });
 }
-
-
-
-
-
-
 

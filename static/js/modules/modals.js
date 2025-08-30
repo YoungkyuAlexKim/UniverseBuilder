@@ -81,7 +81,7 @@ export function openPlotPointsDiffModal(originalPlots, suggestedPlots, onAcceptC
             <div class="clear-draft-checkbox">
                 <label>
                     <input type="checkbox" name="clear_draft" value="${plot.id}" checked>
-                    <small>기존 장면 초안 삭제</small>
+                    <small><i data-lucide="eraser"></i>기존 장면 초안 삭제</small>
                 </label>
             </div>
         ` : '';
@@ -124,6 +124,7 @@ export function openPlotPointsDiffModal(originalPlots, suggestedPlots, onAcceptC
 
     plotPointsDiffModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 }
 
 
@@ -149,17 +150,17 @@ export function openCardModal(card, projectId) {
     contentEl.innerHTML = `
         <div class="character-modal-layout">
             <div class="character-modal-actions">
-                <button class="secondary outline" id="show-relationship-btn">📊 관계도 보기</button>
+                <button class="secondary outline" id="show-relationship-btn"><i data-lucide="network"></i>관계도 보기</button>
             </div>
 
             <div class="character-modal-section">
                 <h4 class="character-modal-section-title">기본 정보</h4>
                 <div class="character-modal-description" id="modal-desc">${card.description || '캐릭터 설명이 없습니다.'}</div>
                 <div class="character-highlight-controls">
-                    <button class="secondary outline highlight-btn" data-field="description">✨ 이름 하이라이팅</button>
+                    <button class="secondary outline highlight-btn" data-field="description"><i data-lucide="highlighter"></i>이름 하이라이팅</button>
                     <div class="highlight-actions" id="highlight-actions-description" style="display: none;">
-                        <button class="secondary outline save-highlight-btn" data-field="description">💾 저장</button>
-                        <button class="secondary outline cancel-highlight-btn" data-field="description">↩️ 취소</button>
+                        <button class="secondary outline save-highlight-btn" data-field="description"><i data-lucide="save"></i>저장</button>
+                        <button class="secondary outline cancel-highlight-btn" data-field="description"><i data-lucide="undo-2"></i>취소</button>
                     </div>
                 </div>
             </div>
@@ -197,10 +198,10 @@ export function openCardModal(card, projectId) {
                     <h4 class="character-modal-section-title">등장 서사</h4>
                     <div class="character-modal-story" id="modal-story">${card.introduction_story}</div>
                     <div class="character-highlight-controls">
-                        <button class="secondary outline highlight-btn" data-field="introduction_story">✨ 이름 하이라이팅</button>
+                        <button class="secondary outline highlight-btn" data-field="introduction_story"><i data-lucide="highlighter"></i>이름 하이라이팅</button>
                         <div class="highlight-actions" id="highlight-actions-introduction_story" style="display: none;">
-                            <button class="secondary outline save-highlight-btn" data-field="introduction_story">💾 저장</button>
-                            <button class="secondary outline cancel-highlight-btn" data-field="introduction_story">↩️ 취소</button>
+                            <button class="secondary outline save-highlight-btn" data-field="introduction_story"><i data-lucide="save"></i>저장</button>
+                            <button class="secondary outline cancel-highlight-btn" data-field="description"><i data-lucide="undo-2"></i>취소</button>
                         </div>
                     </div>
                 </div>
@@ -215,9 +216,9 @@ export function openCardModal(card, projectId) {
 
     const footerEl = document.getElementById('modal-card-footer');
     footerEl.innerHTML = `
-        <button id="modal-manual-edit-btn">수동으로 수정</button>
-        <button class="secondary" id="modal-edit-ai-btn">AI로 수정</button>
-        <button class="secondary outline" id="modal-delete-btn">삭제</button>
+        <button id="modal-manual-edit-btn"><i data-lucide="pencil"></i>수동으로 수정</button>
+        <button class="secondary" id="modal-edit-ai-btn"><i data-lucide="sparkles"></i>AI로 수정</button>
+        <button class="secondary outline" id="modal-delete-btn"><i data-lucide="trash-2"></i>삭제</button>
     `;
 
     footerEl.querySelector('#modal-manual-edit-btn').addEventListener('click', (e) => app.panels.handleManualEditCard(e, projectId, card.id));
@@ -250,6 +251,7 @@ export function openCardModal(card, projectId) {
 
     cardDetailsModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 }
 
 export function openWorldviewCardModal(card, projectId, groupId) {
@@ -270,10 +272,10 @@ export function openWorldviewCardModal(card, projectId, groupId) {
     const footer = document.createElement('footer');
     footer.innerHTML = `
         <div class="grid">
-            <button id="wv-save-btn" type="submit">저장</button>
-            <button id="wv-ai-edit-btn" class="secondary">AI로 수정</button>
+            <button id="wv-save-btn" type="submit"><i data-lucide="save"></i>저장</button>
+            <button id="wv-ai-edit-btn" class="secondary"><i data-lucide="sparkles"></i>AI로 수정</button>
         </div>
-        <button id="wv-delete-btn" class="secondary outline" style="margin-top: 0.5rem;">삭제</button>
+        <button id="wv-delete-btn" class="secondary outline" style="margin-top: 0.5rem;"><i data-lucide="trash-2"></i>삭제</button>
     `;
     form.appendChild(footer);
 
@@ -300,6 +302,7 @@ export function openWorldviewCardModal(card, projectId, groupId) {
 
     worldviewCardModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 
     form.onsubmit = async (e) => {
         e.preventDefault();
@@ -384,6 +387,7 @@ export function showAiDiffModal(projectId, originalCard, aiResult, cardType) {
 
     diffModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 }
 
 function createDiffHtml(text1, text2) {
@@ -442,6 +446,7 @@ async function handleHighlightClick(event, projectId, cardId) {
         textContainer.innerHTML = result.highlighted_text;
         
         toggleHighlightActions(fieldName, true, { projectId, cardId, originalContent });
+        lucide.createIcons();
 
     } catch (error) {
         console.error('이름 하이라이팅 실패:', error);
@@ -602,6 +607,7 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
 
     plotPointEditModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 }
 
 export function openRefineConceptModal(originalConcept, suggestedConcept, onAcceptCallback, onRerollCallback) {
@@ -621,6 +627,7 @@ export function openRefineConceptModal(originalConcept, suggestedConcept, onAcce
     
     refineConceptModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 }
 
 export function updateRefineConceptSuggestion(suggestedConcept, onAcceptCallback) {
@@ -652,6 +659,7 @@ export function openRefineWorldviewRuleModal(originalRule, suggestedRule, onAcce
     
     refineWorldviewRuleModal.classList.add('active');
     modalBackdrop.classList.add('active');
+    lucide.createIcons();
 }
 
 export function updateRefineWorldviewRuleSuggestion(suggestedRule, onAcceptCallback) {

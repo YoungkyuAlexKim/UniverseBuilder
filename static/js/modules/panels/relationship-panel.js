@@ -77,7 +77,7 @@ export function showRelationshipPanel(projectId, currentCard) {
                 <form id="relationship-form" class="relationship-form">
                     <input type="hidden" name="relationship_id" value="">
                     <fieldset id="relationship-fieldset">
-                        <legend><strong>새 관계 추가 / 수정</strong></legend>
+                        <legend><strong><i data-lucide="plus-circle"></i>새 관계 추가 / 수정</strong></legend>
                         <div class="grid">
                             <label for="target-character-select">
                                 대상
@@ -96,7 +96,7 @@ export function showRelationshipPanel(projectId, currentCard) {
                     </fieldset>
 
                     <fieldset id="ai-suggestion-fieldset">
-                        <legend><strong>AI 추천 옵션</strong></legend>
+                        <legend><strong><i data-lucide="sparkles"></i>AI 추천 옵션</strong></legend>
                         <label for="relationship-keyword">
                             세부 키워드 (선택)
                             <input type="text" id="relationship-keyword" name="keyword" placeholder="예: 애증, 비즈니스 파트너, 오래된 우정...">
@@ -105,17 +105,17 @@ export function showRelationshipPanel(projectId, currentCard) {
                             추천 방향성: <span id="tendency-label">중립</span>
                             <input type="range" id="relationship-tendency" name="tendency" min="-2" max="2" value="0" step="1">
                         </label>
-                        <button type="button" id="ai-suggest-rel-btn" class="secondary" style="margin-top: 0.5rem; width: 100%;">✨ AI로 관계 추천받기</button>
+                        <button type="button" id="ai-suggest-rel-btn" class="secondary" style="margin-top: 0.5rem; width: 100%;"><i data-lucide="lightbulb"></i>AI로 관계 추천받기</button>
                     </fieldset>
 
                     <div class="grid">
-                        <button type="submit">관계 저장</button>
-                        <button type="button" id="clear-form-btn" class="secondary outline" style="width: auto;">초기화</button>
+                        <button type="submit"><i data-lucide="save"></i>관계 저장</button>
+                        <button type="button" id="clear-form-btn" class="secondary outline" style="width: auto;"><i data-lucide="rotate-ccw"></i>초기화</button>
                     </div>
                 </form>
 
                 <div>
-                    <h4><strong>현재 관계 목록</strong></h4>
+                    <h4><strong><i data-lucide="list"></i>현재 관계 목록</strong></h4>
                     <div id="relationship-list-container"></div>
                 </div>
             </div>
@@ -126,6 +126,7 @@ export function showRelationshipPanel(projectId, currentCard) {
     setTimeout(() => {
         panel.classList.add('active');
         cardDetailsModal.classList.add('shifted');
+        lucide.createIcons();
     }, 10);
 
     const closePanel = () => {
@@ -277,8 +278,8 @@ export function showRelationshipPanel(projectId, currentCard) {
                     <div class="relationship-card-header">
                         <h6><strong>${sourceName}</strong> → <strong>${targetName}</strong> : ${r.type}</h6>
                         <div class="relationship-card-header-buttons">
-                            <button class="secondary outline edit-rel-btn" data-id="${r.id}">수정</button>
-                            <button class="secondary outline delete-rel-btn" data-id="${r.id}">삭제</button>
+                            <button class="secondary outline edit-rel-btn icon-only" data-id="${r.id}" title="수정"><i data-lucide="edit-3"></i></button>
+                            <button class="secondary outline delete-rel-btn icon-only" data-id="${r.id}" title="삭제"><i data-lucide="trash-2"></i></button>
                         </div>
                     </div>
                     <div class="relationship-card-body">
@@ -287,6 +288,7 @@ export function showRelationshipPanel(projectId, currentCard) {
                 </div>
             `;
         }).join('');
+        lucide.createIcons();
     };
 
     const clearForm = () => {
@@ -375,7 +377,8 @@ export function showRelationshipPanel(projectId, currentCard) {
     });
 
     listContainer.addEventListener('click', async (e) => {
-        const target = e.target;
+        const target = e.target.closest('button');
+        if (!target) return;
 
         if (target.matches('.delete-rel-btn')) {
             const relationshipId = target.dataset.id;

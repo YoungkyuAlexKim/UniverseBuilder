@@ -51,7 +51,7 @@ export function createEnhancedWorldviewCardElement(card, projectId, groupId) {
         <div class="worldview-card-header">
             <h4 class="worldview-card-title">${card.title || '제목 없는 설정'}</h4>
             <div class="worldview-card-actions">
-                <button class="secondary outline worldview-edit-btn">✏️</button>
+                <button class="secondary outline worldview-edit-btn icon-only" title="편집"><i data-lucide="pencil"></i></button>
             </div>
         </div>
         <div class="worldview-card-content">

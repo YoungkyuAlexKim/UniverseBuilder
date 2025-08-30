@@ -67,7 +67,7 @@ export function createEnhancedCardElement(card, projectId, groupId) {
         <div class="character-card-header">
             <h4 class="character-card-name">${card.name || '이름 없는 캐릭터'}</h4>
             <div class="character-card-actions">
-                <button class="secondary outline character-edit-btn">✏️</button>
+                <button class="secondary outline character-edit-btn icon-only" title="편집"><i data-lucide="pencil"></i></button>
             </div>
         </div>
         <div class="character-card-content">

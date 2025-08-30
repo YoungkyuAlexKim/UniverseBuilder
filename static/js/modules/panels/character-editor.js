@@ -61,7 +61,7 @@ export function handleEditCardAI(event, projectId, cardId) {
 
     panel.innerHTML = `
         <article>
-            <header style="display: flex; justify-content: space-between; align-items: center;"><hgroup style="margin-bottom: 0;"><h3>AI 수정 옵션</h3><p>수정 방향과 참고할 정보를 선택하세요.</p></hgroup><a href="#close" aria-label="Close" class="close"></a></header>
+            <header style="display: flex; justify-content: space-between; align-items: center;"><hgroup style="margin-bottom: 0;"><h3><i data-lucide="wand-sparkles"></i>AI 수정 옵션</h3><p>수정 방향과 참고할 정보를 선택하세요.</p></hgroup><a href="#close" aria-label="Close" class="close"></a></header>
             <form id="ai-edit-form" style="display: flex; flex-direction: column; gap: 1rem; height: calc(100% - 80px);">
                 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;">
                     <label for="prompt_text"><strong>요청사항 (프롬프트)</strong></label>
@@ -71,7 +71,7 @@ export function handleEditCardAI(event, projectId, cardId) {
                     <fieldset><legend><strong>세계관 설정 반영 강도</strong></legend><div class="grid" style="grid-template-columns: 1fr 1fr;"><label><input type="radio" name="worldview-level" value="none" checked> 최소</label><label><input type="radio" name="worldview-level" value="low"> 낮음</label><label><input type="radio" name="worldview-level" value="medium"> 중간</label><label><input type="radio" name="worldview-level" value="high"> 높음</label></div></fieldset>
                     <fieldset><label for="edit_related_characters"><input type="checkbox" id="edit_related_characters" name="edit_related_characters"><strong>선택한 연관 캐릭터 함께 수정하기</strong><small>(체크 해제 시, 참고만 하고 수정하지 않습니다)</small></label></fieldset>
                 </div>
-                <footer style="flex-shrink: 0;"><button type="submit" id="submit-ai-edit">수정 제안 받기</button></footer>
+                <footer style="flex-shrink: 0;"><button type="submit" id="submit-ai-edit"><i data-lucide="lightbulb"></i>수정 제안 받기</button></footer>
             </form>
         </article>
     `;
@@ -80,6 +80,7 @@ export function handleEditCardAI(event, projectId, cardId) {
     setTimeout(() => {
         panel.classList.add('active');
         cardDetailsModal.classList.add('shifted');
+        lucide.createIcons();
     }, 10);
 
     const closePanel = () => {
@@ -153,7 +154,7 @@ export function handleManualEditCard(event, projectId, cardId) {
         <article>
             <header style="display: flex; justify-content: space-between; align-items: center;">
                 <hgroup style="margin-bottom: 0;">
-                    <h3>캐릭터 정보 수동 편집</h3>
+                    <h3><i data-lucide="pencil"></i>캐릭터 정보 수동 편집</h3>
                     <p>${originalCard.name}의 정보를 직접 수정합니다.</p>
                 </hgroup>
                 <a href="#close" aria-label="Close" class="close"></a>
@@ -175,7 +176,7 @@ export function handleManualEditCard(event, projectId, cardId) {
                     <textarea id="manual-edit-story" name="introduction_story" rows="5">${originalCard.introduction_story || ''}</textarea>
                 </div>
                 <footer style="flex-shrink: 0;">
-                    <button type="submit" id="submit-manual-edit">변경사항 저장</button>
+                    <button type="submit" id="submit-manual-edit"><i data-lucide="save"></i>변경사항 저장</button>
                 </footer>
             </form>
         </article>
@@ -185,6 +186,7 @@ export function handleManualEditCard(event, projectId, cardId) {
     setTimeout(() => {
         panel.classList.add('active');
         cardDetailsModal.classList.add('shifted');
+        lucide.createIcons();
     }, 10);
 
     const closePanel = () => {

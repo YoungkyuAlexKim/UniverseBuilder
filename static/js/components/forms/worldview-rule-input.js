@@ -28,10 +28,11 @@ export function addWorldviewRuleInput(value = '', projectId, container) {
     wrapper.className = 'dynamic-input-wrapper';
     wrapper.innerHTML = `
         <textarea name="rules" placeholder="세계관의 핵심 전제, 설정, 규칙..." rows="1" style="resize: vertical; min-height: 2.5rem; overflow: hidden;">${value}</textarea>
-        <button type="button" class="secondary outline refine-rule-btn" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; line-height: 1;">✨</button>
-        <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
+        <button type="button" class="secondary outline refine-rule-btn icon-only" title="AI로 문장 다듬기"><i data-lucide="wand-sparkles"></i></button>
+        <button type="button" class="secondary outline remove-dynamic-input-btn icon-only" title="삭제"><i data-lucide="x"></i></button>
     `;
     container.appendChild(wrapper);
+    lucide.createIcons();
 
     const inputField = wrapper.querySelector('textarea[name="rules"]');
 

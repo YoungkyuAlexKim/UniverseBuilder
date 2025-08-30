@@ -1,0 +1,40 @@
+/* File: icons.css
+  Description: Lucide 아이콘 시스템을 위한 전용 스타일시트입니다.
+  아이콘의 크기, 색상, 여백 등 모든 스타일을 이곳에서 중앙 관리합니다.
+*/
+
+/* 버튼, 제목 등 텍스트와 함께 사용되는 아이콘의 기본 스타일 */
+button i[data-lucide],
+a i[data-lucide],
+h3 i[data-lucide],
+h4 i[data-lucide],
+h5 i[data-lucide],
+label i[data-lucide] {
+    width: 1em; /* 폰트 크기에 맞춰 아이콘 크기 자동 조절 */
+    height: 1em;
+    margin-right: 0.5rem; /* <<< 바로 이 부분! 아이콘 오른쪽에 여백을 추가합니다. */
+    vertical-align: -0.15em; /* 텍스트와의 세로 정렬 미세 조정 */
+    stroke-width: 2.5; /* 아이콘 선 굵기 (기본값 2보다 살짝 굵게 하여 가시성 확보) */
+    color: currentColor; /* 부모 요소의 텍스트 색상을 상속받음 */
+}
+
+/* 텍스트가 없는 아이콘 전용 버튼 (예: 수정, 삭제 버튼) */
+button.icon-only {
+    padding: 0.5rem; /* 충분한 클릭 영역 확보 */
+    line-height: 1; /* 내부 아이콘 정렬 기준 */
+    width: auto;
+    min-width: auto;
+}
+
+button.icon-only i[data-lucide] {
+    margin-right: 0; /* 텍스트가 없으므로 여백 제거 */
+    vertical-align: middle; /* 버튼 중앙에 위치 */
+}
+
+/* 특정 아이콘 색상 커스텀 */
+i[data-lucide="sparkles"],
+i[data-lucide="lightbulb"],
+i[data-lucide="wand-sparkles"] {
+    color: var(--accent-yellow); /* AI 관련 아이콘은 노란색으로 강조 */
+}
+

@@ -64,7 +64,7 @@ export function handleEditWorldviewCardAI(card, projectId) {
 
     panel.innerHTML = `
         <article>
-            <header style="display: flex; justify-content: space-between; align-items: center;"><hgroup style="margin-bottom: 0;"><h3>설정 카드 AI 수정</h3><p>수정 방향과 참고할 정보를 선택하세요.</p></hgroup><a href="#close" aria-label="Close" class="close"></a></header>
+            <header style="display: flex; justify-content: space-between; align-items: center;"><hgroup style="margin-bottom: 0;"><h3><i data-lucide="wand-sparkles"></i>설정 카드 AI 수정</h3><p>수정 방향과 참고할 정보를 선택하세요.</p></hgroup><a href="#close" aria-label="Close" class="close"></a></header>
             <form id="ai-edit-wv-form" style="display: flex; flex-direction: column; gap: 1rem; height: calc(100% - 80px);">
                 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;">
                     <label for="prompt_text"><strong>요청사항 (프롬프트)</strong></label>
@@ -74,7 +74,7 @@ export function handleEditWorldviewCardAI(card, projectId) {
                     <fieldset><legend><strong>메인 세계관 반영 강도</strong></legend><div class="grid" style="grid-template-columns: 1fr 1fr;"><label><input type="radio" name="worldview-level" value="none" checked> 최소</label><label><input type="radio" name="worldview-level" value="low"> 낮음</label><label><input type="radio" name="worldview-level" value="medium"> 중간</label><label><input type="radio" name="worldview-level" value="high"> 높음</label></div></fieldset>
                     <fieldset><label for="edit_related_cards"><input type="checkbox" id="edit_related_cards" name="edit_related_cards"><strong>선택한 연관 설정 함께 수정하기</strong><small>(체크 해제 시, 참고만 하고 수정하지 않습니다)</small></label></fieldset>
                 </div>
-                <footer style="flex-shrink: 0;"><button type="submit" id="submit-ai-edit-wv">수정 제안 받기</button></footer>
+                <footer style="flex-shrink: 0;"><button type="submit" id="submit-ai-edit-wv"><i data-lucide="lightbulb"></i>수정 제안 받기</button></footer>
             </form>
         </article>
     `;
@@ -83,6 +83,7 @@ export function handleEditWorldviewCardAI(card, projectId) {
     setTimeout(() => {
         panel.classList.add('active');
         worldviewCardModal.classList.add('shifted');
+        lucide.createIcons();
     }, 10);
 
     const closePanel = () => {
