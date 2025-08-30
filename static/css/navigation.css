@@ -1,0 +1,92 @@
+/* 프로젝트 헤더 및 탭 네비게이션 */
+
+/* 프로젝트 헤더(제목 + 탭 네비게이션)를 상단에 고정 */
+.project-header {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-primary);
+    z-index: 100;
+    padding: 0 2rem;
+    border-bottom: 2px solid var(--border-secondary);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.project-header hgroup {
+    margin-bottom: 0;
+    padding: 1rem 0 0.5rem 0;
+    border-bottom: 1px solid var(--border-primary);
+    text-align: center;
+}
+
+.project-header hgroup h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.project-header nav {
+    margin: 0;
+    padding: 0;
+}
+
+/* 탭 네비게이션 */
+nav ul { 
+    display: flex; 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+    border-bottom: 2px solid var(--border-primary);
+}
+
+nav li { 
+    margin: 0; 
+}
+
+.tab-link { 
+    display: inline-block; 
+    padding: 1rem 1.5rem; 
+    text-decoration: none; 
+    border: 2px solid transparent; 
+    border-bottom: 0; 
+    margin-bottom: -2px; 
+    border-radius: var(--border-radius-md) var(--border-radius-md) 0 0; 
+    color: var(--text-muted); 
+    transition: var(--transition-fast);
+    font-weight: 600;
+}
+
+.tab-link:hover { 
+    color: var(--text-secondary);
+    background: rgba(88, 166, 255, 0.1);
+    border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+}
+
+.tab-link.active { 
+    background-color: var(--bg-secondary); 
+    border-color: var(--border-secondary); 
+    border-bottom-color: var(--bg-primary); 
+    font-weight: bold;
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+    background: rgba(88, 166, 255, 0.05);
+}
+
+/* 탭 내용 영역을 스크롤 가능한 컨테이너로 설정 */
+.tabs-container {
+    height: calc(100vh - 160px);
+    overflow-y: auto;
+    padding: 1.5rem 2rem;
+}
+
+.tab-content { 
+    display: none; 
+    height: 100%;
+    min-height: calc(100vh - 180px);
+}
+
+.tab-content.active { 
+    display: block; 
+}

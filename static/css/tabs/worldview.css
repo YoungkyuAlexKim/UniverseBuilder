@@ -1,0 +1,431 @@
+/* 세계관 탭 스타일 */
+
+.worldview-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    padding: 2rem;
+    max-width: none;
+}
+
+/* 메인 세계관 섹션 */
+.worldview-main-section {
+    background: var(--gradient-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--shadow-xl);
+}
+
+/* 세계관 카드 섹션 */
+.worldview-cards-section {
+    background: var(--gradient-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+}
+
+.worldview-section-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-secondary);
+    text-align: center;
+}
+
+/* 메인 세계관 폼 스타일링 */
+.worldview-main-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.worldview-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.worldview-basic-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.worldview-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.worldview-input-group label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.worldview-input-group input {
+    @extend .input-base;
+    padding: 0.875rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+}
+
+/* 세계관 규칙 섹션 */
+.worldview-rules-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.worldview-rules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.worldview-rules-header label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.worldview-rules-header button {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+}
+
+.worldview-rules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* 세계관 폼 액션 */
+.worldview-form-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-primary);
+}
+
+.worldview-form-actions button {
+    background: var(--gradient-accent);
+    border: 1px solid var(--accent-blue-dark);
+    color: white;
+    font-weight: 600;
+    border-radius: var(--border-radius-md);
+    transition: var(--transition-fast);
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+}
+
+.worldview-form-actions button:hover {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #79c0ff 100%);
+    box-shadow: 0 4px 12px rgba(31, 111, 235, 0.3);
+    transform: translateY(-1px);
+}
+
+/* 세계관 카드 그리드 스타일링 */
+.worldview-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* 세계관 카드 */
+.worldview-card {
+    background: var(--gradient-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: 0;
+    transition: var(--transition-fast);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    height: fit-content;
+    cursor: pointer;
+}
+
+.worldview-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--accent-blue);
+}
+
+.worldview-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--gradient-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    padding: 0.75rem 1rem;
+}
+
+.worldview-card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+    flex-grow: 1;
+    margin-right: 1rem;
+}
+
+.worldview-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.worldview-card-actions button {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    min-width: auto;
+    width: auto;
+}
+
+.worldview-card-content {
+    padding: 1rem;
+}
+
+.worldview-card-preview {
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+    font-size: 0.9rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 그룹 섹션 스타일링 */
+.worldview-group-section {
+    margin-bottom: 2.5rem;
+}
+
+.worldview-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.worldview-group-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.worldview-group-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.worldview-group-actions button {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--border-radius-sm);
+}
+
+/* 세계관 폼 개선 */
+#worldview-form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* 세계관 폼의 각 섹션을 카드 형태로 구분 */
+#worldview-form .worldview-section {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: 1.5rem;
+    transition: var(--transition-fast);
+}
+
+#worldview-form .worldview-section:hover {
+    border-color: var(--border-tertiary);
+}
+
+/* 세계관 라벨 스타일 개선 */
+#worldview-form .section-label {
+    color: var(--accent-blue);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 세계관 입력 필드 스타일 */
+#worldview-form .main-input {
+    font-size: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-secondary);
+    border-radius: var(--border-radius-md);
+    color: var(--text-secondary);
+    transition: var(--transition-fast);
+}
+
+#worldview-form .main-input:focus {
+    border-color: var(--accent-blue);
+}
+
+/* 핵심설정 섹션 특별 스타일 */
+.rules-section {
+    background: linear-gradient(135deg, #1a1f26 0%, var(--bg-secondary) 100%);
+    border: 2px solid var(--border-tertiary);
+}
+
+.rules-section .section-label {
+    color: var(--accent-yellow);
+    font-size: 1.2rem;
+}
+
+/* 버튼들의 시각적 구분 */
+#add-worldview-rule-btn {
+    background-color: var(--bg-surface);
+    border: 2px dashed var(--border-tertiary);
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 0.75rem;
+    transition: var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+#add-worldview-rule-btn:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    background-color: rgba(88, 166, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+#add-worldview-rule-btn::before {
+    content: '✨';
+    margin-right: 0.5rem;
+    font-size: 1.1em;
+}
+
+#save-worldview-btn {
+    background: var(--gradient-success);
+    border: 1px solid var(--accent-green-dark);
+    color: white;
+    font-weight: 600;
+    border-radius: var(--border-radius-md);
+    transition: var(--transition-fast);
+    font-size: 1.1rem;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 8px rgba(46, 160, 67, 0.3);
+}
+
+#save-worldview-btn:hover {
+    background: linear-gradient(135deg, var(--accent-green) 0%, #3fb950 100%);
+    box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+    transform: translateY(-1px);
+}
+
+/* 세계관 폼의 전체적인 간격 조정 */
+#tab-content-worldview article {
+    padding: 2rem;
+    background: var(--gradient-primary);
+    border-radius: 10px;
+    border: 1px solid var(--border-primary);
+    margin-bottom: 2rem;
+}
+
+#tab-content-worldview hgroup {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-secondary);
+    text-align: center;
+}
+
+#tab-content-worldview hgroup h4 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#tab-content-worldview hgroup p {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* 세계관 버튼 바 */
+.worldview-button-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem; 
+}
+
+.worldview-button-bar > div {
+    display: flex;
+    gap: 0.5rem; 
+}
+
+.worldview-button-bar button {
+    width: auto;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 1200px) {
+    .worldview-form-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .worldview-rules-list {
+        max-height: 200px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .worldview-layout {
+        padding: 1rem;
+        gap: 2rem;
+    }
+    
+    .worldview-main-section,
+    .worldview-cards-section {
+        padding: 1.5rem;
+    }
+    
+    .worldview-section-header h3 {
+        font-size: 1.2rem;
+    }
+    
+    .worldview-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .worldview-card-header {
+        padding: 0.75rem;
+    }
+    
+    .worldview-card-content {
+        padding: 0.75rem;
+    }
+    
+    .worldview-card-title {
+        font-size: 1rem;
+    }
+}

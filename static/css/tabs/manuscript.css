@@ -1,0 +1,97 @@
+/* 집필 탭 스타일 */
+
+.manuscript-layout {
+    display: grid;
+    grid-template-columns: 25% 1fr 25%; /* 좌측, 중앙, 우측 패널 비율 */
+    height: calc(100vh - 180px); /* 탭 컨테이너 높이를 꽉 채우도록 */
+    gap: 1rem;
+}
+
+.manuscript-hierarchy-panel,
+.manuscript-editor-panel,
+.manuscript-context-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-md);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* 내부 요소가 넘치지 않도록 */
+}
+
+.manuscript-layout header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-secondary);
+    flex-shrink: 0;
+}
+
+.manuscript-layout header h5 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.manuscript-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.manuscript-actions button {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.manuscript-hierarchy-panel .block-list {
+    list-style: none;
+    padding: 0.5rem;
+    margin: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.manuscript-editor-panel {
+    background: var(--bg-primary); /* 에디터는 더 어둡게 */
+}
+
+#editor-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+}
+
+#editor-toolbar input {
+    flex-grow: 1;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+}
+
+#editor-toolbar button {
+    flex-shrink: 0;
+}
+
+#manuscript-block-content {
+    flex-grow: 1;
+    resize: none;
+    border: none;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    padding: 1rem;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.manuscript-context-panel #manuscript-context-content {
+    padding: 1rem;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.empty-message {
+    color: var(--text-muted);
+    padding: 1rem;
+    text-align: center;
+}

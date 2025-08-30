@@ -1,0 +1,136 @@
+/* CSS Variables and Base Styles */
+:root {
+    /* 색상 시스템 */
+    --bg-primary: #0d1117;
+    --bg-secondary: #161a1f;
+    --bg-tertiary: #161b22;
+    --bg-quaternary: #1c2128;
+    --bg-surface: #22272e;
+    --bg-elevated: #1c2633;
+    
+    --border-primary: #21262d;
+    --border-secondary: #30363d;
+    --border-tertiary: #444c56;
+    
+    --text-primary: #f0f6fc;
+    --text-secondary: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-subtle: #7d8590;
+    --text-disabled: #656d76;
+    
+    --accent-blue: #58a6ff;
+    --accent-blue-dark: #1f6feb;
+    --accent-green: #2ea043;
+    --accent-green-dark: #238636;
+    --accent-yellow: #f59e0b;
+    --accent-red: #f85149;
+    
+    /* 그라디언트 시스템 */
+    --gradient-primary: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    --gradient-secondary: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-quaternary) 100%);
+    --gradient-accent: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-dark) 100%);
+    --gradient-success: linear-gradient(135deg, var(--accent-green-dark) 0%, var(--accent-green) 100%);
+    --gradient-sidebar: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-quaternary) 100%);
+    
+    /* 그림자 시스템 */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-md: 0 2px 6px rgba(0,0,0,0.1);
+    --shadow-lg: 0 3px 12px rgba(0,0,0,0.15);
+    --shadow-xl: 0 4px 12px rgba(0,0,0,0.2);
+    --shadow-accent: 0 3px 8px rgba(88, 166, 255, 0.2);
+    --shadow-success: 0 3px 8px rgba(35, 134, 54, 0.3);
+    
+    /* 레이아웃 */
+    --sidebar-width: 400px;
+    --border-radius-sm: 6px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+    
+    /* 전환 효과 */
+    --transition-fast: all 0.2s ease;
+    --transition-smooth: all 0.3s ease-in-out;
+}
+
+/* 기본 스타일 */
+html { 
+    font-size: 95%; 
+}
+
+body, html { 
+    height: 100%; 
+    margin: 0; 
+    overflow: hidden; 
+}
+
+/* 타이핑 효과를 위한 커서 애니메이션 */
+.typing-cursor {
+    animation: blink 1s infinite;
+    color: var(--accent-blue);
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* 그리드 레이아웃 */
+.grid-container { 
+    display: grid; 
+    grid-template-columns: var(--sidebar-width) 5px 1fr;
+    height: 100vh; 
+}
+
+.resizer {
+    grid-column: 2;
+    cursor: col-resize;
+    background-color: var(--border-secondary);
+    transition: var(--transition-fast);
+}
+
+.resizer:hover {
+    background-color: var(--accent-blue);
+}
+
+.main-content { 
+    padding: 0;
+    overflow-y: visible;
+    position: relative; 
+    grid-column: 3;
+    background-color: var(--bg-primary);
+    height: 100vh;
+}
+
+/* 기본 텍스트 스타일 */
+pre { 
+    white-space: pre-wrap; 
+    word-wrap: break-word; 
+}
+
+/* 콘텐츠 뷰 */
+.content-view { 
+    display: none; 
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.content-view.active { 
+    display: block; 
+}
+
+#welcome-view.content-view.active {
+    padding: 2rem;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+#project-detail-view.content-view.active {
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    display: block !important;
+}
