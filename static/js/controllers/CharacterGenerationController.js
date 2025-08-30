@@ -3,6 +3,7 @@
  * AI 캐릭터 생성, 포맷팅, 저장 기능을 담당합니다.
  */
 import * as api from '../modules/api.js';
+import { showToast, ErrorHandlers } from '../components/validation/validation-utils.js';
 import * as commonAiModal from '../modules/common-ai-modal.js';
 
 export class CharacterGenerationController {
@@ -82,7 +83,7 @@ export class CharacterGenerationController {
             }
 
             await api.saveCard(projectId, selectedGroupId, lastGeneratedCard);
-            alert('캐릭터가 성공적으로 저장되었습니다!');
+            showToast('캐릭터가 성공적으로 저장되었습니다!', 'success');
             await this.stateManager.refreshCurrentProject();
             
         } catch (error) {

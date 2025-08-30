@@ -365,3 +365,321 @@
     margin-top: 0.1rem;
     flex-shrink: 0;
 }
+
+/* ===== 유효성 검사 스타일 ===== */
+
+/* 필드 유효성 상태 */
+.field-valid {
+    border-color: var(--pico-success) !important;
+    box-shadow: 0 0 0 0.1rem rgba(35, 134, 54, 0.2);
+}
+
+.field-invalid {
+    border-color: var(--pico-error) !important;
+    box-shadow: 0 0 0 0.1rem rgba(231, 76, 60, 0.2);
+}
+
+.field-warning {
+    border-color: var(--pico-warning) !important;
+    box-shadow: 0 0 0 0.1rem rgba(255, 193, 7, 0.2);
+}
+
+/* 유효성 검사 메시지 */
+.validation-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+.validation-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.validation-message.hide {
+    opacity: 0;
+    transform: translateY(-5px);
+}
+
+/* 유효성 메시지 타입별 스타일 */
+.validation-success {
+    background-color: rgba(35, 134, 54, 0.1);
+    border-left: 3px solid var(--pico-success);
+    color: var(--pico-success);
+}
+
+.validation-error {
+    background-color: rgba(231, 76, 60, 0.1);
+    border-left: 3px solid var(--pico-error);
+    color: var(--pico-error);
+}
+
+.validation-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid var(--pico-warning);
+    color: var(--pico-warning);
+}
+
+.validation-info {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left: 3px solid var(--pico-info);
+    color: var(--pico-info);
+}
+
+/* 유효성 아이콘 */
+.validation-icon {
+    flex-shrink: 0;
+    font-size: 1rem;
+    font-weight: bold;
+    margin-top: 0.1rem;
+    width: 1.2rem;
+    text-align: center;
+}
+
+.success-icon {
+    color: var(--pico-success);
+}
+
+.error-icon {
+    color: var(--pico-error);
+}
+
+.warning-icon {
+    color: var(--pico-warning);
+}
+
+.info-icon {
+    color: var(--pico-info);
+}
+
+/* 유효성 메시지 애니메이션 */
+@keyframes validationSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes validationShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.validation-message.show {
+    animation: validationSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.field-invalid:focus {
+    animation: validationShake 0.5s ease-in-out;
+}
+
+/* 폼 그룹 내 유효성 메시지 배치 */
+.form-group {
+    position: relative;
+}
+
+.form-group .validation-message {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    margin-top: 0.25rem;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .validation-message {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+        gap: 0.4rem;
+    }
+
+    .validation-icon {
+        font-size: 0.9rem;
+        width: 1rem;
+    }
+}
+
+/* 접근성 개선 */
+.validation-message[role="alert"] {
+    border: 2px solid currentColor;
+    border-radius: var(--border-radius-md);
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+    .validation-success {
+        background-color: rgba(35, 134, 54, 0.15);
+    }
+
+    .validation-error {
+        background-color: rgba(231, 76, 60, 0.15);
+    }
+
+    .validation-warning {
+        background-color: rgba(255, 193, 7, 0.15);
+    }
+
+    .validation-info {
+        background-color: rgba(52, 152, 219, 0.15);
+    }
+}
+
+/* ===== 토스트 메시지 스타일 ===== */
+
+/* 토스트 컨테이너 */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+/* 토스트 메시지 */
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    max-width: 400px;
+    word-wrap: break-word;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(8px);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.hide {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+/* 토스트 타입별 스타일 */
+.toast-success {
+    background: linear-gradient(135deg, rgba(35, 134, 54, 0.95) 0%, rgba(25, 111, 61, 0.95) 100%);
+    border-left: 4px solid var(--pico-success);
+    color: white;
+}
+
+.toast-error {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.95) 0%, rgba(192, 57, 43, 0.95) 100%);
+    border-left: 4px solid var(--pico-error);
+    color: white;
+}
+
+.toast-warning {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.95) 0%, rgba(230, 126, 34, 0.95) 100%);
+    border-left: 4px solid var(--pico-warning);
+    color: white;
+}
+
+.toast-info {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.95) 0%, rgba(41, 128, 185, 0.95) 100%);
+    border-left: 4px solid var(--pico-info);
+    color: white;
+}
+
+/* 토스트 아이콘 */
+.toast-icon {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-top: 0.1rem;
+    width: 1.3rem;
+    text-align: center;
+    opacity: 0.9;
+}
+
+/* 토스트 애니메이션 */
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+.toast.show {
+    animation: toastSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .toast-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+    }
+
+    .toast {
+        max-width: none;
+        font-size: 0.8rem;
+        padding: 0.875rem 1rem;
+        gap: 0.6rem;
+    }
+
+    .toast-icon {
+        font-size: 1rem;
+        width: 1.1rem;
+    }
+}
+
+/* 접근성 개선 */
+.toast[role="alert"] {
+    border: 2px solid currentColor;
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+    .toast-success {
+        background: linear-gradient(135deg, rgba(35, 134, 54, 0.98) 0%, rgba(25, 111, 61, 0.98) 100%);
+    }
+
+    .toast-error {
+        background: linear-gradient(135deg, rgba(231, 76, 60, 0.98) 0%, rgba(192, 57, 43, 0.98) 100%);
+    }
+
+    .toast-warning {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.98) 0%, rgba(230, 126, 34, 0.98) 100%);
+    }
+
+    .toast-info {
+        background: linear-gradient(135deg, rgba(52, 152, 219, 0.98) 0%, rgba(41, 128, 185, 0.98) 100%);
+    }
+}

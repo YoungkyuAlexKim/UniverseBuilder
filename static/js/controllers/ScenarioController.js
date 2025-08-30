@@ -3,6 +3,7 @@
  * 시나리오 정보, 플롯 포인트, AI 기능들을 담당합니다.
  */
 import * as api from '../modules/api.js';
+import { showToast, showFieldValidation, validateFormBeforeSubmit, ValidationRules, ErrorHandlers } from '../components/validation/validation-utils.js';
 import * as commonAiModal from '../modules/common-ai-modal.js';
 
 export class ScenarioController {
@@ -36,11 +37,10 @@ export class ScenarioController {
         
         try {
             await api.updateScenario(projectId, scenarioId, scenarioData);
-            alert('시나리오 정보가 성공적으로 저장되었습니다.');
+            showToast('시나리오 정보가 성공적으로 저장되었습니다.', 'success');
             await this.stateManager.refreshCurrentProject();
         } catch (error) {
-            console.error('시나리오 저장 실패:', error);
-            alert(error.message);
+            ErrorHandlers.showError(error, '시나리오 저장 실패');
         } finally {
             const newButton = document.querySelector('#scenario-details-form button[type="submit"]');
             if (newButton) {
@@ -63,7 +63,9 @@ export class ScenarioController {
         };
 
         if (!plotData.title) {
-            alert('플롯 제목을 입력해주세요.');
+            const titleField = form.elements.title;
+            showFieldValidation(titleField, '플롯 제목을 입력해주세요.', false);
+            titleField.focus();
             return;
         }
 
@@ -71,11 +73,11 @@ export class ScenarioController {
         
         try {
             await api.createPlotPoint(projectId, scenarioId, plotData);
+            showToast('플롯 포인트가 성공적으로 추가되었습니다.', 'success');
             form.reset();
             await this.stateManager.refreshCurrentProject();
         } catch (error) {
-            console.error('플롯 포인트 생성 실패:', error);
-            alert(error.message);
+            ErrorHandlers.showError(error, '플롯 포인트 생성 실패');
         } finally {
             button.setAttribute('aria-busy', 'false');
         }
@@ -92,12 +94,12 @@ export class ScenarioController {
         const styleGuideSelect = document.getElementById('draft-style-guide-select');
 
         if (selectedCharacterIds.length === 0) {
-            alert('주요 등장인물을 1명 이상 선택해주세요.');
+            showToast('주요 등장인물을 1명 이상 선택해주세요.', 'warning');
             return;
         }
 
         if (!plotPointCount || plotPointCount < 5 || plotPointCount > 50) {
-            alert('플롯 개수는 5에서 50 사이의 숫자여야 합니다.');
+            showToast('플롯 개수는 5에서 50 사이의 숫자여야 합니다.', 'warning');
             return;
         }
 
@@ -112,14 +114,13 @@ export class ScenarioController {
             };
 
             await api.generateAiScenarioDraft(projectId, scenarioId, requestBody);
-            alert('AI가 새로운 스토리 초안을 성공적으로 생성했습니다!');
+            showToast('AI가 새로운 스토리 초안을 성공적으로 생성했습니다!', 'success');
 
             this.modals.closeModal();
             await this.stateManager.refreshCurrentProject();
 
         } catch (error) {
-            console.error('AI 시나리오 초안 생성 실패:', error);
-            alert(error.message);
+            ErrorHandlers.showError(error, 'AI 시나리오 초안 생성 실패');
         } finally {
             button.setAttribute('aria-busy', 'false');
         }
@@ -132,13 +133,13 @@ export class ScenarioController {
         const { currentProject } = this.stateManager.getState();
         
         if (!currentProject || !currentProject.scenarios || currentProject.scenarios.length === 0) {
-            alert('현재 활성화된 시나리오가 없습니다.');
+            showToast('현재 활성화된 시나리오가 없습니다.', 'warning');
             return;
         }
-        
+
         const mainScenario = currentProject.scenarios[0];
         if (!mainScenario.plot_points || mainScenario.plot_points.length === 0) {
-            alert('수정할 플롯이 없습니다. 먼저 AI로 초안을 생성해주세요.');
+            showToast('수정할 플롯이 없습니다. 먼저 AI로 초안을 생성해주세요.', 'info');
             return;
         }
 
@@ -220,11 +221,11 @@ export class ScenarioController {
         
         try {
             await api.updatePlotPoint(projectId, scenarioId, plotPointId, plotData);
-            alert('플롯 포인트가 성공적으로 저장되었습니다.');
+            showToast('플롯 포인트가 성공적으로 저장되었습니다.', 'success');
             this.modals.closeModal();
             await this.stateManager.refreshCurrentProject();
         } catch(error) {
-            alert(`저장 실패: ${error.message}`);
+            ErrorHandlers.showError(error, '플롯 포인트 저장 실패');
         } finally {
             button.setAttribute('aria-busy', 'false');
         }

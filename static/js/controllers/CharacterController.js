@@ -3,6 +3,7 @@
  * 캐릭터 그룹과 카드의 생성, 삭제, 드래그앤드롭 기능을 담당합니다.
  */
 import * as api from '../modules/api.js';
+import { showToast, showFieldValidation, ErrorHandlers } from '../components/validation/validation-utils.js';
 
 export class CharacterController {
     constructor(app) {
@@ -19,8 +20,10 @@ export class CharacterController {
         const form = event.currentTarget;
         const groupName = form.elements.name.value.trim();
         
-        if (!groupName) {
-            alert('그룹 이름을 입력해주세요.');
+                if (!groupName) {
+            const nameField = form.elements.name;
+            showFieldValidation(nameField, '그룹 이름을 입력해주세요.', false);
+            nameField.focus();
             return;
         }
         
@@ -28,11 +31,10 @@ export class CharacterController {
         
         try {
             await this.stateManager.createGroup(projectId, groupName);
-            alert('그룹이 성공적으로 생성되었습니다.');
+            showToast('그룹이 성공적으로 생성되었습니다.', 'success');
             form.reset();
         } catch (error) {
-            console.error('그룹 생성 실패:', error);
-            alert(error.message);
+            ErrorHandlers.showError(error, '그룹 생성 실패');
         } finally {
             form.querySelector('button').setAttribute('aria-busy', 'false');
         }
@@ -45,10 +47,9 @@ export class CharacterController {
         if (confirm(`정말로 '${groupName}' 그룹을 삭제하시겠습니까?\n모든 카드도 함께 삭제됩니다.`)) {
             try {
                 await this.stateManager.deleteGroup(projectId, groupId);
-                alert('그룹이 삭제되었습니다.');
+                showToast('그룹이 삭제되었습니다.', 'success');
             } catch (error) {
-                console.error('그룹 삭제 실패:', error);
-                alert(error.message);
+                ErrorHandlers.showError(error, '그룹 삭제 실패');
             }
         }
     }
@@ -61,10 +62,9 @@ export class CharacterController {
         
         try {
             await this.stateManager.deleteCard(projectId, groupId, cardId);
-            alert('카드가 삭제되었습니다.');
+            showToast('카드가 삭제되었습니다.', 'success');
         } catch (error) {
-            console.error('카드 삭제 실패:', error);
-            alert(error.message);
+            ErrorHandlers.showError(error, '카드 삭제 실패');
         }
     }
 
