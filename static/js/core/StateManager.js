@@ -353,4 +353,62 @@ export class StateManager extends EventEmitter {
     getLastGeneratedCard() {
         return this.lastGeneratedCard || null;
     }
+
+    /**
+     * 프로젝트 목록에서 특정 프로젝트의 상세 데이터를 로드합니다.
+     * 현재 프로젝트 설정을 변경하지 않고 목록의 프로젝트만 업데이트합니다.
+     * @param {string} projectId - 상세 데이터를 로드할 프로젝트의 ID
+     */
+    async loadProjectDetailsInList(projectId) {
+        console.log(`Loading project details for: ${projectId}`);
+        console.log('Current loading states before:', this.state.loadingStates);
+
+        this.setLoadingState('projectLoading', true);
+        console.log('Current loading states after set:', this.state.loadingStates);
+
+        try {
+            console.log('Calling api.fetchProjectDetails...');
+            const projectDetails = await api.fetchProjectDetails(projectId);
+            console.log('Project details fetched successfully:', projectDetails);
+
+            // 프로젝트 목록에서 해당 프로젝트를 상세 데이터로 업데이트
+            const updatedProjects = this.state.projects.map(p => {
+                if (p.id === projectId) {
+                    const updatedProject = {
+                        ...projectDetails,
+                        isDetailLoaded: true
+                    };
+                    console.log('Updated project:', updatedProject);
+                    return updatedProject;
+                }
+                return p;
+            });
+
+            this._setState({ projects: updatedProjects });
+            console.log(`Successfully loaded details for project: ${projectDetails.name}`);
+            console.log('Current loading states before clearing:', this.state.loadingStates);
+
+            this.setLoadingState('projectLoading', false);
+            console.log('Current loading states after clearing:', this.state.loadingStates);
+
+            return true; // 성공을 나타내는 값 반환
+
+        } catch (error) {
+            console.error('Error loading project details in list:', error);
+            console.error('Error details:', {
+                message: error.message,
+                status: error.status,
+                response: error.response,
+                stack: error.stack
+            });
+
+            // 로딩 상태를 확실히 해제
+            console.log('Clearing loading state due to error...');
+            this.setLoadingState('projectLoading', false);
+            console.log('Current loading states after error:', this.state.loadingStates);
+
+            this.emit('error', '프로젝트 상세 정보를 불러오는 데 실패했습니다.');
+            return false; // 실패를 나타내는 값 반환
+        }
+    }
 }

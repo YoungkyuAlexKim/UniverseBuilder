@@ -6,18 +6,34 @@
 
 // Helper function for handling fetch responses
 async function handleResponse(response) {
+    console.log('API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+    });
+
     if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+            errorData = await response.json();
+        } catch (e) {
+            console.error('Failed to parse error response as JSON:', e);
+            errorData = { detail: response.statusText };
+        }
+        console.error('API Error:', errorData);
         throw new Error(errorData.detail || `서버 오류: ${response.statusText}`);
     }
-    
+
     if (response.status === 204) {
         return {};
     }
 
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
-        return response.json();
+        const jsonResponse = await response.json();
+        console.log('API Response Data:', jsonResponse);
+        return jsonResponse;
     }
     return {};
 }

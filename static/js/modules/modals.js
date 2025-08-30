@@ -209,9 +209,9 @@ export function openCardModal(card, projectId) {
         </div>
     `;
 
-    contentEl.querySelector('#show-relationship-btn').addEventListener('click', (e) => {
+    contentEl.querySelector('#show-relationship-btn').addEventListener('click', async (e) => {
         e.preventDefault();
-        app.panels.showRelationshipPanel(projectId, card);
+        await app.panels.showRelationshipPanel(projectId, card);
     });
 
     const footerEl = document.getElementById('modal-card-footer');

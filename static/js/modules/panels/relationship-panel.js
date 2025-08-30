@@ -46,19 +46,75 @@ function getRelationshipColor(type) {
  * @param {string} projectId - 프로젝트 ID
  * @param {object} currentCard - 현재 선택된 캐릭터
  */
-export function showRelationshipPanel(projectId, currentCard) {
+export async function showRelationshipPanel(projectId, currentCard) {
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) existingPanel.remove();
     document.querySelectorAll('.shifted').forEach(view => view.classList.remove('shifted'));
 
     // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
     const { projects } = app.stateManager.getState();
-    const project = projects.find(p => p.id === projectId);
+    let project = projects.find(p => p.id === projectId);
     if (!project) { alert('프로젝트를 찾을 수 없습니다.'); return; }
 
-    const allCharacters = project.groups.flatMap(g => g.cards);
+    // 프로젝트 상세 데이터가 로드되지 않았으면 로드 대기
+    if (!project.isDetailLoaded) {
+        console.log('프로젝트 상세 데이터 로딩 시작...');
+        console.log('프로젝트 ID:', projectId);
+        console.log('현재 프로젝트 상태:', project);
+
+        try {
+            // 현재 프로젝트 설정을 변경하지 않고 목록에서만 상세 데이터 로드
+            console.log('loadProjectDetailsInList 메소드 호출 시도...');
+            const loadSuccess = await app.stateManager.loadProjectDetailsInList(projectId);
+            console.log('loadProjectDetailsInList 결과:', loadSuccess);
+
+            if (!loadSuccess) {
+                console.error('프로젝트 상세 데이터 로드 실패 - loadProjectDetailsInList가 false 반환');
+                alert('프로젝트 데이터를 불러오는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+                return;
+            }
+
+            // 다시 프로젝트 데이터 가져오기
+            const updatedState = app.stateManager.getState();
+            project = updatedState.projects.find(p => p.id === projectId);
+            console.log('업데이트된 프로젝트:', project);
+
+            if (!project) {
+                console.error('업데이트 후에도 프로젝트를 찾을 수 없음');
+                alert('프로젝트를 찾을 수 없습니다.');
+                return;
+            }
+        } catch (error) {
+            console.error('프로젝트 상세 데이터 로드 중 예외 발생:', error);
+            alert('프로젝트 데이터를 불러오는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+            return;
+        }
+    }
+
+    console.log('Project data:', project);
+    console.log('Project groups:', project.groups);
+    console.log('Project groups length:', project.groups ? project.groups.length : 'undefined');
+    console.log('Project isDetailLoaded:', project.isDetailLoaded);
+
+    const allCharacters = project.groups ? project.groups.flatMap(g => g.cards || []) : [];
+    console.log('All characters:', allCharacters);
+    console.log('All characters length:', allCharacters.length);
+
     const otherCharacters = allCharacters.filter(c => c.id !== currentCard.id);
+    console.log('Other characters:', otherCharacters);
+
+    // 다른 캐릭터가 없으면 경고
+    if (otherCharacters.length === 0) {
+        console.warn('No other characters found! This might be the issue.');
+        if (allCharacters.length === 0) {
+            console.warn('No characters at all in the project!');
+        } else {
+            console.log('Only one character exists, which is the current character.');
+        }
+    }
+
     const relationships = project.relationships || [];
+    console.log('Relationships:', relationships);
 
     const panel = document.createElement('div');
     panel.className = 'relationship-panel';
@@ -83,7 +139,9 @@ export function showRelationshipPanel(projectId, currentCard) {
                                 대상
                                 <select id="target-character-select" name="target_character_id" required>
                                     <option value="" disabled selected>캐릭터 선택...</option>
-                                    ${otherCharacters.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                    ${otherCharacters.length > 0
+                                        ? otherCharacters.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+                                        : '<option value="" disabled>프로젝트에 다른 캐릭터가 없습니다</option>'}
                                 </select>
                             </label>
                             <label for="relationship-type">
@@ -164,6 +222,21 @@ export function showRelationshipPanel(projectId, currentCard) {
     const nodes = new vis.DataSet(
         Array.from(relatedCharacterIds).map(charId => {
             const character = allCharacters.find(c => c.id === charId);
+            // 캐릭터가 없으면 기본 값 사용
+            if (!character) {
+                console.warn(`Character with id ${charId} not found`);
+                return {
+                    id: charId,
+                    label: '알 수 없음',
+                    shape: 'box',
+                    color: '#999999',
+                    font: { color: '#ffffff' },
+                    margin: 10,
+                    shapeProperties: {
+                        borderRadius: 6
+                    }
+                };
+            }
             return {
                 id: character.id,
                 label: character.name,
@@ -269,8 +342,10 @@ export function showRelationshipPanel(projectId, currentCard) {
         }
 
         listContainer.innerHTML = activeRelationships.map(r => {
-            const sourceName = allCharacters.find(c => c.id === r.source_character_id)?.name || '알 수 없음';
-            const targetName = allCharacters.find(c => c.id === r.target_character_id)?.name || '알 수 없음';
+            const sourceChar = allCharacters.find(c => c.id === r.source_character_id);
+            const targetChar = allCharacters.find(c => c.id === r.target_character_id);
+            const sourceName = sourceChar ? sourceChar.name : '알 수 없음';
+            const targetName = targetChar ? targetChar.name : '알 수 없음';
             const descriptionHTML = r.description ? `<p>${r.description}</p>` : '<p>세부 설명 없음</p>';
 
             return `
