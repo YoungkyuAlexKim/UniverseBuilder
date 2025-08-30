@@ -2,6 +2,13 @@
  * 동적 HTML 생성 및 화면 렌더링 관련 함수를 담당하는 모듈
  */
 
+// 컴포넌트 모듈들 import
+import { createCardElement, createEnhancedCardElement, initializeCharacterCard } from '../components/cards/character-card.js';
+import { createWorldviewCardElement, createEnhancedWorldviewCardElement, initializeWorldviewCard } from '../components/cards/worldview-card.js';
+import { openAiScenarioDraftModal, initializeAiScenarioDraftModal } from '../components/modals/ai-scenario-draft-modal.js';
+import { createDynamicInputGroupHTML, addDynamicInputField } from '../components/forms/dynamic-input.js';
+import { addWorldviewRuleInput, initializeWorldviewRuleInput } from '../components/forms/worldview-rule-input.js';
+
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
 let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
 let app; // App 인스턴스를 저장할 변수
@@ -14,6 +21,12 @@ let eventManager; // EventListenerManager 인스턴스
 export function initializeUI(appInstance) {
     app = appInstance;
     eventManager = appInstance.eventManager;
+
+    // 컴포넌트 모듈들 초기화
+    initializeCharacterCard(appInstance);
+    initializeWorldviewCard(appInstance);
+    initializeAiScenarioDraftModal(appInstance);
+    initializeWorldviewRuleInput(appInstance, appInstance.eventManager);
 }
 
 /**
@@ -160,72 +173,9 @@ function renderCharacterTab(projectData) {
     app.setupSortable(container.querySelectorAll('.character-cards-grid'), projectData.id, 'character');
 }
 
-function createCardElement(card, projectId, groupId) {
-    const cardEl = document.createElement('article');
-    cardEl.className = 'card-item';
-    cardEl.dataset.cardId = card.id;
-    cardEl.innerHTML = `<strong>${card.name || '이름 없는 카드'}</strong>`;
-    cardEl.addEventListener('click', () => {
-        const cardData = { ...card, group_id: groupId };
-        app.modals.openCardModal(cardData, projectId);
-    });
-    return cardEl;
-}
 
-function createEnhancedCardElement(card, projectId, groupId) {
-    const cardEl = document.createElement('article');
-    cardEl.className = 'character-card';
-    cardEl.dataset.cardId = card.id;
-    
-    // 설명 미리보기 (80자 제한)
-    const descriptionPreview = card.description ? 
-        (card.description.length > 80 ? card.description.substring(0, 80) + '...' : card.description) 
-        : '설명이 없습니다';
-    
-    // 핵심 태그들만 (최대 2개씩)
-    const personalityTags = Array.isArray(card.personality) ? card.personality.slice(0, 2) : [];
-    const abilityTags = Array.isArray(card.abilities) ? card.abilities.slice(0, 2) : [];
-    
-    // 태그 HTML - 성격을 우선적으로 표시
-    const allTags = [...personalityTags.map(trait => ({type: 'personality', text: trait})), 
-                     ...abilityTags.map(ability => ({type: 'ability', text: ability}))];
-    const displayTags = allTags.slice(0, 3); // 최대 3개만
-    
-    const tagsHTML = displayTags.map(tag => 
-        `<span class="character-tag ${tag.type}-tag">${tag.text}</span>`
-    ).join('');
-    
-    cardEl.innerHTML = `
-        <div class="character-card-header">
-            <h4 class="character-card-name">${card.name || '이름 없는 캐릭터'}</h4>
-            <div class="character-card-actions">
-                <button class="secondary outline character-edit-btn">✏️</button>
-            </div>
-        </div>
-        <div class="character-card-content">
-            <p class="character-description">${descriptionPreview}</p>
-            ${tagsHTML ? `<div class="character-tags-container">${tagsHTML}</div>` : ''}
-        </div>
-    `;
-    
-    cardEl.addEventListener('click', (e) => {
-        // 편집 버튼 클릭이 아닐 때만 모달 열기
-        if (!e.target.closest('.character-edit-btn')) {
-            const cardData = { ...card, group_id: groupId };
-            app.modals.openCardModal(cardData, projectId);
-        }
-    });
-    
-    // 편집 버튼 이벤트
-    const editBtn = cardEl.querySelector('.character-edit-btn');
-    editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const cardData = { ...card, group_id: groupId };
-        app.modals.openCardModal(cardData, projectId);
-    });
-    
-    return cardEl;
-}
+
+
 
 function renderWorldviewTab(projectData) {
     const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
@@ -320,94 +270,11 @@ function renderWorldviewTab(projectData) {
     app.setupSortable(container.querySelectorAll('.worldview-cards-grid'), projectData.id, 'worldview');
 }
 
-function addWorldviewRuleInput(value = '', projectId, container) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'dynamic-input-wrapper';
-    wrapper.innerHTML = `
-        <textarea name="rules" placeholder="세계관의 핵심 전제, 설정, 규칙..." rows="1" style="resize: vertical; min-height: 2.5rem; overflow: hidden;">${value}</textarea>
-        <button type="button" class="secondary outline refine-rule-btn" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; line-height: 1;">✨</button>
-        <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
-    `;
-    container.appendChild(wrapper);
-
-    const inputField = wrapper.querySelector('textarea[name="rules"]');
-    
-    function adjustHeight() {
-        inputField.style.height = 'auto';
-        const computedStyle = window.getComputedStyle(inputField);
-        const paddingTop = parseInt(computedStyle.paddingTop);
-        const paddingBottom = parseInt(computedStyle.paddingBottom);
-        const borderTop = parseInt(computedStyle.borderTopWidth);
-        const borderBottom = parseInt(computedStyle.borderBottomWidth);
-        
-        const extraHeight = paddingTop + paddingBottom + borderTop + borderBottom + 8;
-        const newHeight = Math.max(60, inputField.scrollHeight + extraHeight);
-        
-        inputField.style.height = newHeight + 'px';
-    }
-    
-    adjustHeight();
-    
-    inputField.addEventListener('input', adjustHeight);
-    inputField.addEventListener('change', adjustHeight);
-
-    wrapper.querySelector('.remove-dynamic-input-btn').addEventListener('click', () => {
-        wrapper.remove();
-    });
-
-    wrapper.querySelector('.refine-rule-btn').addEventListener('click', (e) => {
-        app.handleRefineWorldviewRule(e, projectId, inputField);
-    });
-}
 
 
-function createWorldviewCardElement(card, projectId, groupId) {
-    const cardEl = document.createElement('article');
-    cardEl.className = 'card-item';
-    cardEl.dataset.cardId = card.id;
-    cardEl.innerHTML = `<strong>${card.title || '제목 없는 카드'}</strong>`;
-    cardEl.addEventListener('click', () => app.modals.openWorldviewCardModal(card, projectId, groupId));
-    return cardEl;
-}
 
-function createEnhancedWorldviewCardElement(card, projectId, groupId) {
-    const cardEl = document.createElement('article');
-    cardEl.className = 'worldview-card';
-    cardEl.dataset.cardId = card.id;
-    
-    // 내용 미리보기 (200자 제한)
-    const contentPreview = card.content ? 
-        (card.content.length > 200 ? card.content.substring(0, 200) + '...' : card.content) 
-        : '설정 내용이 없습니다.';
-    
-    cardEl.innerHTML = `
-        <div class="worldview-card-header">
-            <h4 class="worldview-card-title">${card.title || '제목 없는 설정'}</h4>
-            <div class="worldview-card-actions">
-                <button class="secondary outline worldview-edit-btn">✏️</button>
-            </div>
-        </div>
-        <div class="worldview-card-content">
-            <p class="worldview-card-preview">${contentPreview}</p>
-        </div>
-    `;
-    
-    cardEl.addEventListener('click', (e) => {
-        // 편집 버튼 클릭이 아닐 때만 모달 열기
-        if (!e.target.closest('.worldview-edit-btn')) {
-            app.modals.openWorldviewCardModal(card, projectId, groupId);
-        }
-    });
-    
-    // 편집 버튼 이벤트
-    const editBtn = cardEl.querySelector('.worldview-edit-btn');
-    editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        app.modals.openWorldviewCardModal(card, projectId, groupId);
-    });
-    
-    return cardEl;
-}
+
+
 
 function renderScenarioTab(projectData) {
     const container = document.getElementById('tab-content-scenario');
@@ -717,87 +584,9 @@ function renderManuscriptTab(projectData) {
     });
 }
 
-function openAiScenarioDraftModal(projectData, scenarioId) {
-    const modal = document.getElementById('ai-scenario-draft-modal');
-    const form = document.getElementById('ai-scenario-draft-form');
-    const charactersContainer = document.getElementById('scenario-characters-container');
-    const modalBackdrop = document.getElementById('modal-backdrop');
-
-    const slider = form.querySelector('#plot-point-count');
-    const sliderValueDisplay = form.querySelector('#plot-point-count-value');
-
-    slider.addEventListener('input', () => {
-        sliderValueDisplay.textContent = slider.value;
-    });
-
-    const allCharacters = projectData.groups.flatMap(g => g.cards);
-    if (allCharacters.length > 0) {
-        charactersContainer.innerHTML = allCharacters.map(char => `
-            <label>
-                <input type="checkbox" name="character_ids" value="${char.id}">
-                ${char.name}
-            </label>
-        `).join('');
-    } else {
-        charactersContainer.innerHTML = '<p>이 프로젝트에는 캐릭터가 없습니다.</p>';
-    }
-
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-
-    const newSlider = newForm.querySelector('#plot-point-count');
-    const newSliderValueDisplay = newForm.querySelector('#plot-point-count-value');
-    newSlider.addEventListener('input', () => {
-        newSliderValueDisplay.textContent = newSlider.value;
-    });
-    newSliderValueDisplay.textContent = newSlider.value;
 
 
-    newForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        app.handleAiDraftGeneration(e, projectData.id, scenarioId);
-    });
-
-    const closeButton = modal.querySelector('.close');
-    if (closeButton) {
-        const newCloseButton = closeButton.cloneNode(true);
-        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
-        newCloseButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            app.modals.closeModal();
-        });
-    }
-
-    modal.classList.add('active');
-    modalBackdrop.classList.add('active');
-}
 
 
-// 동적 입력 필드 UI 생성 (수동 편집 패널용)
-export function createDynamicInputGroupHTML(field, label, values = []) {
-    let inputsHTML = (Array.isArray(values) ? values : [values].filter(Boolean))
-        .map((value, index) => `
-            <div class="dynamic-input-wrapper">
-                <input type="text" name="${field}" value="${value || ''}" data-index="${index}">
-                <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
-            </div>
-        `).join('');
 
-    return `
-        <div>
-            <strong>${label}</strong>
-            <div id="dynamic-input-container-${field}" class="dynamic-input-container">${inputsHTML}</div>
-            <button type="button" class="secondary outline add-dynamic-input-btn" data-field="${field}" style="margin-top: 0.5rem; width: 100%;">+ ${label} 추가</button>
-        </div>
-    `;
-}
 
-export function addDynamicInputField(container, field, value = '', index) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'dynamic-input-wrapper';
-    wrapper.innerHTML = `
-        <input type="text" name="${field}" value="${value}" data-index="${index}">
-        <button type="button" class="secondary outline remove-dynamic-input-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">✕</button>
-    `;
-    container.appendChild(wrapper);
-}
