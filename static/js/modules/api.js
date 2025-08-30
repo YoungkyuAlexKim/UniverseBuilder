@@ -576,3 +576,12 @@ export async function editManuscriptBlockWithAi(projectId, blockId, requestBody)
     });
     return handleResponse(response);
 }
+
+export async function refinePartialManuscript(projectId, blockId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/refine-partial`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}

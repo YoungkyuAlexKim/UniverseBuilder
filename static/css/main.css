@@ -2763,3 +2763,25 @@ button.contrast:hover {
     padding: 1rem;
     text-align: center;
 }
+
+/* --- [신규] 부분 수정 제안 모달 스타일 --- */
+.suggestion-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.suggestion-card:hover {
+    background: #161b22;
+    border-color: #58a6ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.1);
+}
+
+.suggestion-card p {
+    margin: 0;
+    color: #c9d1d9;
+    line-height: 1.6;
+}

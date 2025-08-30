@@ -567,7 +567,8 @@ function renderManuscriptTab(projectData) {
     const contentTextarea = container.querySelector('#manuscript-block-content');
     const contextContentEl = container.querySelector('#manuscript-context-content');
     const saveButton = container.querySelector('#manuscript-save-btn');
-    const aiEditButton = container.querySelector('#manuscript-ai-edit-btn'); // [신규] AI 수정 버튼
+    const aiEditButton = container.querySelector('#manuscript-ai-edit-btn');
+    const partialRefineButton = container.querySelector('#manuscript-partial-refine-btn'); // [신규] 부분 다듬기 버튼
     const importButton = container.querySelector('#manuscript-import-btn');
     const clearButton = container.querySelector('#manuscript-clear-btn');
     const charCountDisplay = container.querySelector('#char-count-display');
@@ -600,7 +601,8 @@ function renderManuscriptTab(projectData) {
         titleInput.disabled = true;
         contentTextarea.disabled = true;
         saveButton.disabled = true;
-        aiEditButton.disabled = true; // [신규] AI 버튼 비활성화
+        aiEditButton.disabled = true;
+        partialRefineButton.disabled = true; // [신규] 비활성화
         saveButton.removeAttribute('data-current-block-id');
         if(charCountDisplay) charCountDisplay.textContent = '0';
         if(wordCountDisplay) wordCountDisplay.textContent = '0';
@@ -611,10 +613,24 @@ function renderManuscriptTab(projectData) {
     // --- 3. 이벤트 리스너 (재)설정 ---
     eventManager.removeAllEventListenersInContainer(container); // 기존 이벤트 모두 제거
 
-    // 불러오기, 전체 삭제, AI 수정 버튼
+    // 버튼 이벤트
     eventManager.addEventListener(importButton, 'click', () => app.handleImportManuscript(projectData.id, mainScenario?.id));
     eventManager.addEventListener(clearButton, 'click', () => app.handleClearManuscript(projectData.id));
-    eventManager.addEventListener(aiEditButton, 'click', () => app.openManuscriptAIModal()); // [신규] AI 수정 모달 열기 이벤트
+    eventManager.addEventListener(aiEditButton, 'click', () => app.openManuscriptAIModal());
+    
+    // [신규] 부분 다듬기 버튼 클릭 이벤트
+    eventManager.addEventListener(partialRefineButton, 'click', () => {
+        const { selectionStart, selectionEnd, value } = contentTextarea;
+        const selectedText = value.substring(selectionStart, selectionEnd);
+
+        // 주변 문맥 찾기 (간단한 방식: 앞뒤 100자)
+        const precedingText = value.substring(Math.max(0, selectionStart - 100), selectionStart);
+        const followingText = value.substring(selectionEnd, Math.min(value.length, selectionEnd + 100));
+        const surroundingContext = `${precedingText}[...선택 부분...]${followingText}`;
+
+        app.openPartialRefineModal(selectedText, surroundingContext);
+    });
+
 
     // 개요 목록의 각 블록 클릭 이벤트
     eventManager.addEventListener(blockListEl, 'click', (e) => {
@@ -638,11 +654,14 @@ function renderManuscriptTab(projectData) {
             titleInput.disabled = false;
             contentTextarea.disabled = false;
             saveButton.disabled = false;
-            aiEditButton.disabled = false; // [신규] AI 버튼 활성화
+            aiEditButton.disabled = false;
             saveButton.setAttribute('data-current-block-id', blockId);
 
             if(charCountDisplay) charCountDisplay.textContent = selectedBlock.char_count || 0;
             if(wordCountDisplay) wordCountDisplay.textContent = selectedBlock.word_count || 0;
+            
+            // [신규] 텍스트 선택 시 버튼 활성화 로직
+            partialRefineButton.disabled = true;
 
             const originalPlot = mainScenario?.plot_points.find(p => p.ordering === selectedBlock.ordering);
             if (originalPlot) {
@@ -656,14 +675,28 @@ function renderManuscriptTab(projectData) {
         }
     });
     
-    eventManager.addEventListener(contentTextarea, 'input', () => {
+    // 글자 수 계산 및 부분 수정 버튼 활성화/비활성화
+    const handleTextareaInput = () => {
         const content = contentTextarea.value;
         const charCount = content.length;
         const wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
 
         if(charCountDisplay) charCountDisplay.textContent = charCount;
         if(wordCountDisplay) wordCountDisplay.textContent = wordCount;
+
+        // [신규] 텍스트 선택 감지
+        const hasSelection = contentTextarea.selectionStart !== contentTextarea.selectionEnd;
+        partialRefineButton.disabled = !hasSelection;
+    };
+    
+    eventManager.addEventListener(contentTextarea, 'input', handleTextareaInput);
+    eventManager.addEventListener(contentTextarea, 'mouseup', handleTextareaInput);
+    document.addEventListener('selectionchange', () => {
+        if(document.activeElement === contentTextarea) {
+            handleTextareaInput();
+        }
     });
+
 
     // 저장 버튼 이벤트
     eventManager.addEventListener(saveButton, 'click', () => {

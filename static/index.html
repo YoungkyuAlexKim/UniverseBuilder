@@ -213,6 +213,7 @@
                                     <input type="text" id="manuscript-block-title" placeholder="블록 제목을 입력하세요...">
                                     <button id="manuscript-save-btn">저장</button>
                                     <button id="manuscript-ai-edit-btn" class="secondary" disabled>✨ AI로 수정</button>
+                                    <button id="manuscript-partial-refine-btn" class="secondary" disabled>✨ 부분 다듬기</button>
                                 </div>
                                 <div id="editor-info-bar" style="padding: 0.5rem 1rem; font-size: 0.8rem; color: var(--pico-muted-color); background: var(--pico-secondary-background); border-bottom: 1px solid var(--pico-border-color);">
                                     <span>글자 수: <strong id="char-count-display">0</strong></span> | 
@@ -646,6 +647,37 @@
             </footer>
         </article>
     </div>
-
+    <div id="partial-refine-modal" class="modal-container">
+        <article style="max-width: 90vw; width: 800px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3>✨ AI 문장 다듬기 제안</h3>
+            </header>
+            <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label for="partial-refine-user-prompt"><strong>추가 요청사항 (선택)</strong></label>
+                    <input type="text" id="partial-refine-user-prompt" placeholder="예: 좀 더 간결하게, 또는 비유적으로 표현해줘">
+                </div>
+                <div>
+                    <label for="partial-refine-style-guide"><strong>문체 스타일 선택</strong></label>
+                    <select id="partial-refine-style-guide">
+                        <option value="">기본 스타일 (AI 기본값)</option>
+                        <option value="COMIC_REACTION_KR_01">냉소적 해설 스타일 (남성 화자)</option>
+                        <option value="COMIC_REACTION_KR_01_F">냉소적 해설 스타일 (여성 화자)</option>
+                    </select>
+                </div>
+            </div>
+            <div id="partial-refine-suggestions-container" style="padding: 0 1rem 1rem 1rem; overflow-y: auto; max-height: 50vh;">
+                <!-- AI 제안이 여기에 동적으로 추가됩니다 -->
+                <p>AI 제안을 생성하려면 아래 'AI 제안 생성' 버튼을 누르세요.</p>
+            </div>
+            <footer>
+                <div class="grid" style="justify-content: flex-end; grid-template-columns: repeat(2, auto); gap: 0.5rem;">
+                    <button id="partial-refine-cancel-btn" class="secondary outline" style="width: auto;">취소</button>
+                    <button id="partial-refine-generate-btn" style="width: auto;">AI 제안 생성</button>
+                </div>
+            </footer>
+        </article>
+    </div>
 </body>
 </html>

@@ -82,6 +82,12 @@ class ManuscriptBlockAIEditRequest(BaseModel):
     character_ids: Optional[List[str]] = None
     worldview_card_ids: Optional[List[str]] = None
 
+class ManuscriptBlockPartialRefineRequest(BaseModel):
+    selected_text: str
+    surrounding_context: str
+    user_prompt: Optional[str] = None
+    style_guide_id: Optional[str] = None
+    model_name: Optional[str] = None
 
 # --- 라우터 생성 ---
 router = APIRouter(
@@ -278,3 +284,66 @@ async def edit_manuscript_block_with_ai(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 원고 수정 중 오류 발생: {e}")
 
+@router.post("/blocks/{block_id}/refine-partial")
+async def refine_partial_manuscript_block(
+    block_id: str, # block_id는 현재 사용되지 않지만, 향후 특정 블록 컨텍스트를 위해 유지합니다.
+    request: ManuscriptBlockPartialRefineRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    선택된 텍스트의 일부를 AI를 통해 다듬고 여러 제안을 반환합니다.
+    """
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
+
+    style_guide_context = get_style_guide_content(request.style_guide_id)
+
+    prompt = ai_prompts.manuscript_partial_refine.format(
+        style_guide_context=style_guide_context,
+        surrounding_context=request.surrounding_context,
+        selected_text=request.selected_text,
+        user_prompt=request.user_prompt or "문장을 더 자연스럽고 세련되게 다듬어줘." # 기본 프롬프트
+    )
+
+    try:
+        chosen_model = request.model_name or AVAILABLE_MODELS[0]
+        model = genai.GenerativeModel(chosen_model)
+        
+        generation_config = GenerationConfig(response_mime_type="application/json")
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
+        # AI 응답이 비어있는 경우에 대한 예외 처리 추가
+        if not response.parts:
+            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+            error_detail = f"AI가 응답을 생성하지 못했습니다. (종료 사유: {finish_reason})"
+            if "SAFETY" in str(finish_reason):
+                error_detail = "AI 생성 내용이 안전 필터에 의해 차단되었습니다."
+            raise HTTPException(status_code=500, detail=error_detail)
+
+        # JSON 파싱 전후의 텍스트를 확인하여 디버깅 용이성 확보
+        raw_text = response.text.strip()
+        cleaned_text = raw_text.removeprefix("```json").removesuffix("```").strip()
+        
+        suggestions = json.loads(cleaned_text)
+        return suggestions
+
+    except json.JSONDecodeError:
+        error_detail = f"AI가 유효하지 않은 JSON 형식으로 응답했습니다. 원본 응답: {raw_text[:200]}"
+        raise HTTPException(status_code=500, detail=error_detail)
+    except Exception as e:
+        # 이미 HTTPException인 경우 그대로 전달, 아닌 경우 새로 생성
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"AI 원고 부분 수정 중 오류 발생: {e}")

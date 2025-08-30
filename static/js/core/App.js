@@ -1327,4 +1327,96 @@ export class App {
         modals.closeModal();
         alert('AI의 제안이 적용 및 저장되었습니다.');
     }
+    
+    // [신규] 부분 AI 수정 모달 열기 및 제어
+    openPartialRefineModal(selectedText, surroundingContext) {
+        const modal = document.getElementById('partial-refine-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+        const suggestionsContainer = document.getElementById('partial-refine-suggestions-container');
+        const generateBtn = document.getElementById('partial-refine-generate-btn');
+        const cancelBtn = document.getElementById('partial-refine-cancel-btn');
+        const userPromptInput = document.getElementById('partial-refine-user-prompt');
+        const styleGuideSelect = document.getElementById('partial-refine-style-guide');
+        const contentTextarea = document.getElementById('manuscript-block-content');
+        const { selectionStart, selectionEnd } = contentTextarea;
+
+        // 모달 초기화
+        userPromptInput.value = '';
+        styleGuideSelect.value = ''; // 문체 선택 초기화
+        suggestionsContainer.innerHTML = '<p>AI 제안을 생성하려면 아래 \'AI 제안 생성\' 버튼을 누르세요.</p>';
+
+        const executeRefine = async () => {
+            generateBtn.setAttribute('aria-busy', 'true');
+            suggestionsContainer.innerHTML = '<p aria-busy="true">AI 제안을 생성 중입니다...</p>';
+
+            try {
+                const projectId = this.stateManager.getState().currentProject.id;
+                const blockId = document.getElementById('manuscript-save-btn').getAttribute('data-current-block-id');
+                
+                const requestBody = {
+                    selected_text: selectedText,
+                    surrounding_context: surroundingContext,
+                    user_prompt: userPromptInput.value.trim(),
+                    style_guide_id: styleGuideSelect.value, // 선택된 문체 스타일 추가
+                    model_name: document.getElementById('ai-model-select').value
+                };
+
+                const result = await api.refinePartialManuscript(projectId, blockId, requestBody);
+                
+                if (result.suggestions && result.suggestions.length > 0) {
+                    suggestionsContainer.innerHTML = result.suggestions.map((suggestion, index) => `
+                        <article class="suggestion-card" data-suggestion="${suggestion}" style="cursor: pointer; margin-bottom: 0.5rem;">
+                            <p>${suggestion}</p>
+                        </article>
+                    `).join('');
+                } else {
+                    suggestionsContainer.innerHTML = '<p>AI가 제안을 생성하지 못했습니다. 다시 시도해주세요.</p>';
+                }
+
+            } catch (error) {
+                suggestionsContainer.innerHTML = `<p style="color: var(--pico-form-element-invalid-active-border-color);">오류: ${error.message}</p>`;
+            } finally {
+                generateBtn.setAttribute('aria-busy', 'false');
+            }
+        };
+
+        // 제안 카드 클릭 이벤트 (이벤트 위임 사용)
+        const suggestionClickHandler = (e) => {
+            const card = e.target.closest('.suggestion-card');
+            if (card) {
+                const suggestionText = card.dataset.suggestion;
+                
+                // 텍스트 교체
+                const originalText = contentTextarea.value;
+                const newText = originalText.substring(0, selectionStart) + suggestionText + originalText.substring(selectionEnd);
+                contentTextarea.value = newText;
+                
+                // 변경사항 즉시 저장
+                const projectId = this.stateManager.getState().currentProject.id;
+                const blockId = document.getElementById('manuscript-save-btn').getAttribute('data-current-block-id');
+                this.handleSaveManuscriptBlock(projectId, blockId);
+
+                closeModal();
+            }
+        };
+        suggestionsContainer.addEventListener('click', suggestionClickHandler);
+
+        const closeModal = () => {
+            modal.classList.remove('active');
+            backdrop.classList.remove('active');
+            // 이벤트 리스너 정리
+            suggestionsContainer.removeEventListener('click', suggestionClickHandler);
+            generateBtn.onclick = null;
+            cancelBtn.onclick = null;
+        };
+        
+        generateBtn.onclick = executeRefine;
+        cancelBtn.onclick = closeModal;
+        modal.querySelector('.close').onclick = (e) => { e.preventDefault(); closeModal(); };
+
+        modal.classList.add('active');
+        backdrop.classList.add('active');
+
+        // 모달이 열릴 때 더 이상 AI를 바로 호출하지 않습니다.
+    }
 }
