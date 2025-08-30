@@ -45,17 +45,25 @@ nav li {
     margin: 0; 
 }
 
-.tab-link { 
-    display: inline-block; 
-    padding: 1rem 1.5rem; 
-    text-decoration: none; 
-    border: 2px solid transparent; 
-    border-bottom: 0; 
-    margin-bottom: -2px; 
-    border-radius: var(--border-radius-md) var(--border-radius-md) 0 0; 
-    color: var(--text-muted); 
+.tab-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    text-decoration: none;
+    border: 2px solid transparent;
+    border-bottom: 0;
+    margin-bottom: -2px;
+    border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+    color: var(--text-muted);
     transition: var(--transition-fast);
     font-weight: 600;
+}
+
+.tab-link i[data-lucide] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
 }
 
 .tab-link:hover { 

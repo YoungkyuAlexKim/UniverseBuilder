@@ -92,6 +92,11 @@ export async function generateCharacterStream(requestData, onChunk, onComplete, 
 // 프로젝트 (Projects)
 // -------------------------
 
+export async function fetchProjectsList() {
+    const response = await fetch('/api/v1/projects/list');
+    return handleResponse(response);
+}
+
 export async function fetchProjects() {
     const response = await fetch('/api/v1/projects');
     return handleResponse(response);

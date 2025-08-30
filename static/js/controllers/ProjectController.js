@@ -80,11 +80,18 @@ export class ProjectController {
                 showToast('이 프로젝트에는 비밀번호가 설정되어 있지 않습니다.', 'info');
             }
 
-            this.stateManager.selectProject(projectId);
+            // 프로젝트 로딩 시작 표시
+            this.app.panels.showProjectLoadingOverlay();
+
+            await this.stateManager.selectProject(projectId);
+
             // 성공 메시지는 콜백에서 처리하므로 여기서는 제거
 
         } catch (error) {
             ErrorHandlers.showError(error, '프로젝트 열기 실패');
+        } finally {
+            // 에러 발생 시에도 로딩 오버레이 숨기기
+            this.app.panels.hideProjectLoadingOverlay();
         }
     }
 

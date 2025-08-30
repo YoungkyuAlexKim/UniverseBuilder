@@ -118,7 +118,19 @@ class Project(BaseModel):
     class Config:
         from_attributes = True
 
+class ProjectListItem(BaseModel):
+    id: str
+    name: str
+    has_password: bool
+    groups_count: int = 0
+    scenarios_count: int = 0
+    class Config:
+        from_attributes = True
+
 class ProjectListResponse(BaseModel):
+    projects: List[ProjectListItem]
+
+class DetailedProjectListResponse(BaseModel):
     projects: List[Project]
 
 class CreateProjectRequest(BaseModel):
@@ -287,7 +299,30 @@ def get_project_if_accessible(
 
 # --- API 엔드포인트 ---
 
-@router.get("", response_model=ProjectListResponse)
+@router.get("/list", response_model=ProjectListResponse)
+def get_projects_list(db: Session = Depends(database.get_db)):
+    """
+    간단한 프로젝트 리스트만 반환 (빠른 로딩용)
+    """
+    projects_from_db = db.query(ProjectModel).options(
+        # 최소한의 관계 데이터만 로드
+        joinedload(ProjectModel.groups),
+        joinedload(ProjectModel.scenarios)
+    ).order_by(ProjectModel.name).all()
+
+    response_projects = []
+    for project in projects_from_db:
+        response_projects.append(ProjectListItem(
+            id=project.id,
+            name=project.name,
+            has_password=bool(project.hashed_password),
+            groups_count=len(project.groups),
+            scenarios_count=len(project.scenarios)
+        ))
+
+    return {"projects": response_projects}
+
+@router.get("", response_model=DetailedProjectListResponse)
 def get_projects(db: Session = Depends(database.get_db)):
     projects_from_db = db.query(ProjectModel).options(
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),

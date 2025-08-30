@@ -77,17 +77,80 @@ export class StateManager extends EventEmitter {
 
     /**
      * API를 호출하여 프로젝트 목록을 불러오고 상태를 업데이트합니다.
+     * 간단한 리스트를 먼저 로드하고 상세 데이터는 백그라운드에서 로드합니다.
      */
     async loadProjects() {
         this.setLoadingState('projectsLoading', true);
         try {
-            const data = await api.fetchProjects();
-            this._setState({ projects: data.projects });
+            // 1. 간단한 프로젝트 리스트 먼저 로드
+            const data = await api.fetchProjectsList();
+
+            // 각 프로젝트에 상세 데이터 로드 상태 플래그 추가
+            const projectsWithStatus = data.projects.map(project => ({
+                ...project,
+                isDetailLoaded: false,
+                // 상세 데이터가 로드될 때까지 빈 객체로 초기화
+                groups: [],
+                worldview: null,
+                worldview_groups: [],
+                relationships: [],
+                scenarios: [],
+                manuscript_blocks: []
+            }));
+
+            this._setState({ projects: projectsWithStatus });
+
+            // 2. 상세 데이터는 백그라운드에서 로드
+            this.loadProjectDetailsInBackground(data.projects);
+
         } catch (error) {
             console.error('Error loading projects:', error);
             this.emit('error', '프로젝트 목록을 불러오는 데 실패했습니다.');
+            this._setState({ projects: [] });
         } finally {
             this.setLoadingState('projectsLoading', false);
+        }
+    }
+
+    /**
+     * 각 프로젝트의 상세 데이터를 백그라운드에서 로드합니다.
+     * @param {Array} projects - 간단한 프로젝트 리스트
+     */
+    async loadProjectDetailsInBackground(projects) {
+        for (const project of projects) {
+            try {
+                // 비밀번호가 설정된 프로젝트는 백그라운드에서 로드하지 않음
+                // 사용자가 직접 선택할 때 비밀번호 입력 과정을 거치도록 함
+                if (project.has_password) {
+                    console.log(`Skipping password-protected project: ${project.name}`);
+                    continue;
+                }
+
+                const details = await api.fetchProjectDetails(project.id);
+
+                // 기존 프로젝트를 상세 데이터로 업데이트
+                const updatedProjects = this.state.projects.map(p => {
+                    if (p.id === project.id) {
+                        return {
+                            ...details,
+                            isDetailLoaded: true
+                        };
+                    }
+                    return p;
+                });
+
+                this._setState({ projects: updatedProjects });
+                console.log(`Loaded details for project: ${project.name}`);
+
+            } catch (error) {
+                // 403 에러는 비밀번호가 필요한 프로젝트이므로 무시하고 진행
+                if (error.message && error.message.includes('403')) {
+                    console.log(`Project ${project.name} requires password - skipping background load`);
+                } else {
+                    console.warn(`Failed to load details for project ${project.id}:`, error);
+                }
+                // 상세 데이터 로드 실패 시에도 리스트는 유지
+            }
         }
     }
 
@@ -109,6 +172,7 @@ export class StateManager extends EventEmitter {
         } catch (error) {
             console.error('Error loading project details:', error);
             this.emit('error', '프로젝트 상세 정보를 불러오는 데 실패했습니다.');
+            throw error; // 에러를 다시 던져서 호출한 곳에서 처리할 수 있도록 함
         } finally {
             this.setLoadingState('projectLoading', false);
         }

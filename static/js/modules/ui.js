@@ -89,6 +89,26 @@ export function showWelcomeView() {
 }
 
 /**
+ * 프로젝트 로딩 오버레이를 표시합니다.
+ */
+export function showProjectLoadingOverlay() {
+    const overlay = document.getElementById('project-loading-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+    }
+}
+
+/**
+ * 프로젝트 로딩 오버레이를 숨깁니다.
+ */
+export function hideProjectLoadingOverlay() {
+    const overlay = document.getElementById('project-loading-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+/**
  * 지정된 탭을 활성화합니다.
  * @param {string} tabId - 활성화할 탭의 ID ('characters', 'worldview', 'scenario')
  */

@@ -74,6 +74,15 @@
         <div class="resizer" id="resizer"></div>
 
         <main class="main-content">
+            <!-- 프로젝트 로딩 오버레이 -->
+            <div id="project-loading-overlay" class="loading-overlay" style="display: none;">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <h3>프로젝트 로딩 중...</h3>
+                    <p>프로젝트 데이터를 불러오고 있습니다.</p>
+                </div>
+            </div>
+
             <div id="welcome-view" class="content-view active">
                 <hgroup><h1>시나리오 유니버스 빌더</h1><h2>좌측 메뉴에서 작업을 선택해주세요.</h2></hgroup>
                 <p>이곳에 선택된 메뉴의 UI가 나타납니다.</p>
@@ -82,13 +91,13 @@
             <div id="project-detail-view" class="content-view">
                 <div class="project-header">
                     <hgroup><h1 id="project-title-display"></h1></hgroup>
-                    <nav>
-                        <ul>
-                            <li><a href="#" class="tab-link active" data-tab="characters">캐릭터</a></li>
-                            <li><a href="#" class="tab-link" data-tab="worldview">세계관</a></li>
-                            <li><a href="#" class="tab-link" data-tab="scenario">시나리오</a></li>
-                            <li><a href="#" class="tab-link" data-tab="manuscript">집필</a></li> </ul>
-                    </nav>
+                                            <nav>
+                            <ul>
+                            <li><a href="#" class="tab-link active" data-tab="characters"><i data-lucide="users"></i>캐릭터</a></li>
+                            <li><a href="#" class="tab-link" data-tab="worldview"><i data-lucide="globe"></i>세계관</a></li>
+                            <li><a href="#" class="tab-link" data-tab="scenario"><i data-lucide="book-open"></i>시나리오</a></li>
+                            <li><a href="#" class="tab-link" data-tab="manuscript"><i data-lucide="pen-tool"></i>집필</a></li> </ul>
+                        </nav>
                 </div>
                 <div class="tabs-container">
                     <div id="tab-content-characters" class="tab-content active">

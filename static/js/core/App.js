@@ -34,7 +34,9 @@ export class App {
             showRelationshipPanel,
             handleEditCardAI,
             handleManualEditCard,
-            handleEditWorldviewCardAI
+            handleEditWorldviewCardAI,
+            showProjectLoadingOverlay: () => ui.showProjectLoadingOverlay(),
+            hideProjectLoadingOverlay: () => ui.hideProjectLoadingOverlay()
         };
         this.modals = { ...modals };
         
