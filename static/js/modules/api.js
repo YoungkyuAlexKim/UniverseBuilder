@@ -632,3 +632,12 @@ export async function deleteManuscriptBlock(projectId, blockId) {
     });
     return handleResponse(response);
 }
+
+export async function exportManuscriptToScenario(projectId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/export-to-scenario`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}

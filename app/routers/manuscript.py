@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 import time
@@ -13,6 +14,7 @@ from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockT
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database # <--- 오류 수정을 위해 이 줄을 추가했습니다.
 from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, ManuscriptBlock as ManuscriptBlockModel, Card as CardModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
+from .scenarios import PlotPoint
 from .projects import get_project_if_accessible
 from ..config import ai_prompts # 프롬프트 설정을 불러옵니다.
 
@@ -97,6 +99,10 @@ class SplitManuscriptBlockRequest(BaseModel):
     split_position: int
     first_part_title: Optional[str] = None
     second_part_title: Optional[str] = None
+
+class ExportToScenarioRequest(BaseModel):
+    confirm_overwrite: bool = False  # 덮어쓰기 확인
+    max_plots: Optional[int] = 50  # AI 제한 고려한 최대 플롯 수
 
 # --- 라우터 생성 ---
 router = APIRouter(
@@ -492,6 +498,76 @@ def split_manuscript_block(
             status_code=500,
             detail=f"블록 분할 중 오류 발생: {str(e)}. block_id: {block_id}, split_position: {getattr(request, 'split_position', 'N/A')}"
         )
+
+@router.post("/export-to-scenario", response_model=List[PlotPoint])
+def export_manuscript_to_scenario(
+    request: ExportToScenarioRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    집필 탭의 블록들을 시나리오 탭의 플롯 포인트로 내보냅니다.
+    """
+    # 프로젝트의 시나리오 가져오기
+    scenario = db.query(ScenarioModel).filter(ScenarioModel.project_id == project.id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
+
+    # 집필 블록들 가져오기
+    manuscript_blocks = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.project_id == project.id
+    ).order_by(ManuscriptBlockModel.ordering).all()
+
+    if not manuscript_blocks:
+        raise HTTPException(status_code=400, detail="내보낼 집필 블록이 없습니다.")
+
+    # AI 제한 고려한 스마트 처리
+    max_allowed_plots = min(request.max_plots or 50, 50)  # AI 제한은 최대 50개
+    if len(manuscript_blocks) > max_allowed_plots:
+        # 초과된 블록들은 경고하지만 계속 진행
+        print(f"WARNING: 집필 블록 수({len(manuscript_blocks)})가 AI 권장 제한({max_allowed_plots})을 초과했습니다.")
+
+    # 기존 플롯 수 확인 (확인창 표시용)
+    existing_count = db.query(func.count(PlotPointModel.id)).filter(
+        PlotPointModel.scenario_id == scenario.id
+    ).scalar()
+
+    # 기존 플롯이 있는 경우 덮어쓰기 확인 필요
+    if existing_count > 0 and not request.confirm_overwrite:
+        raise HTTPException(
+            status_code=400,
+            detail=f"시나리오 탭에 이미 {existing_count}개의 플롯이 있습니다. 덮어쓰기를 진행하려면 확인이 필요합니다."
+        )
+
+    updated_plot_points = []
+
+    # 기존 플롯 포인트 모두 삭제 후 새로 생성 (덮어쓰기 모드)
+    db.query(PlotPointModel).filter(PlotPointModel.scenario_id == scenario.id).delete()
+
+    for i, block in enumerate(manuscript_blocks):
+        plot_point = PlotPointModel(
+            id=f"plot-{int(time.time() * 1000)}_{i}",
+            scenario_id=scenario.id,
+            title=block.title,
+            content=block.content or "",
+            scene_draft=block.content or "",
+            ordering=i
+        )
+        db.add(plot_point)
+        updated_plot_points.append(plot_point)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"데이터베이스 저장 중 오류 발생: {str(e)}")
+
+    # 결과 반환 (Pydantic 모델로 변환)
+    try:
+        result = [PlotPoint.from_orm(plot) for plot in updated_plot_points]
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"응답 데이터 변환 중 오류 발생: {str(e)}")
 
 @router.delete("/blocks/{block_id}")
 def delete_manuscript_block(

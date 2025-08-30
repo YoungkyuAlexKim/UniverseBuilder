@@ -314,6 +314,92 @@ export class ManuscriptController {
         }
     }
 
+    /**
+     * 집필 탭의 블록들을 시나리오 탭으로 내보냅니다.
+     */
+    async handleExportToScenario(projectId) {
+        try {
+            const requestBody = {};
+
+            // 현재 집필 블록 수 확인
+            const currentProject = this.stateManager.getState().currentProject;
+            const blockCount = currentProject?.manuscript_blocks?.length || 0;
+
+            // AI 제한 경고
+            if (blockCount > 50) {
+                const confirmed = confirm(
+                    `현재 집필 블록이 ${blockCount}개로, AI 권장 제한(50개)을 초과했습니다.\n\n` +
+                    `이대로 내보내면:\n` +
+                    `- AI 전체 플롯 수정 기능 사용이 제한될 수 있습니다\n` +
+                    `- AI 초안 생성 시 50개로 제한됩니다\n\n` +
+                    `계속 진행하시겠습니까?`
+                );
+                if (!confirmed) return;
+
+                requestBody.max_plots = blockCount;
+            }
+
+            // 시나리오 탭의 기존 플롯 수 확인 및 확인 요청
+            try {
+                const scenario = currentProject.scenarios?.[0]; // 첫 번째 시나리오
+                if (scenario && scenario.plot_points) {
+                    const existingPlotCount = scenario.plot_points.length;
+
+                    if (existingPlotCount > 0) {
+                        const confirmOverwrite = confirm(
+                            `⚠️ 시나리오 탭에 이미 ${existingPlotCount}개의 플롯이 있습니다.\n\n` +
+                            `내보내기를 진행하면 기존 플롯들이 모두 삭제되고,\n` +
+                            `집필 블록 ${blockCount}개로 교체됩니다.\n\n` +
+                            `정말 진행하시겠습니까?`
+                        );
+                        if (!confirmOverwrite) return;
+
+                        requestBody.confirm_overwrite = true;
+                    }
+                }
+            } catch (error) {
+                console.warn('시나리오 플롯 수 확인 실패:', error);
+                // 기존 플롯 확인에 실패해도 계속 진행 (안전하게)
+            }
+
+            const result = await api.exportManuscriptToScenario(projectId, requestBody);
+
+            let successMessage = `집필 블록 ${blockCount}개가 시나리오 탭으로 내보내기 완료되었습니다!`;
+            if (blockCount > 50) {
+                successMessage += `\n\n⚠️ AI 제한 고려: 초과된 ${blockCount - 50}개 블록은 AI 기능에서 제한될 수 있습니다.`;
+            }
+
+            alert(successMessage);
+            await this.stateManager.refreshCurrentProject();
+
+        } catch (error) {
+            console.error('시나리오 내보내기 실패:', error);
+
+            // 백엔드에서 덮어쓰기 확인이 필요한 경우
+            if (error.message && error.message.includes('덮어쓰기를 진행하려면 확인이 필요합니다')) {
+                const confirmOverwrite = confirm(
+                    '시나리오 탭에 기존 플롯이 있어 덮어쓰기 확인이 필요합니다.\n\n' +
+                    '정말 기존 플롯을 모두 삭제하고 내보내시겠습니까?'
+                );
+
+                if (confirmOverwrite) {
+                    // 확인과 함께 재시도
+                    const requestBody = { confirm_overwrite: true };
+                    try {
+                        await api.exportManuscriptToScenario(projectId, requestBody);
+                        alert('집필 블록들이 시나리오 탭으로 내보내기 완료되었습니다!');
+                        await this.stateManager.refreshCurrentProject();
+                    } catch (retryError) {
+                        alert(`재시도 실패: ${retryError.message || '알 수 없는 오류'}`);
+                    }
+                }
+                return;
+            }
+
+            alert(`시나리오 내보내기 실패: ${error.message || '알 수 없는 오류'}`);
+        }
+    }
+
     openPartialRefineModal(selectedText, surroundingContext) {
         const modal = document.getElementById('partial-refine-modal');
         const backdrop = document.getElementById('modal-backdrop');

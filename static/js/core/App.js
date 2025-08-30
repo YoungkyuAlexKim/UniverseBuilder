@@ -239,6 +239,10 @@ export class App {
         return this.manuscriptController.handleDeleteManuscriptBlock(projectId, blockId);
     }
 
+    async handleExportToScenario(projectId, mode) {
+        return this.manuscriptController.handleExportToScenario(projectId, mode);
+    }
+
     // 캐릭터 생성 관련
     openCharacterGenerationModal(projectId) {
         return this.characterGenerationController.openCharacterGenerationModal(projectId);

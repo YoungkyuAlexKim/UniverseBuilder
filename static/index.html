@@ -224,6 +224,7 @@
                                         <button id="manuscript-clear-btn" class="secondary outline" title="모든 집필 내용 삭제">전체 삭제</button>
                                         <button id="manuscript-merge-btn" class="secondary outline" title="선택된 블록들 합치기" disabled>합치기</button>
                                         <button id="manuscript-split-btn" class="secondary outline" title="현재 블록 분할하기" disabled>분할</button>
+                                        <button id="manuscript-export-btn" class="secondary outline" title="시나리오 탭으로 내보내기"><i data-lucide="upload"></i>내보내기</button>
                                     </div>
                                 </header>
                                 <ul id="manuscript-block-list" class="block-list">
@@ -719,7 +720,110 @@
             outline: 2px solid var(--pico-primary);
             outline-offset: 2px;
         }
+
+        /* AI 제한 안내 모달 스타일 */
+        #solution-organize-manuscript:hover,
+        #solution-partial-edit:hover {
+            border-color: var(--pico-primary) !important;
+            background-color: var(--pico-primary-background) !important;
+        }
+
+        /* 선택 모드 체크박스 스타일 */
+        .plot-select-checkbox {
+            accent-color: var(--pico-primary);
+            transform: scale(1.1);
+        }
+
+        .plot-select-checkbox:checked {
+            background-color: var(--pico-primary);
+        }
+
+        /* 선택된 플롯 카드 하이라이트 */
+        .plot-point-card:has(.plot-select-checkbox:checked) {
+            border-color: var(--pico-primary);
+            background-color: var(--pico-primary-background);
+        }
     </style>
+
+    <!-- [신규] AI 제한 안내 모달 -->
+    <div id="ai-limit-guidance-modal" class="modal-container">
+        <article style="max-width: 600px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3><i data-lucide="alert-triangle"></i>AI 전체 플롯 수정 제한 안내</h3>
+            </header>
+            <div style="padding: 1rem;">
+                <div style="background: var(--pico-warning-background-color); border: 1px solid var(--pico-warning-border-color); border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="color: var(--pico-warning-text-color); margin-top: 0;"><i data-lucide="info"></i>현재 상황</h4>
+                    <p style="margin-bottom: 0; color: var(--pico-warning-text-color);">
+                        현재 <strong id="current-plot-count">0</strong>개의 플롯이 있어 AI 전체 수정 기능이 제한됩니다.<br>
+                        AI는 최대 <strong>50개</strong>까지 지원합니다.
+                    </p>
+                </div>
+
+                <h4>해결 방법을 선택해주세요:</h4>
+
+                <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+                    <div style="border: 1px solid var(--pico-border-color); border-radius: 6px; padding: 1rem; cursor: pointer; transition: background-color 0.2s;" id="solution-organize-manuscript">
+                        <h5 style="margin-top: 0;"><i data-lucide="folder-edit"></i>집필 탭에서 정리하기</h5>
+                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem;">
+                            집필 탭으로 이동해서 플롯을 그룹화하거나 삭제하여 50개 이하로 만들기
+                        </p>
+                        <div style="font-size: 0.8rem; color: var(--pico-muted-color);">
+                            ✅ 체계적인 정리 가능<br>
+                            ✅ 전체 수정 기능 완전 사용 가능
+                        </div>
+                    </div>
+
+                    <div style="border: 1px solid var(--pico-border-color); border-radius: 6px; padding: 1rem; cursor: pointer; transition: background-color 0.2s;" id="solution-partial-edit">
+                        <h5 style="margin-top: 0;"><i data-lucide="edit-3"></i>선택해서 수정하기</h5>
+                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem;">
+                            50개 미만으로 플롯을 선택해서 부분적으로 AI 수정하기
+                        </p>
+                        <div style="font-size: 0.8rem; color: var(--pico-muted-color);">
+                            ✅ 빠른 수정 가능<br>
+                            ✅ 선택적으로 적용 가능
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <footer style="display: flex; justify-content: flex-end;">
+                <button id="ai-limit-modal-cancel-btn" class="secondary outline">나중에 하기</button>
+            </footer>
+        </article>
+    </div>
+
+    <!-- [신규] 집필 내보내기 모달 -->
+    <div id="manuscript-export-modal" class="modal-container">
+        <article style="max-width: 500px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3><i data-lucide="upload"></i>시나리오 탭으로 내보내기</h3>
+            </header>
+            <div style="padding: 1rem;">
+                <p>집필 탭의 블록들을 시나리오 탭의 플롯 포인트로 내보냅니다.</p>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--pico-warning-background-color); border: 1px solid var(--pico-warning-border-color); border-radius: 6px;">
+                    <p style="margin: 0; color: var(--pico-warning-text-color);">
+                        <strong>⚠️ 덮어쓰기 주의:</strong><br>
+                        시나리오 탭의 기존 플롯들을 모두 삭제하고 집필 블록들로 교체합니다.
+                    </p>
+                </div>
+
+                <div id="export-warning" style="margin-top: 1rem; padding: 0.5rem; background: var(--pico-warning-background-color); border: 1px solid var(--pico-warning-border-color); border-radius: 6px; display: none;">
+                    <p style="margin: 0; color: var(--pico-warning-text-color);">
+                        <strong>⚠️ AI 제한 경고:</strong><br>
+                        집필 블록 수가 AI 권장 제한(50개)을 초과했습니다.<br>
+                        AI 전체 플롯 수정 기능이 제한될 수 있습니다.
+                    </p>
+                </div>
+            </div>
+            <footer style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button id="manuscript-export-cancel-btn" class="secondary outline">취소</button>
+                <button id="manuscript-export-confirm-btn">내보내기 실행</button>
+            </footer>
+        </article>
+    </div>
 
     <!-- 아이콘 렌더링 스크립트 -->
     <script>

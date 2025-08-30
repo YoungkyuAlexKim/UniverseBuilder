@@ -351,6 +351,7 @@ function renderScenarioTab(projectData) {
                 <div class="plot-buttons-group">
                     <button type="button" id="ai-draft-btn" class="contrast"><i data-lucide="file-plus-2"></i>AI로 전체 스토리 초안 생성</button>
                     <button type="button" id="ai-edit-plots-btn" class="secondary"><i data-lucide="pencil-ruler"></i>AI로 전체 플롯 수정</button>
+                    <button type="button" id="ai-edit-selected-btn" class="secondary outline" style="display: none;"><i data-lucide="check-square"></i>선택한 플롯 수정</button>
                     <button id="delete-all-plots-btn" class="secondary outline">전체 삭제</button>
                 </div>
             </div>
@@ -386,6 +387,7 @@ function renderScenarioTab(projectData) {
                 return `
                 <article class="plot-point-card" data-plot-id="${plot.id}">
                     <div class="plot-card-header">
+                        <input type="checkbox" class="plot-select-checkbox" data-plot-id="${plot.id}" style="margin-right: 0.5rem; display: none;">
                         <div class="plot-card-number">${plot.ordering + 1}</div>
                         <h5 class="plot-card-title">${plot.title}</h5>
                         <div class="plot-card-badges">
@@ -435,6 +437,7 @@ function renderScenarioTab(projectData) {
         setupButtonListener('#enhance-synopsis-btn', () => app.handleEnhanceSynopsis());
         setupButtonListener('#ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
         setupButtonListener('#ai-edit-plots-btn', () => app.handleAiEditPlots());
+        setupButtonListener('#ai-edit-selected-btn', () => app.handleAiEditSelectedPlots());
         setupButtonListener('#delete-all-plots-btn', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
 
         const plotList = newContainer.querySelector('#plot-list');
@@ -464,6 +467,7 @@ function renderManuscriptTab(projectData) {
     const clearButton = container.querySelector('#manuscript-clear-btn');
     const mergeButton = container.querySelector('#manuscript-merge-btn');
     const splitButton = container.querySelector('#manuscript-split-btn');
+    const exportButton = container.querySelector('#manuscript-export-btn');
     const charCountDisplay = container.querySelector('#char-count-display');
     const wordCountDisplay = container.querySelector('#word-count-display');
 
@@ -719,6 +723,11 @@ function renderManuscriptTab(projectData) {
         contextMenu.style.display = 'none';
     });
 
+    // [신규] 내보내기 버튼 이벤트
+    eventManager.addEventListener(exportButton, 'click', () => {
+        openExportModal(projectData);
+    });
+
     // 문서 클릭 시 컨텍스트 메뉴 숨기기
     document.addEventListener('click', (e) => {
         if (!contextMenu.contains(e.target)) {
@@ -770,5 +779,55 @@ function renderManuscriptTab(projectData) {
             app.handleUpdateManuscriptOrder(projectData.id, blockIds);
         }
     });
+}
+
+// -------------------------
+// [신규] 집필 내보내기 모달
+// -------------------------
+
+function openExportModal(projectData) {
+    const modal = document.getElementById('manuscript-export-modal');
+    const backdrop = document.getElementById('modal-backdrop');
+    const confirmBtn = document.getElementById('manuscript-export-confirm-btn');
+    const cancelBtn = document.getElementById('manuscript-export-cancel-btn');
+    const warningDiv = document.getElementById('export-warning');
+
+    const blockCount = projectData.manuscript_blocks?.length || 0;
+
+    // AI 제한 경고 표시
+    if (blockCount > 50) {
+        warningDiv.style.display = 'block';
+    } else {
+        warningDiv.style.display = 'none';
+    }
+
+    // 확인 버튼 이벤트
+    const confirmHandler = () => {
+        app.handleExportToScenario(projectData.id);
+        closeModal();
+    };
+
+    // 취소 버튼 이벤트
+    const cancelHandler = () => {
+        closeModal();
+    };
+
+    // 모달 닫기 함수
+    const closeModal = () => {
+        modal.classList.remove('active');
+        backdrop.classList.remove('active');
+        confirmBtn.removeEventListener('click', confirmHandler);
+        cancelBtn.removeEventListener('click', cancelHandler);
+        modal.querySelector('.close').removeEventListener('click', cancelHandler);
+    };
+
+    // 이벤트 리스너 설정
+    confirmBtn.addEventListener('click', confirmHandler);
+    cancelBtn.addEventListener('click', cancelHandler);
+    modal.querySelector('.close').addEventListener('click', cancelHandler);
+
+    // 모달 표시
+    modal.classList.add('active');
+    backdrop.classList.add('active');
 }
 

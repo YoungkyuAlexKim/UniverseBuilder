@@ -131,7 +131,7 @@ export class ScenarioController {
      */
     async handleAiEditPlots() {
         const { currentProject } = this.stateManager.getState();
-        
+
         if (!currentProject || !currentProject.scenarios || currentProject.scenarios.length === 0) {
             showToast('현재 활성화된 시나리오가 없습니다.', 'warning');
             return;
@@ -143,8 +143,14 @@ export class ScenarioController {
             return;
         }
 
+        // [신규] AI 제한 사전 검증
+        if (mainScenario.plot_points.length > 50) {
+            this.showAiLimitGuidanceModal(mainScenario.plot_points.length);
+            return;
+        }
+
         const userPrompt = prompt("전체 플롯을 어떤 방향으로 수정하고 싶으신가요?\n\n예시:\n- 후반부 전개를 좀 더 희망적으로 바꿔줘.\n- 20번부터 25번 플롯까지의 긴장감을 더 높여줘.\n- 주인공의 라이벌을 더 일찍 등장시켜줘.");
-        
+
         if (!userPrompt || !userPrompt.trim()) {
             return;
         }
@@ -193,6 +199,252 @@ export class ScenarioController {
         } catch (error) {
             console.error('AI 전체 플롯 수정 실패:', error);
             alert(error.message);
+        } finally {
+            button.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    /**
+     * AI 제한 안내 모달을 표시합니다.
+     */
+    showAiLimitGuidanceModal(plotCount) {
+        const modal = document.getElementById('ai-limit-guidance-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+        const currentPlotCountEl = document.getElementById('current-plot-count');
+
+        // 플롯 개수 표시
+        if (currentPlotCountEl) {
+            currentPlotCountEl.textContent = plotCount;
+        }
+
+        // 모달 이벤트 핸들러
+        const handleOrganizeManuscript = () => {
+            closeModal();
+            // 집필 탭으로 이동
+            const manuscriptTab = document.querySelector('a[data-tab="manuscript"]');
+            if (manuscriptTab) {
+                manuscriptTab.click();
+                showToast('집필 탭에서 플롯을 정리한 후 다시 시도해주세요.', 'info');
+            }
+        };
+
+        const handlePartialEdit = () => {
+            closeModal();
+            this.enablePartialSelectionMode();
+        };
+
+        const handleCancel = () => {
+            closeModal();
+        };
+
+        const closeModal = () => {
+            modal.classList.remove('active');
+            backdrop.classList.remove('active');
+            // 이벤트 리스너 제거
+            document.getElementById('solution-organize-manuscript').removeEventListener('click', handleOrganizeManuscript);
+            document.getElementById('solution-partial-edit').removeEventListener('click', handlePartialEdit);
+            document.getElementById('ai-limit-modal-cancel-btn').removeEventListener('click', handleCancel);
+            modal.querySelector('.close').removeEventListener('click', handleCancel);
+        };
+
+        // 이벤트 리스너 설정
+        document.getElementById('solution-organize-manuscript').addEventListener('click', handleOrganizeManuscript);
+        document.getElementById('solution-partial-edit').addEventListener('click', handlePartialEdit);
+        document.getElementById('ai-limit-modal-cancel-btn').addEventListener('click', handleCancel);
+        modal.querySelector('.close').addEventListener('click', handleCancel);
+
+        // 모달 표시
+        modal.classList.add('active');
+        backdrop.classList.add('active');
+    }
+
+    /**
+     * 부분 선택 모드를 활성화합니다.
+     */
+    enablePartialSelectionMode() {
+        // 체크박스 표시
+        const checkboxes = document.querySelectorAll('.plot-select-checkbox');
+        checkboxes.forEach(cb => cb.style.display = 'inline-block');
+
+        // 선택 수정 버튼 표시
+        const selectEditBtn = document.getElementById('ai-edit-selected-btn');
+        if (selectEditBtn) {
+            selectEditBtn.style.display = 'inline-block';
+            selectEditBtn.addEventListener('click', () => this.handleAiEditSelectedPlots());
+        }
+
+        // 전체 수정 버튼 숨기기
+        const fullEditBtn = document.getElementById('ai-edit-plots-btn');
+        if (fullEditBtn) {
+            fullEditBtn.style.display = 'none';
+        }
+
+        showToast('수정할 플롯을 선택해주세요. (최대 50개)', 'info');
+
+        // 선택 취소 버튼 추가
+        this.addCancelSelectionButton();
+
+        // 체크박스 이벤트 리스너
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => this.updateSelectedCount());
+        });
+    }
+
+    /**
+     * 선택 취소 버튼을 추가합니다.
+     */
+    addCancelSelectionButton() {
+        const buttonGroup = document.querySelector('.plot-buttons-group');
+        if (!buttonGroup) return;
+
+        // 기존 취소 버튼이 있으면 제거
+        const existingCancelBtn = document.getElementById('cancel-selection-btn');
+        if (existingCancelBtn) {
+            existingCancelBtn.remove();
+        }
+
+        // 새 취소 버튼 추가
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'cancel-selection-btn';
+        cancelBtn.className = 'secondary outline';
+        cancelBtn.innerHTML = '<i data-lucide="x"></i>선택 취소';
+        cancelBtn.style.marginLeft = 'auto';
+
+        cancelBtn.addEventListener('click', () => this.cancelPartialSelectionMode());
+
+        buttonGroup.appendChild(cancelBtn);
+
+        // 아이콘 렌더링
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    /**
+     * 부분 선택 모드를 취소합니다.
+     */
+    cancelPartialSelectionMode() {
+        // 체크박스 숨기기
+        const checkboxes = document.querySelectorAll('.plot-select-checkbox');
+        checkboxes.forEach(cb => {
+            cb.style.display = 'none';
+            cb.checked = false;
+        });
+
+        // 버튼 상태 복원
+        const selectEditBtn = document.getElementById('ai-edit-selected-btn');
+        const fullEditBtn = document.getElementById('ai-edit-plots-btn');
+
+        if (selectEditBtn) {
+            selectEditBtn.style.display = 'none';
+        }
+        if (fullEditBtn) {
+            fullEditBtn.style.display = 'inline-block';
+        }
+
+        // 취소 버튼 제거
+        const cancelBtn = document.getElementById('cancel-selection-btn');
+        if (cancelBtn) {
+            cancelBtn.remove();
+        }
+
+        showToast('선택 모드가 취소되었습니다.', 'info');
+    }
+
+    /**
+     * 선택된 플롯 개수를 업데이트합니다.
+     */
+    updateSelectedCount() {
+        const selectedCount = document.querySelectorAll('.plot-select-checkbox:checked').length;
+        const selectEditBtn = document.getElementById('ai-edit-selected-btn');
+
+        if (selectEditBtn) {
+            if (selectedCount > 0 && selectedCount <= 50) {
+                selectEditBtn.textContent = `선택한 플롯 수정 (${selectedCount}개)`;
+                selectEditBtn.disabled = false;
+            } else if (selectedCount > 50) {
+                selectEditBtn.textContent = `너무 많이 선택됨 (${selectedCount}개)`;
+                selectEditBtn.disabled = true;
+            } else {
+                selectEditBtn.textContent = '선택한 플롯 수정';
+                selectEditBtn.disabled = true;
+            }
+        }
+    }
+
+    /**
+     * 선택된 플롯들을 AI로 수정합니다.
+     */
+    async handleAiEditSelectedPlots() {
+        const selectedCheckboxes = document.querySelectorAll('.plot-select-checkbox:checked');
+        const selectedCount = selectedCheckboxes.length;
+
+        if (selectedCount === 0) {
+            showToast('수정할 플롯을 선택해주세요.', 'warning');
+            return;
+        }
+
+        if (selectedCount > 50) {
+            showToast('최대 50개까지 선택할 수 있습니다.', 'error');
+            return;
+        }
+
+        const { currentProject } = this.stateManager.getState();
+        const mainScenario = currentProject.scenarios[0];
+
+        const userPrompt = prompt(`선택한 ${selectedCount}개의 플롯을 어떻게 수정하고 싶으신가요?\n\n예시:\n- 이 플롯들의 긴장감을 높여줘\n- 더 희망적인 결말로 바꿔줘\n- 캐릭터 관계를 더 명확히 해줘`);
+
+        if (!userPrompt || !userPrompt.trim()) {
+            return;
+        }
+
+        const button = document.getElementById('ai-edit-selected-btn');
+        button.setAttribute('aria-busy', 'true');
+
+        try {
+            // 선택된 플롯 ID들 추출
+            const selectedPlotIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.plotId);
+
+            // 선택된 플롯들만 필터링
+            const selectedPlots = mainScenario.plot_points.filter(plot => selectedPlotIds.includes(plot.id));
+
+            // 임시로 선택된 플롯들로 시나리오 교체해서 API 호출
+            const tempScenario = { ...mainScenario, plot_points: selectedPlots };
+
+            const requestBody = {
+                user_prompt: userPrompt,
+                model_name: document.getElementById('ai-model-select').value,
+                selected_plot_ids: selectedPlotIds
+            };
+
+            // API 호출 (선택된 플롯들만)
+            const result = await api.editAllPlotPointsWithAi(currentProject.id, mainScenario.id, requestBody);
+
+            // 선택된 플롯들의 순서에 맞게 결과 적용
+            const updatePromises = selectedPlots.map((plot, index) => {
+                const updatedPlot = result.plot_points[index];
+                if (updatedPlot) {
+                    const plotData = {
+                        title: updatedPlot.title,
+                        content: updatedPlot.content
+                    };
+                    return api.updatePlotPoint(currentProject.id, mainScenario.id, plot.id, plotData);
+                }
+            }).filter(Boolean);
+
+            await Promise.all(updatePromises);
+
+            showToast(`선택된 ${selectedCount}개 플롯이 성공적으로 수정되었습니다!`, 'success');
+
+            // 선택 모드 자동 취소
+            this.cancelPartialSelectionMode();
+
+            // UI 새로고침
+            await this.stateManager.refreshCurrentProject();
+
+        } catch (error) {
+            console.error('선택 플롯 수정 실패:', error);
+            alert(`선택 플롯 수정 실패: ${error.message || '알 수 없는 오류'}`);
         } finally {
             button.setAttribute('aria-busy', 'false');
         }

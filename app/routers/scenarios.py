@@ -72,6 +72,7 @@ class AIEditPlotPointRequest(BaseModel):
 class AIEditPlotsRequest(BaseModel):
     user_prompt: str
     model_name: Optional[str] = None
+    selected_plot_ids: Optional[List[str]] = None  # 선택된 플롯 ID들 (선택적)
 
 class GenerateSceneRequest(BaseModel):
     output_format: str
@@ -348,6 +349,13 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
     if not scenario.plot_points:
         raise HTTPException(status_code=400, detail="수정할 플롯 포인트가 없습니다. 먼저 플롯을 생성해주세요.")
 
+    # [신규] AI 제한 확인: 50개 초과시 제한
+    if len(scenario.plot_points) > 50:
+        raise HTTPException(
+            status_code=400,
+            detail=f"플롯 포인트가 너무 많습니다 ({len(scenario.plot_points)}개). AI 전체 수정 기능은 최대 50개까지 지원합니다. 집필 탭에서 플롯을 분할하거나 정리한 후 다시 시도해주세요."
+        )
+
     world_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
     worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(world_data.get("rules", [])) if world_data.get("rules") else ""
     story_genre_context = f"### 이야기 장르 및 분위기\n{world_data.get('genre', '정의되지 않음')}"
@@ -359,9 +367,23 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
     story_concept = f"### 이야기 핵심 컨셉\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
     synopsis_context = f"### 시놉시스 / 전체 줄거리\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
 
-    sorted_plots = sorted(scenario.plot_points, key=lambda p: p.ordering)
+    # 선택된 플롯만 처리 (선택적)
+    if request.selected_plot_ids:
+        sorted_plots = [p for p in sorted(scenario.plot_points, key=lambda p: p.ordering) if p.id in request.selected_plot_ids]
+        if not sorted_plots:
+            raise HTTPException(status_code=400, detail="선택된 플롯을 찾을 수 없습니다.")
+    else:
+        sorted_plots = sorted(scenario.plot_points, key=lambda p: p.ordering)
+
     plot_points_context = "\n".join([f"{i+1}. {p.title}: {p.content or ''}" for i, p in enumerate(sorted_plots)])
     plot_point_count = len(sorted_plots)
+
+    # 선택 모드에서도 50개 제한 적용
+    if plot_point_count > 50:
+        raise HTTPException(
+            status_code=400,
+            detail=f"선택된 플롯이 너무 많습니다 ({plot_point_count}개). AI는 최대 50개까지 지원합니다."
+        )
 
     prompt = ai_prompts.plot_points_edit.format(
         worldview_rules_context=worldview_rules_context,
