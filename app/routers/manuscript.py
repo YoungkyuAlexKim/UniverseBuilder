@@ -210,6 +210,22 @@ class CharacterExtractionResult(BaseModel):
     characters: List[CharacterInfo]
     unidentified_entities: List[UnidentifiedEntity]
 
+class GenerateFeedbackRequest(BaseModel):
+    text_content: str
+
+class ImprovementItem(BaseModel):
+    priority: str  # "high", "medium", "low"
+    category: str  # "문장", "캐릭터", "플롯", "몰입도", "세계관"
+    issue: str
+    suggestion: str
+
+class ExpertFeedbackResult(BaseModel):
+    overall_score: int  # 1-10
+    strengths: List[str]
+    improvements: List[ImprovementItem]
+    writing_tips: List[str]
+    encouragement: str
+
 # --- Pydantic 모델 ---
 class StyleGuideInfo(BaseModel):
     id: str
@@ -807,6 +823,98 @@ async def extract_characters_from_manuscript(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"캐릭터 추출 중 오류 발생: {e}")
+
+@router.post("/blocks/{block_id}/generate-feedback")
+async def generate_expert_feedback(
+    block_id: str,
+    request: GenerateFeedbackRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    집필 블록의 텍스트에 대한 전문가 수준의 AI 피드백을 생성합니다.
+    """
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
+
+    # 블록 존재 확인
+    block = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.id == block_id,
+        ManuscriptBlockModel.project_id == project.id
+    ).first()
+
+    if not block:
+        raise HTTPException(status_code=404, detail="블록을 찾을 수 없습니다.")
+
+    if not request.text_content or not request.text_content.strip():
+        raise HTTPException(status_code=400, detail="피드백을 받을 텍스트 내용이 없습니다.")
+
+    # 플롯 배경 정보 수집
+    scenario = db.query(ScenarioModel).filter(ScenarioModel.project_id == project.id).first()
+    plot_context = "플롯 정보가 없습니다."
+    if scenario:
+        original_plot = db.query(PlotPointModel).filter(
+            PlotPointModel.scenario_id == scenario.id,
+            PlotPointModel.ordering == block.ordering
+        ).first()
+        if original_plot:
+            plot_context = f"플롯 제목: {original_plot.title}\n플롯 내용: {original_plot.content or '상세 내용 없음'}"
+
+    # 캐릭터 정보 수집 (해당 블록에 등장하는 캐릭터들)
+    characters = db.query(CardModel).join(GroupModel).filter(GroupModel.project_id == project.id).all()
+    character_context = "\n".join([
+        f"- {c.name}: {c.description[:100] if c.description else '설명 없음'}"
+        for c in characters
+    ]) or "등록된 캐릭터가 없습니다."
+
+    # AI 프롬프트 구성
+    prompt = ai_prompts.generate_expert_feedback.format(
+        text_content=request.text_content,
+        plot_context=plot_context,
+        character_context=character_context
+    )
+
+    try:
+        chosen_model = AVAILABLE_MODELS[0]  # 기본 모델 사용
+        model = genai.GenerativeModel(chosen_model)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        generation_config = GenerationConfig(response_mime_type="application/json")
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+
+        if not response.parts:
+            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+            error_detail = f"AI가 응답을 생성하지 못했습니다. (종료 사유: {finish_reason})"
+            if "SAFETY" in str(finish_reason):
+                error_detail = "AI 생성 내용이 안전 필터에 의해 차단되었습니다."
+            raise HTTPException(status_code=500, detail=error_detail)
+
+        raw_text = response.text.strip()
+        cleaned_text = raw_text.removeprefix("```json").removesuffix("```").strip()
+
+        result = json.loads(cleaned_text)
+
+        # 디버깅을 위한 로깅
+        print(f"DEBUG: AI 피드백 생성 성공 - 점수: {result.get('overall_score', 'N/A')}")
+
+        return ExpertFeedbackResult(**result)
+
+    except json.JSONDecodeError:
+        error_detail = f"AI가 유효하지 않은 JSON 형식으로 응답했습니다. 원본 응답: {raw_text[:200]}"
+        raise HTTPException(status_code=500, detail=error_detail)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"AI 피드백 생성 중 오류 발생: {e}")
 
 @router.delete("/blocks/{block_id}")
 def delete_manuscript_block(

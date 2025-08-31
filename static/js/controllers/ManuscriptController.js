@@ -505,6 +505,135 @@ export class ManuscriptController {
         return roleMap[role] || role;
     }
 
+    /**
+     * AI 전문가 피드백을 요청합니다.
+     */
+    async requestExpertFeedback(blockId, textContent) {
+        const feedbackContent = document.getElementById('feedback-content');
+
+        // 로딩 상태 표시
+        feedbackContent.innerHTML = `
+            <div class="feedback-loading">
+                <small>AI가 전문가 피드백을 생성하고 있습니다...</small>
+                <div class="loading-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        `;
+
+        try {
+            const projectId = this.stateManager.getState().currentProject.id;
+            const result = await api.generateExpertFeedback(projectId, blockId, { text_content: textContent });
+
+            // 결과 표시
+            this.displayExpertFeedback(result);
+
+        } catch (error) {
+            console.error('AI 피드백 요청 실패:', error);
+            feedbackContent.innerHTML = `
+                <div class="feedback-loading">
+                    <small style="color: var(--pico-form-element-invalid-active-border-color);">
+                        피드백 생성 중 오류가 발생했습니다. 다시 시도해주세요.
+                    </small>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * AI 전문가 피드백 결과를 화면에 표시합니다.
+     */
+    displayExpertFeedback(feedback) {
+        const feedbackContent = document.getElementById('feedback-content');
+
+        // 점수별 색상 설정
+        const getScoreColor = (score) => {
+            if (score >= 8) return '#10b981'; // 초록
+            if (score >= 6) return '#f59e0b'; // 노랑
+            return '#ef4444'; // 빨강
+        };
+
+        const scoreColor = getScoreColor(feedback.overall_score);
+
+        // 개선사항 우선순위별 정렬 및 표시
+        const sortedImprovements = feedback.improvements.sort((a, b) => {
+            const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+            return priorityOrder[b.priority] - priorityOrder[a.priority];
+        });
+
+        const improvementItems = sortedImprovements.map(improvement => {
+            const priorityIcon = {
+                'high': '🔴',
+                'medium': '🟡',
+                'low': '🟢'
+            }[improvement.priority];
+
+            return `
+                <div class="improvement-item priority-${improvement.priority}">
+                    <div class="improvement-header">
+                        <span class="priority-badge">${priorityIcon}</span>
+                        <span class="category">${improvement.category}</span>
+                    </div>
+                    <div class="improvement-content">
+                        <div class="issue">${improvement.issue}</div>
+                        <div class="suggestion">💡 ${improvement.suggestion}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        feedbackContent.innerHTML = `
+            <div class="feedback-result">
+                <!-- 점수 표시 -->
+                <div class="score-section">
+                    <div class="score-display">
+                        <span class="score-number" style="color: ${scoreColor}">${feedback.overall_score}</span>
+                        <span class="score-label">/10점</span>
+                    </div>
+                    <div class="score-bar">
+                        <div class="score-fill" style="width: ${feedback.overall_score * 10}%; background-color: ${scoreColor}"></div>
+                    </div>
+                </div>
+
+                <!-- 장점 -->
+                ${feedback.strengths.length > 0 ? `
+                    <div class="strengths-section">
+                        <h6>✨ 잘된 점</h6>
+                        <ul>
+                            ${feedback.strengths.map(strength => `<li>${strength}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <!-- 개선사항 -->
+                ${sortedImprovements.length > 0 ? `
+                    <div class="improvements-section">
+                        <h6>🔧 개선 제안</h6>
+                        ${improvementItems}
+                    </div>
+                ` : ''}
+
+                <!-- 작문 팁 -->
+                ${feedback.writing_tips.length > 0 ? `
+                    <div class="tips-section">
+                        <h6>💡 작문 팁</h6>
+                        <ul>
+                            ${feedback.writing_tips.map(tip => `<li>${tip}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <!-- 격려 메시지 -->
+                ${feedback.encouragement ? `
+                    <div class="encouragement-section">
+                        <h6>🌟 격려의 말</h6>
+                        <p class="encouragement-text">${feedback.encouragement}</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
     openPartialRefineModal(selectedText, surroundingContext) {
         const modal = document.getElementById('partial-refine-modal');
         const backdrop = document.getElementById('modal-backdrop');

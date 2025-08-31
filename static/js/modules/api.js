@@ -686,3 +686,16 @@ export async function extractCharactersFromManuscript(projectId, blockId, reques
     });
     return handleResponse(response);
 }
+
+// -------------------------
+// AI 피드백 (AI Feedback)
+// -------------------------
+
+export async function generateExpertFeedback(projectId, blockId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/generate-feedback`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}

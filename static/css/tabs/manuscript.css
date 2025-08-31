@@ -33,6 +33,19 @@
     color: var(--text-primary);
 }
 
+/* 우측 패널 Grid 레이아웃 */
+.manuscript-context-panel {
+    display: grid;
+    grid-template-rows: auto 0.4fr auto 0.6fr; /* header, character(40%), resizer, feedback(60%) */
+    grid-template-areas:
+        "header"
+        "character"
+        "resizer"
+        "feedback";
+    height: calc(100vh - 200px); /* 고정 높이 */
+    overflow: hidden; /* 내부 스크롤만 허용 */
+}
+
 .manuscript-actions {
     display: flex;
     flex-direction: column;
@@ -138,11 +151,111 @@
 
 /* 우측 패널 개선 스타일 */
 .context-section {
-    margin-top: 1rem;
     padding: 0.75rem;
     background: var(--bg-primary);
     border: 1px solid var(--border-secondary);
     border-radius: var(--border-radius-sm);
+    overflow: hidden; /* 내부 컨텐츠만 스크롤 */
+    display: flex;
+    flex-direction: column;
+}
+
+.character-section {
+    grid-area: character;
+    min-height: 200px; /* 최소 높이 */
+}
+
+.feedback-section {
+    grid-area: feedback;
+    min-height: 200px; /* 최소 높이 */
+}
+
+/* 캐릭터 리스트 내부 스크롤 */
+.characters-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-secondary) transparent;
+}
+
+.characters-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.characters-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.characters-list::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+    border-radius: 2px;
+}
+
+.characters-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* 패널 리사이저 스타일 */
+.panel-resizer {
+    grid-area: resizer;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    position: relative;
+    cursor: ns-resize;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resizer-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--border-secondary);
+    border-radius: 2px;
+    position: relative;
+}
+
+.resizer-handle::before,
+.resizer-handle::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 2px;
+    background: var(--text-muted);
+    border-radius: 1px;
+}
+
+.resizer-handle::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.resizer-handle::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.panel-resizer:hover .resizer-handle {
+    background: var(--primary-color);
+}
+
+.panel-resizer:hover .resizer-handle::before,
+.panel-resizer:hover .resizer-handle::after {
+    background: var(--primary-color);
+}
+
+/* 드래그 중 스타일 */
+.panel-resizer.dragging {
+    background: var(--primary-background);
+}
+
+.panel-resizer.dragging .resizer-handle {
+    background: var(--primary-color);
 }
 
 .section-header {
@@ -242,6 +355,30 @@
 .feedback-content {
     text-align: center;
     padding: 1rem 0;
+    max-height: 400px; /* 최대 높이 제한 */
+    overflow-y: auto; /* 세로 스크롤 추가 */
+    overflow-x: hidden; /* 가로 스크롤 숨김 */
+    scrollbar-width: thin; /* Firefox용 스크롤바 너비 */
+    scrollbar-color: var(--border-secondary) var(--bg-secondary); /* Firefox용 스크롤바 색상 */
+}
+
+/* Webkit 브라우저용 스크롤바 스타일링 */
+.feedback-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.feedback-content::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.feedback-content::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+    border-radius: 3px;
+}
+
+.feedback-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }
 
 .feedback-loading {
@@ -259,24 +396,226 @@
 /* 피드백 결과 표시 */
 .feedback-result {
     text-align: left;
-    padding: 0.75rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-height: none; /* 부모 컨테이너에서 이미 제한됨 */
+}
+
+/* 점수 섹션 */
+.score-section {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+}
+
+.score-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    gap: 0.25rem;
+}
+
+.score-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.score-label {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+}
+
+.score-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-accent);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* 장점 섹션 */
+.strengths-section {
+    margin-bottom: 1.5rem;
+}
+
+.strengths-section h6 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+}
+
+.strengths-section ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.strengths-section li {
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+/* 개선사항 섹션 */
+.improvements-section {
+    margin-bottom: 1.5rem;
+}
+
+.improvements-section h6 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+}
+
+.improvement-item {
     background: var(--bg-secondary);
     border: 1px solid var(--border-secondary);
     border-radius: var(--border-radius-sm);
-    font-size: 0.85rem;
-    line-height: 1.5;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
 }
 
-.feedback-result .feedback-text {
-    color: var(--text-primary);
+.improvement-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-bottom: 0.5rem;
 }
 
-.feedback-result .feedback-meta {
-    font-size: 0.75rem;
+.priority-badge {
+    font-size: 1rem;
+}
+
+.category {
+    font-size: 0.8rem;
     color: var(--text-muted);
-    border-top: 1px solid var(--border-secondary);
-    padding-top: 0.5rem;
+    background: var(--bg-accent);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+}
+
+.improvement-content .issue {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.improvement-content .suggestion {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--primary-color);
+}
+
+/* 우선순위별 색상 */
+.priority-high .category {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.priority-medium .category {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.priority-low .category {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+/* 작문 팁 섹션 */
+.tips-section {
+    margin-bottom: 1.5rem;
+}
+
+.tips-section h6 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+}
+
+.tips-section ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.tips-section li {
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    position: relative;
+}
+
+.tips-section li:before {
+    content: "💡";
+    position: absolute;
+    left: -1.5rem;
+    top: 0;
+}
+
+/* 격려 메시지 섹션 */
+.encouragement-section {
+    margin-bottom: 1rem;
+}
+
+.encouragement-section h6 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+}
+
+.encouragement-text {
+    color: var(--primary-color);
+    font-style: italic;
+    font-weight: 500;
+    margin: 0;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover-color));
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-secondary);
+    position: relative;
+}
+
+.encouragement-text::before {
+    content: "💫";
+    position: absolute;
+    left: 0.75rem;
+    top: 0.5rem;
+    font-size: 1.2rem;
+    opacity: 0.8;
+}
+
+/* 로딩 애니메이션 */
+.loading-dots {
+    display: inline-block;
+    margin-left: 0.5rem;
+}
+
+.loading-dots span {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: loading 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes loading {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 /* 버튼 호버 효과 */

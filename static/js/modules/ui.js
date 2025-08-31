@@ -70,7 +70,7 @@ export function renderProjectDetail(projectData) {
     renderCharacterTab(projectData);
     renderWorldviewTab(projectData);
     renderScenarioTab(projectData);
-    renderManuscriptTab(projectData); // 이 줄 추가
+    // renderManuscriptTab(projectData); // 탭 활성화 시점으로 이동
 
     // 활성화된 탭이 없다면 캐릭터 탭을 기본으로 활성화
     if (!document.querySelector('.tab-link.active')) {
@@ -110,18 +110,53 @@ export function hideProjectLoadingOverlay() {
 
 /**
  * 지정된 탭을 활성화합니다.
- * @param {string} tabId - 활성화할 탭의 ID ('characters', 'worldview', 'scenario')
+ * @param {string} tabId - 활성화할 탭의 ID ('characters', 'worldview', 'scenario', 'manuscript')
  */
 export function activateTab(tabId) {
     document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
-    document.querySelector(`.tab-link[data-tab="${tabId}"]`).classList.add('active');
-    document.getElementById(`tab-content-${tabId}`).classList.add('active');
-    
+
+    const tabLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
+    const tabContent = document.getElementById(`tab-content-${tabId}`);
+
+    if (tabLink) {
+        tabLink.classList.add('active');
+    }
+
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
+
     const tabsContainer = document.querySelector('.tabs-container');
     if (tabsContainer) {
         tabsContainer.scrollTop = 0;
+    }
+
+    // 탭이 활성화된 후 렌더링 트리거
+    if (tabId === 'manuscript') {
+        // 약간의 지연을 주어 DOM과 앱이 완전히 준비되도록 함
+        setTimeout(() => {
+            // 앱이 완전히 로드될 때까지 재시도
+            const tryRender = (attempts = 0) => {
+                if (attempts > 50) { // 최대 5초 후 중단
+                    console.error('Failed to render manuscript tab after multiple attempts');
+                    return;
+                }
+
+                if (window.app && window.app.stateManager) {
+                    const currentProject = window.app.stateManager.getState().currentProject;
+                    if (currentProject) {
+                        renderManuscriptTab(currentProject);
+                    } else {
+                        setTimeout(() => tryRender(attempts + 1), 100);
+                    }
+                } else {
+                    setTimeout(() => tryRender(attempts + 1), 100);
+                }
+            };
+
+            tryRender();
+        }, 200);
     }
 }
 
@@ -453,13 +488,26 @@ function renderScenarioTab(projectData) {
 
 function renderManuscriptTab(projectData) {
     const container = document.getElementById('tab-content-manuscript');
-    if (!container) return;
+    if (!container) {
+        console.error('Manuscript tab container not found');
+        return;
+    }
+
+    // 탭이 활성화되어 있는지 확인
+    if (!container.classList.contains('active')) {
+        return;
+    }
+
+    // DOM이 완전히 로드되었는지 확인
+    if (document.readyState !== 'complete') {
+        setTimeout(() => renderManuscriptTab(projectData), 200);
+        return;
+    }
 
     // 필요한 DOM 요소들을 가져옵니다.
     const blockListEl = container.querySelector('#manuscript-block-list');
     const titleInput = container.querySelector('#manuscript-block-title');
     const contentTextarea = container.querySelector('#manuscript-block-content');
-    const contextContentEl = container.querySelector('#manuscript-context-content');
     const saveButton = container.querySelector('#manuscript-save-btn');
     const aiEditButton = container.querySelector('#manuscript-ai-edit-btn');
     const partialRefineButton = container.querySelector('#manuscript-partial-refine-btn'); // [신규] 부분 다듬기 버튼
@@ -470,6 +518,16 @@ function renderManuscriptTab(projectData) {
     const exportButton = container.querySelector('#manuscript-export-btn');
     const charCountDisplay = container.querySelector('#char-count-display');
     const wordCountDisplay = container.querySelector('#word-count-display');
+
+    // [신규] 우측 패널 요소들
+    const updateCharactersBtn = container.querySelector('#update-characters-btn');
+    const requestFeedbackBtn = container.querySelector('#request-feedback-btn');
+
+    // 필수 요소가 없으면 함수 종료
+    if (!blockListEl || !titleInput || !contentTextarea || !saveButton) {
+        console.error('Required DOM elements not found in manuscript tab');
+        return;
+    }
 
     const blocks = projectData.manuscript_blocks || [];
     const mainScenario = projectData.scenarios && projectData.scenarios[0];
@@ -509,24 +567,33 @@ function renderManuscriptTab(projectData) {
 
     // --- 2. 에디터 및 컨텍스트 패널 초기화 ---
     const clearEditor = () => {
-        titleInput.value = '';
-        contentTextarea.value = '';
-        contextContentEl.innerHTML = '<p class="empty-message">편집할 블록을 선택하세요.</p>';
-        titleInput.disabled = true;
-        contentTextarea.disabled = true;
-        saveButton.disabled = true;
-        aiEditButton.disabled = true;
-        partialRefineButton.disabled = true; // [신규] 비활성화
-        saveButton.removeAttribute('data-current-block-id');
-        if(charCountDisplay) charCountDisplay.textContent = '0';
-        if(wordCountDisplay) wordCountDisplay.textContent = '0';
+        if (titleInput) titleInput.value = '';
+        if (contentTextarea) contentTextarea.value = '';
 
-        // [신규] 캐릭터 정보 및 피드백 섹션 숨기기
-        const characterSection = container.querySelector('#character-info-section');
-        const feedbackSection = container.querySelector('#feedback-section');
-        if (characterSection) characterSection.style.display = 'none';
-        if (feedbackSection) feedbackSection.style.display = 'none';
+        if (titleInput) titleInput.disabled = true;
+        if (contentTextarea) contentTextarea.disabled = true;
+        if (saveButton) saveButton.disabled = true;
+        if (aiEditButton) aiEditButton.disabled = true;
+        if (partialRefineButton) partialRefineButton.disabled = true; // [신규] 비활성화
+
+        // 캐릭터 정보 섹션 초기화
+        const relatedCharactersList = container.querySelector('#related-characters-list');
+        if (relatedCharactersList) {
+            relatedCharactersList.innerHTML = '<div class="character-loading"><small>편집할 블록을 선택하세요.</small></div>';
+        }
+
+        // AI 피드백 섹션 초기화
+        const feedbackContent = container.querySelector('#feedback-content');
+        if (feedbackContent) {
+            feedbackContent.innerHTML = '<div class="feedback-loading"><small>편집할 블록을 선택하세요.</small></div>';
+        }
+
+        if (saveButton) saveButton.removeAttribute('data-current-block-id');
+
+        if (charCountDisplay) charCountDisplay.textContent = '0';
+        if (wordCountDisplay) wordCountDisplay.textContent = '0';
     };
+
     clearEditor();
 
 
@@ -534,12 +601,16 @@ function renderManuscriptTab(projectData) {
     eventManager.removeAllEventListenersInContainer(container); // 기존 이벤트 모두 제거
 
     // 버튼 이벤트
-    eventManager.addEventListener(importButton, 'click', () => app.handleImportManuscript(projectData.id, mainScenario?.id));
-    eventManager.addEventListener(clearButton, 'click', () => app.handleClearManuscript(projectData.id));
-    eventManager.addEventListener(aiEditButton, 'click', () => app.openManuscriptAIModal());
+    if (importButton) eventManager.addEventListener(importButton, 'click', () => {
+        if (window.app && window.app.handleImportManuscript) {
+            window.app.handleImportManuscript(projectData.id, mainScenario?.id);
+        }
+    });
+    if (clearButton) eventManager.addEventListener(clearButton, 'click', () => app.handleClearManuscript(projectData.id));
+    if (aiEditButton) eventManager.addEventListener(aiEditButton, 'click', () => app.openManuscriptAIModal());
 
     // [신규] 합치기 버튼 이벤트
-    eventManager.addEventListener(mergeButton, 'click', () => {
+    if (mergeButton) eventManager.addEventListener(mergeButton, 'click', () => {
         const selectedBlockIds = Array.from(container.querySelectorAll('.manuscript-block-checkbox:checked'))
             .map(cb => cb.dataset.blockId);
         if (selectedBlockIds.length >= 2) {
@@ -548,10 +619,12 @@ function renderManuscriptTab(projectData) {
     });
 
     // [신규] 분할 버튼 이벤트
-    eventManager.addEventListener(splitButton, 'click', () => {
+    if (splitButton) eventManager.addEventListener(splitButton, 'click', () => {
         const currentBlockId = saveButton.getAttribute('data-current-block-id');
         if (currentBlockId) {
             const contentTextarea = container.querySelector('#manuscript-block-content');
+            if (!contentTextarea) return;
+
             const { selectionStart, selectionEnd, value } = contentTextarea;
 
             if (!value || value.trim().length === 0) {
@@ -582,7 +655,8 @@ function renderManuscriptTab(projectData) {
     });
     
     // [신규] 부분 다듬기 버튼 클릭 이벤트
-    eventManager.addEventListener(partialRefineButton, 'click', () => {
+    if (partialRefineButton) eventManager.addEventListener(partialRefineButton, 'click', () => {
+        if (!contentTextarea) return;
         const { selectionStart, selectionEnd, value } = contentTextarea;
         const selectedText = value.substring(selectionStart, selectionEnd);
 
@@ -606,7 +680,7 @@ function renderManuscriptTab(projectData) {
     };
 
     // 개요 목록의 각 블록 클릭 이벤트
-    eventManager.addEventListener(blockListEl, 'click', (e) => {
+    if (blockListEl) eventManager.addEventListener(blockListEl, 'click', (e) => {
         const li = e.target.closest('li[data-block-id]');
         if (!li) return;
 
@@ -642,40 +716,32 @@ function renderManuscriptTab(projectData) {
             // [신규] 텍스트 선택 시 버튼 활성화 로직
             partialRefineButton.disabled = true;
 
-            const originalPlot = mainScenario?.plot_points.find(p => p.ordering === selectedBlock.ordering);
-            if (originalPlot) {
-                contextContentEl.innerHTML = `
-                    <h6>원본 플롯: ${originalPlot.title}</h6>
-                    <p><small>${originalPlot.content || '세부 내용 없음'}</small></p>
-                `;
-            } else {
-                contextContentEl.innerHTML = '<p class="empty-message">원본 플롯 정보를 찾을 수 없습니다.</p>';
-            }
-
-            // [신규] 캐릭터 정보 섹션 표시 및 캐릭터 추출 실행
+                                // [신규] 우측 패널 초기화
             const characterSection = container.querySelector('#character-info-section');
             const feedbackSection = container.querySelector('#feedback-section');
 
+            // 캐릭터 섹션 초기화
             if (characterSection) {
-                characterSection.style.display = 'block';
-                // 캐릭터 추출 실행
-                const textContent = selectedBlock.content || '';
-                if (textContent.trim()) {
-                    app.manuscriptController.extractCharactersFromBlock(blockId, textContent);
-                } else {
-                    const charactersList = document.getElementById('related-characters-list');
-                    if (charactersList) {
-                        charactersList.innerHTML = `
-                            <div class="character-loading">
-                                <small>내용이 없어 캐릭터를 분석할 수 없습니다.</small>
-                            </div>
-                        `;
-                    }
+                const charactersList = characterSection.querySelector('#related-characters-list');
+                if (charactersList) {
+                    charactersList.innerHTML = `
+                        <div class="character-loading">
+                            <small>편집할 블록을 선택했습니다. 캐릭터 정보를 분석하려면 갱신 버튼을 클릭하세요.</small>
+                        </div>
+                    `;
                 }
             }
 
+            // 피드백 섹션 초기화
             if (feedbackSection) {
-                feedbackSection.style.display = 'block';
+                const feedbackContent = feedbackSection.querySelector('#feedback-content');
+                if (feedbackContent) {
+                    feedbackContent.innerHTML = `
+                        <div class="feedback-loading">
+                            <small>편집할 블록을 선택했습니다. AI 피드백을 받으려면 버튼을 클릭하세요.</small>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -756,7 +822,7 @@ function renderManuscriptTab(projectData) {
     });
 
     // [신규] 내보내기 버튼 이벤트
-    eventManager.addEventListener(exportButton, 'click', () => {
+    if (exportButton) eventManager.addEventListener(exportButton, 'click', () => {
         openExportModal(projectData);
     });
 
@@ -767,8 +833,61 @@ function renderManuscriptTab(projectData) {
         }
     });
 
+    // --- 5. 패널 리사이저 기능 ---
+    const resizer = container.querySelector('#context-panel-resizer');
+    const characterSection = container.querySelector('#character-info-section');
+    const feedbackSection = container.querySelector('#feedback-section');
+
+    if (resizer && characterSection && feedbackSection) {
+        let isDragging = false;
+        let startY = 0;
+        let startCharacterHeight = 0;
+
+        const handleMouseDown = (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            startCharacterHeight = characterSection.offsetHeight;
+            resizer.classList.add('dragging');
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'ns-resize';
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        };
+
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+
+            const deltaY = e.clientY - startY;
+            const newCharacterHeight = Math.max(150, Math.min(
+                startCharacterHeight + deltaY,
+                container.offsetHeight - 300 // 최소 피드백 높이 150px + 헤더 고려
+            ));
+
+            // Grid template rows 업데이트
+            const totalHeight = container.offsetHeight;
+            const characterRatio = newCharacterHeight / totalHeight;
+            const feedbackRatio = 1 - characterRatio;
+
+            container.style.gridTemplateRows = `auto ${characterRatio}fr 8px ${feedbackRatio}fr`;
+        };
+
+        const handleMouseUp = () => {
+            isDragging = false;
+            resizer.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        resizer.addEventListener('mousedown', handleMouseDown);
+    }
+
     // 글자 수 계산 및 부분 수정 버튼 활성화/비활성화
     const handleTextareaInput = () => {
+        if (!contentTextarea) return;
         const content = contentTextarea.value;
         const charCount = content.length;
         const wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -778,11 +897,13 @@ function renderManuscriptTab(projectData) {
 
         // [신규] 텍스트 선택 감지
         const hasSelection = contentTextarea.selectionStart !== contentTextarea.selectionEnd;
-        partialRefineButton.disabled = !hasSelection;
+        if (partialRefineButton) partialRefineButton.disabled = !hasSelection;
     };
-    
-    eventManager.addEventListener(contentTextarea, 'input', handleTextareaInput);
-    eventManager.addEventListener(contentTextarea, 'mouseup', handleTextareaInput);
+
+    if (contentTextarea) {
+        eventManager.addEventListener(contentTextarea, 'input', handleTextareaInput);
+        eventManager.addEventListener(contentTextarea, 'mouseup', handleTextareaInput);
+    }
     document.addEventListener('selectionchange', () => {
         if(document.activeElement === contentTextarea) {
             handleTextareaInput();
@@ -790,20 +911,10 @@ function renderManuscriptTab(projectData) {
     });
 
 
-    // [신규] 캐릭터 정보 갱신 버튼 이벤트
-    const updateCharactersBtn = container.querySelector('#update-characters-btn');
-    if (updateCharactersBtn) {
-        eventManager.addEventListener(updateCharactersBtn, 'click', () => {
-            const blockId = saveButton.getAttribute('data-current-block-id');
-            const textContent = contentTextarea.value;
-            if (blockId && textContent.trim()) {
-                app.manuscriptController.extractCharactersFromBlock(blockId, textContent);
-            }
-        });
-    }
+    // 캐릭터 정보 갱신 버튼 이벤트는 아래에서 처리됨
 
     // 저장 버튼 이벤트
-    eventManager.addEventListener(saveButton, 'click', () => {
+    if (saveButton) eventManager.addEventListener(saveButton, 'click', () => {
         const blockId = saveButton.getAttribute('data-current-block-id');
         if (blockId) {
             app.handleSaveManuscriptBlock(projectData.id, blockId);
@@ -811,18 +922,58 @@ function renderManuscriptTab(projectData) {
     });
 
     // --- 4. 드래그 앤 드롭 순서 변경 기능 활성화 ---
-    new Sortable(blockListEl, {
-        animation: 150,
-        ghostClass: 'pico-color-azure-200',
-        handle: 'span', // span 요소만 드래그 핸들로 사용 (체크박스 제외)
-        filter: 'input[type="checkbox"]', // 체크박스는 드래그 대상에서 제외
-        onEnd: (evt) => {
-            const blockIds = Array.from(evt.target.children)
-                .filter(li => li.dataset.blockId) // 유효한 li만
-                .map(li => li.dataset.blockId);
-            app.handleUpdateManuscriptOrder(projectData.id, blockIds);
-        }
-    });
+    if (blockListEl) {
+        new Sortable(blockListEl, {
+            animation: 150,
+            ghostClass: 'pico-color-azure-200',
+            handle: 'span', // span 요소만 드래그 핸들로 사용 (체크박스 제외)
+            filter: 'input[type="checkbox"]', // 체크박스는 드래그 대상에서 제외
+            onEnd: (evt) => {
+                const blockIds = Array.from(evt.target.children)
+                    .filter(li => li.dataset.blockId) // 유효한 li만
+                    .map(li => li.dataset.blockId);
+                app.handleUpdateManuscriptOrder(projectData.id, blockIds);
+            }
+        });
+    }
+
+    // [신규] 캐릭터 갱신 버튼 이벤트
+    if (updateCharactersBtn) {
+        eventManager.addEventListener(updateCharactersBtn, 'click', () => {
+            const currentBlockId = saveButton.getAttribute('data-current-block-id');
+            if (currentBlockId) {
+                const contentTextarea = container.querySelector('#manuscript-block-content');
+                if (contentTextarea && contentTextarea.value.trim()) {
+                    if (window.app && window.app.manuscriptController) {
+                        window.app.manuscriptController.extractCharactersFromBlock(currentBlockId, contentTextarea.value);
+                    }
+                } else {
+                    alert('캐릭터를 분석할 내용이 없습니다.');
+                }
+            } else {
+                alert('먼저 블록을 선택해주세요.');
+            }
+        });
+    }
+
+    // [신규] AI 피드백 버튼 이벤트
+    if (requestFeedbackBtn) {
+        eventManager.addEventListener(requestFeedbackBtn, 'click', () => {
+            const currentBlockId = saveButton.getAttribute('data-current-block-id');
+            if (currentBlockId) {
+                const contentTextarea = container.querySelector('#manuscript-block-content');
+                if (contentTextarea && contentTextarea.value.trim()) {
+                    if (window.app && window.app.manuscriptController) {
+                        window.app.manuscriptController.requestExpertFeedback(currentBlockId, contentTextarea.value);
+                    }
+                } else {
+                    alert('피드백을 받을 내용이 없습니다.');
+                }
+            } else {
+                alert('먼저 블록을 선택해주세요.');
+            }
+        });
+    }
 }
 
 // 스타일 가이드 관련 함수들은 main.js로 이동됨

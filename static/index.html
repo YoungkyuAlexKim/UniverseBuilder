@@ -252,14 +252,11 @@
                     
                             <aside class="manuscript-context-panel">
                                 <header>
-                                    <h5>원본 플롯 정보</h5>
+                                    <h5>작품 도구</h5>
                                 </header>
-                                <div id="manuscript-context-content">
-                                    <p class="empty-message">편집할 블록을 선택하세요.</p>
-                                </div>
 
                                 <!-- 캐릭터 정보 섹션 -->
-                                <div class="context-section character-section" id="character-info-section" style="display: none;">
+                                <div class="context-section character-section" id="character-info-section">
                                     <div class="section-header">
                                         <h6><i data-lucide="users"></i>등장 캐릭터</h6>
                                         <button id="update-characters-btn" class="secondary outline small" title="캐릭터 정보 갱신">
@@ -268,20 +265,28 @@
                                     </div>
                                     <div id="related-characters-list" class="characters-list">
                                         <div class="character-loading">
-                                            <small>캐릭터 정보를 불러오는 중...</small>
+                                            <small>편집할 블록을 선택하세요.</small>
                                         </div>
                                     </div>
                                 </div>
 
+                                <!-- 리사이저 바 -->
+                                <div class="panel-resizer" id="context-panel-resizer">
+                                    <div class="resizer-handle"></div>
+                                </div>
+
                                 <!-- AI 피드백 섹션 -->
-                                <div class="context-section feedback-section" id="feedback-section" style="display: none;">
+                                <div class="context-section feedback-section" id="feedback-section">
                                     <div class="section-header">
                                         <h6><i data-lucide="message-square"></i>AI 피드백</h6>
+                                        <button id="request-feedback-btn" class="secondary outline small" title="AI에게 피드백을 요청합니다">
+                                            <i data-lucide="message-square"></i>피드백 받기
+                                        </button>
                                     </div>
                                     <div id="feedback-content" class="feedback-content">
-                                        <button id="request-feedback-btn" class="secondary outline small">
-                                            <i data-lucide="lightbulb"></i>피드백 받기
-                                        </button>
+                                        <div class="feedback-loading">
+                                            <small>편집할 블록을 선택하세요.</small>
+                                        </div>
                                     </div>
                                 </div>
                             </aside>

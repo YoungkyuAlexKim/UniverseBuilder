@@ -1,11 +1,15 @@
 import { App } from './core/App.js';
 import { initializeValidationMessage, isValidationMessageReady } from './components/validation/validation-message.js';
 import { initializeValidationUtils, isValidationUtilsReady, ValidationHelpers } from './components/validation/validation-utils.js';
+import * as api from './modules/api.js';
 
 // App 인스턴스를 생성하여 애플리케이션 시작
 document.addEventListener('DOMContentLoaded', () => {
     // 애플리케이션 초기화
     const app = new App();
+
+    // 전역 객체에 app 인스턴스 할당 (다른 모듈에서 접근할 수 있도록)
+    window.app = app;
 
     // 유효성 검사 컴포넌트 초기화 (안전하게 초기화)
     setTimeout(() => {
