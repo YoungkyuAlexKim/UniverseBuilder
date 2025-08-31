@@ -315,6 +315,213 @@ export class ManuscriptController {
     }
 
     /**
+     * 드롭다운 메뉴 토글
+     */
+    toggleBlockDropdown(blockId) {
+        console.log('드롭다운 토글 호출:', blockId);
+
+        // 다른 모든 드롭다운 메뉴 닫기
+        document.querySelectorAll('.manuscript-block-dropdown').forEach(dropdown => {
+            if (!dropdown.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // 현재 드롭다운 토글 - 더 정확한 선택자 사용
+        const button = document.querySelector(`button[data-block-id="${blockId}"]`);
+        const dropdown = button ? button.nextElementSibling : null;
+
+        console.log('찾은 버튼:', button);
+        console.log('찾은 드롭다운:', dropdown);
+
+        if (dropdown && dropdown.classList.contains('manuscript-block-dropdown')) {
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+            console.log('드롭다운 표시 상태:', dropdown.style.display);
+        } else {
+            console.error('드롭다운을 찾을 수 없음');
+        }
+    }
+
+    /**
+     * 특정 블록을 시나리오에서 불러오기
+     */
+    async importBlockFromScenario(projectId, blockId) {
+        if (!confirm('정말로 이 블록의 내용을 시나리오 탭에서 불러오시겠습니까?\n현재 내용이 시나리오 탭의 내용으로 교체됩니다.')) return;
+
+        try {
+            // 시나리오 탭의 플롯 선택 모달 열기
+            await this.openPlotSelectionModal(projectId, blockId, 'import');
+        } catch (error) {
+            console.error('플롯 불러오기 실패:', error);
+            alert(`플롯 불러오기 실패: ${error.message}`);
+        }
+    }
+
+    /**
+     * 특정 블록을 시나리오로 내보내기
+     */
+    async exportBlockToScenario(projectId, blockId) {
+        if (!confirm('정말로 이 블록의 내용을 시나리오 탭으로 내보내시겠습니까?\n시나리오 탭의 해당 플롯이 교체됩니다.')) return;
+
+        try {
+            // 시나리오 탭의 플롯 선택 모달 열기
+            await this.openPlotSelectionModal(projectId, blockId, 'export');
+        } catch (error) {
+            console.error('플롯 내보내기 실패:', error);
+            alert(`플롯 내보내기 실패: ${error.message}`);
+        }
+    }
+
+    /**
+     * 시나리오 플롯 선택 모달 열기
+     */
+    async openPlotSelectionModal(projectId, blockId, action) {
+        const { currentProject } = this.stateManager.getState();
+        const scenario = currentProject?.scenarios?.[0];
+
+        if (!scenario || !scenario.plot_points) {
+            alert('시나리오 데이터를 찾을 수 없습니다.');
+            return;
+        }
+
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div id="plot-selection-modal" class="modal-container">
+                <article style="max-width: 500px;">
+                    <header>
+                        <a href="#close" aria-label="Close" class="close" onclick="this.closest('.modal-container').remove(); document.getElementById('modal-backdrop').classList.remove('active');"></a>
+                        <h3>${action === 'import' ? '불러올 플롯 선택' : '내보낼 플롯 선택'}</h3>
+                    </header>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <p style="margin-bottom: 1rem; color: var(--text-muted);">
+                            ${action === 'import' ? '선택한 플롯의 내용을 현재 블록으로 불러옵니다.' : '현재 블록의 내용을 선택한 플롯으로 내보냅니다.'}
+                        </p>
+                        <div class="plot-selection-list">
+                            ${scenario.plot_points.map(plot => `
+                                <label class="plot-selection-item">
+                                    <input type="radio" name="selected-plot" value="${plot.id}" />
+                                    <div class="plot-info">
+                                        <div class="plot-title">
+                                            <i data-lucide="file-text" style="margin-right: 0.5rem;"></i>
+                                            ${plot.ordering + 1}. ${plot.title}
+                                        </div>
+                                        <div class="plot-summary">
+                                            ${plot.content ? plot.content.substring(0, 100) + (plot.content.length > 100 ? '...' : '') : '내용 없음'}
+                                        </div>
+                                    </div>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <footer>
+                        <button class="secondary" onclick="this.closest('.modal-container').remove(); document.getElementById('modal-backdrop').classList.remove('active');">
+                            취소
+                        </button>
+                        <button id="confirm-plot-selection" class="primary" disabled>
+                            ${action === 'import' ? '불러오기' : '내보내기'}
+                        </button>
+                    </footer>
+                </article>
+            </div>
+        `;
+
+        // 모달 추가 및 표시
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        document.getElementById('modal-backdrop').classList.add('active');
+
+        // 라디오 버튼 이벤트 리스너
+        document.querySelectorAll('input[name="selected-plot"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                document.getElementById('confirm-plot-selection').disabled = false;
+            });
+        });
+
+        // 확인 버튼 이벤트
+        document.getElementById('confirm-plot-selection').addEventListener('click', async () => {
+            const selectedPlotId = document.querySelector('input[name="selected-plot"]:checked')?.value;
+            if (!selectedPlotId) return;
+
+            try {
+                if (action === 'import') {
+                    await this.executeImportBlock(projectId, blockId, selectedPlotId);
+                } else {
+                    await this.executeExportBlock(projectId, blockId, selectedPlotId);
+                }
+
+                // 모달 닫기
+                document.getElementById('plot-selection-modal').remove();
+                document.getElementById('modal-backdrop').classList.remove('active');
+
+                alert(action === 'import' ? '플롯을 성공적으로 불러왔습니다.' : '플롯을 성공적으로 내보냈습니다.');
+                await this.stateManager.refreshCurrentProject();
+
+            } catch (error) {
+                alert(`${action === 'import' ? '불러오기' : '내보내기'} 실패: ${error.message}`);
+            }
+        });
+
+        // 아이콘 초기화
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    /**
+     * 블록 불러오기 실행
+     */
+    async executeImportBlock(projectId, blockId, plotId) {
+        try {
+            const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/import-from-plot/${plotId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Project-Password': sessionStorage.getItem(`project-password-${projectId}`) || ''
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Import successful:', result);
+            return result;
+        } catch (error) {
+            console.error('Import failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 블록 내보내기 실행
+     */
+    async executeExportBlock(projectId, blockId, plotId) {
+        try {
+            const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/export-to-plot/${plotId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Project-Password': sessionStorage.getItem(`project-password-${projectId}`) || ''
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Export successful:', result);
+            return result;
+        } catch (error) {
+            console.error('Export failed:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 집필 탭의 블록들을 시나리오 탭으로 내보냅니다.
      */
     async handleExportToScenario(projectId) {

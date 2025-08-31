@@ -1015,3 +1015,80 @@ def delete_manuscript_block(
 
     db.commit()
     return {"message": "블록이 성공적으로 삭제되었습니다."}
+
+@router.post("/blocks/{block_id}/import-from-plot/{plot_id}")
+def import_block_from_plot(
+    block_id: str,
+    plot_id: str,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    특정 시나리오 플롯의 내용을 집필 블록으로 불러옵니다.
+    """
+    # 집필 블록 확인
+    block = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.id == block_id,
+        ManuscriptBlockModel.project_id == project.id
+    ).first()
+
+    if not block:
+        raise HTTPException(status_code=404, detail="집필 블록을 찾을 수 없습니다.")
+
+    # 시나리오 플롯 확인
+    plot = db.query(PlotPointModel).filter(
+        PlotPointModel.id == plot_id,
+        PlotPointModel.scenario_id == project.scenarios[0].id if project.scenarios else None
+    ).first()
+
+    if not plot:
+        raise HTTPException(status_code=404, detail="시나리오 플롯을 찾을 수 없습니다.")
+
+    # 플롯 내용을 블록으로 복사
+    block.title = plot.title
+    block.content = plot.scene_draft or plot.content or ""
+    block.char_count = len(block.content)
+    block.word_count = len(block.content.split()) if block.content else 0
+
+    db.commit()
+    db.refresh(block)
+
+    return {"message": "플롯 내용을 성공적으로 불러왔습니다.", "block": block}
+
+@router.post("/blocks/{block_id}/export-to-plot/{plot_id}")
+def export_block_to_plot(
+    block_id: str,
+    plot_id: str,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    집필 블록의 내용을 특정 시나리오 플롯으로 내보냅니다.
+    """
+    # 집필 블록 확인
+    block = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.id == block_id,
+        ManuscriptBlockModel.project_id == project.id
+    ).first()
+
+    if not block:
+        raise HTTPException(status_code=404, detail="집필 블록을 찾을 수 없습니다.")
+
+    # 시나리오 플롯 확인
+    plot = db.query(PlotPointModel).filter(
+        PlotPointModel.id == plot_id,
+        PlotPointModel.scenario_id == project.scenarios[0].id if project.scenarios else None
+    ).first()
+
+    if not plot:
+        raise HTTPException(status_code=404, detail="시나리오 플롯을 찾을 수 없습니다.")
+
+    # 블록 내용을 플롯으로 복사
+    plot.title = block.title
+    plot.content = block.content or ""
+    plot.scene_draft = block.content or ""
+
+    db.commit()
+    db.refresh(plot)
+
+    return {"message": "블록 내용을 성공적으로 내보냈습니다.", "plot": plot}

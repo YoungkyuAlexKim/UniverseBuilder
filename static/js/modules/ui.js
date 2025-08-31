@@ -486,6 +486,9 @@ function renderScenarioTab(projectData) {
     });
 }
 
+// 전역 플래그로 중복 실행 방지
+const renderedTabs = new Set();
+
 function renderManuscriptTab(projectData) {
     const container = document.getElementById('tab-content-manuscript');
     if (!container) {
@@ -503,6 +506,21 @@ function renderManuscriptTab(projectData) {
         setTimeout(() => renderManuscriptTab(projectData), 200);
         return;
     }
+
+    // 중복 실행 방지 - 전역 플래그 사용
+    const renderKey = `manuscript_${projectData.id}`;
+    if (renderedTabs.has(renderKey)) {
+        console.log('이미 렌더링됨, 건너뜀:', renderKey);
+        return;
+    }
+    renderedTabs.add(renderKey);
+    console.log('새로 렌더링 시작:', renderKey);
+
+    // DOM에 렌더링 완료 마킹
+    container.dataset.rendered = 'true';
+
+    // 기존 이벤트 리스너 완전 정리
+    eventManager.removeAllEventListenersInContainer(container);
 
     // 필요한 DOM 요소들을 가져옵니다.
     const blockListEl = container.querySelector('#manuscript-block-list');
@@ -557,9 +575,180 @@ function renderManuscriptTab(projectData) {
             titleSpan.innerHTML = `<i data-lucide="file-text"></i> ${block.ordering + 1}. ${block.title}`;
             titleSpan.style.flex = '1';
 
+            // 드롭다운 액션 버튼
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'manuscript-block-action-btn';
+            actionBtn.title = '추가 액션';
+            actionBtn.dataset.blockId = block.id; // 고유 식별자 추가
+            actionBtn.innerHTML = '⋮'; // 텍스트 아이콘으로 변경
+            actionBtn.style.cssText = `
+                background: var(--bg-secondary);
+                border: 1px solid var(--border-secondary);
+                color: var(--text-secondary);
+                cursor: pointer;
+                padding: 0.5rem;
+                border-radius: var(--border-radius-sm);
+                font-size: 1.2rem;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                width: 40px;
+                height: 40px;
+                line-height: 1;
+                box-shadow: var(--shadow-sm);
+            `;
+
+            // 디버깅 로그 제거 (개발 완료)
+
+            // 드롭다운 메뉴 컨테이너
+            const dropdownMenu = document.createElement('div');
+            dropdownMenu.className = 'manuscript-block-dropdown';
+            dropdownMenu.dataset.blockId = block.id; // 고유 식별자 추가
+            dropdownMenu.style.cssText = `
+                position: absolute;
+                background: var(--bg-secondary);
+                border: 1px solid var(--border-tertiary);
+                border-radius: var(--border-radius-sm);
+                box-shadow: var(--shadow-lg);
+                min-width: 180px;
+                z-index: 1000;
+                display: none;
+                overflow: hidden;
+            `;
+
+            // 드롭다운 메뉴 아이템들
+            dropdownMenu.innerHTML = `
+                <button class="dropdown-item import-from-scenario" data-action="import" data-block-id="${block.id}">
+                    <i data-lucide="download"></i>
+                    <span>시나리오에서 불러오기</span>
+                </button>
+                <button class="dropdown-item export-to-scenario" data-action="export" data-block-id="${block.id}">
+                    <i data-lucide="upload"></i>
+                    <span>시나리오로 내보내기</span>
+                </button>
+                <button class="dropdown-item delete-block" data-action="delete" data-block-id="${block.id}">
+                    <i data-lucide="trash-2"></i>
+                    <span>블록 삭제</span>
+                </button>
+            `;
+
+            // 드롭다운 아이템 스타일링
+            const style = document.createElement('style');
+            style.textContent = `
+                .manuscript-block-action-btn:hover {
+                    background: var(--bg-secondary);
+                    color: var(--text-primary);
+                }
+                .dropdown-item {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    background: none;
+                    border: none;
+                    text-align: left;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                    transition: background-color 0.2s ease;
+                }
+                .dropdown-item:hover {
+                    background: var(--bg-secondary);
+                }
+                .dropdown-item i {
+                    font-size: 0.9rem;
+                    flex-shrink: 0;
+                }
+                .dropdown-item.delete-block {
+                    color: var(--pico-form-element-invalid-active-border-color);
+                }
+                .dropdown-item.delete-block:hover {
+                    background: rgba(239, 68, 68, 0.1);
+                }
+            `;
+            document.head.appendChild(style);
+
             li.appendChild(checkbox);
             li.appendChild(titleSpan);
+            li.appendChild(actionBtn);
+            li.appendChild(dropdownMenu);
             blockListEl.appendChild(li);
+
+            // DOM에 추가 완료
+
+            // 드롭다운 버튼 이벤트 - 직접 연결
+            actionBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('버튼 클릭됨:', block.id);
+
+                // 드롭다운 메뉴 위치 조정 (우측 정렬)
+                const rect = actionBtn.getBoundingClientRect();
+                const dropdownWidth = 180; // 드롭다운 너비
+                const viewportWidth = window.innerWidth;
+
+                dropdownMenu.style.position = 'fixed';
+                dropdownMenu.style.top = `${rect.bottom + 4}px`;
+                dropdownMenu.style.width = `${dropdownWidth}px`;
+
+                // 우측 공간이 부족하면 좌측으로 배치
+                if (rect.right + dropdownWidth > viewportWidth) {
+                    dropdownMenu.style.left = `${rect.left - dropdownWidth + rect.width}px`;
+                } else {
+                    dropdownMenu.style.left = `${rect.left}px`;
+                }
+                dropdownMenu.style.zIndex = '1000';
+
+                // 드롭다운 토글
+                const isVisible = dropdownMenu.style.display === 'block';
+                dropdownMenu.style.display = isVisible ? 'none' : 'block';
+
+                // 디버깅 로그 제거
+            });
+
+            // 아이콘 수동 생성
+            setTimeout(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, 100);
+
+            // 드롭다운 메뉴 아이템 이벤트 - 직접 연결
+            const importBtn = dropdownMenu.querySelector('.dropdown-item[data-action="import"]');
+            const exportBtn = dropdownMenu.querySelector('.dropdown-item[data-action="export"]');
+            const deleteBtn = dropdownMenu.querySelector('.dropdown-item[data-action="delete"]');
+
+            if (importBtn) {
+                importBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    console.log('불러오기 클릭:', block.id);
+                    if (window.app && window.app.manuscriptController) {
+                        window.app.manuscriptController.importBlockFromScenario(projectData.id, block.id);
+                    }
+                });
+            }
+
+            if (exportBtn) {
+                exportBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    console.log('내보내기 클릭:', block.id);
+                    if (window.app && window.app.manuscriptController) {
+                        window.app.manuscriptController.exportBlockToScenario(projectData.id, block.id);
+                    }
+                });
+            }
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    console.log('삭제 클릭:', block.id);
+                    if (window.app && window.app.manuscriptController) {
+                        window.app.manuscriptController.handleDeleteManuscriptBlock(projectData.id, block.id);
+                    }
+                });
+            }
         });
     } else {
         blockListEl.innerHTML = '<li class="empty-message">작업할 내용이 없습니다. \'불러오기\'를 눌러 시작하세요.</li>';
@@ -599,6 +788,15 @@ function renderManuscriptTab(projectData) {
 
     // --- 3. 이벤트 리스너 (재)설정 ---
     eventManager.removeAllEventListenersInContainer(container); // 기존 이벤트 모두 제거
+
+    // 드롭다운 외부 클릭 시 닫기 - 직접 연결
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.manuscript-block-action-btn') && !e.target.closest('.manuscript-block-dropdown')) {
+            document.querySelectorAll('.manuscript-block-dropdown').forEach(dropdown => {
+                dropdown.style.display = 'none';
+            });
+        }
+    });
 
     // 버튼 이벤트
     if (importButton) eventManager.addEventListener(importButton, 'click', () => {
@@ -748,89 +946,11 @@ function renderManuscriptTab(projectData) {
         updateButtonStates();
     });
 
-    // [신규] 컨텍스트 메뉴 이벤트
-    const contextMenu = document.getElementById('manuscript-context-menu');
-    let currentContextBlockId = null;
-
-    // 우클릭 이벤트
-    eventManager.addEventListener(blockListEl, 'contextmenu', (e) => {
-        e.preventDefault();
-        const li = e.target.closest('li[data-block-id]');
-        if (!li) return;
-
-        currentContextBlockId = li.dataset.blockId;
-
-        // 메뉴 위치 설정
-        contextMenu.style.left = e.pageX + 'px';
-        contextMenu.style.top = e.pageY + 'px';
-        contextMenu.style.display = 'block';
-
-        // 메뉴 항목 활성화 상태 설정
-        const checkedBoxes = container.querySelectorAll('.manuscript-block-checkbox:checked');
-        const mergeItem = contextMenu.querySelector('#context-merge-selected');
-        mergeItem.disabled = checkedBoxes.length < 2;
-        mergeItem.style.opacity = checkedBoxes.length < 2 ? '0.5' : '1';
-    });
-
-    // 컨텍스트 메뉴 항목 클릭 이벤트
-    eventManager.addEventListener(contextMenu.querySelector('#context-merge-selected'), 'click', () => {
-        const selectedBlockIds = Array.from(container.querySelectorAll('.manuscript-block-checkbox:checked'))
-            .map(cb => cb.dataset.blockId);
-        if (selectedBlockIds.length >= 2) {
-            app.handleMergeManuscriptBlocks(projectData.id, selectedBlockIds);
-        }
-        contextMenu.style.display = 'none';
-    });
-
-    eventManager.addEventListener(contextMenu.querySelector('#context-split-block'), 'click', () => {
-        if (currentContextBlockId) {
-            const contentTextarea = container.querySelector('#manuscript-block-content');
-            const { selectionStart, selectionEnd, value } = contentTextarea;
-
-            if (!value || value.trim().length === 0) {
-                alert('분할할 내용이 없습니다.');
-                contextMenu.style.display = 'none';
-                return;
-            }
-
-            // 커서 위치 또는 선택된 텍스트의 중간 위치 사용
-            let splitPosition = selectionStart;
-            if (selectionStart === selectionEnd) {
-                // 텍스트가 선택되지 않은 경우, 커서 위치 사용
-                if (selectionStart === 0) {
-                    splitPosition = Math.floor(value.length / 2); // 중간 지점
-                }
-            } else {
-                // 텍스트가 선택된 경우, 선택 영역의 중간 사용
-                splitPosition = Math.floor((selectionStart + selectionEnd) / 2);
-            }
-
-            if (splitPosition > 0 && splitPosition < value.length) {
-                app.handleSplitManuscriptBlock(projectData.id, currentContextBlockId, splitPosition);
-            } else {
-                alert('분할할 수 있는 위치를 찾을 수 없습니다.');
-            }
-        }
-        contextMenu.style.display = 'none';
-    });
-
-    eventManager.addEventListener(contextMenu.querySelector('#context-delete-block'), 'click', () => {
-        if (currentContextBlockId) {
-            app.handleDeleteManuscriptBlock(projectData.id, currentContextBlockId);
-        }
-        contextMenu.style.display = 'none';
-    });
+    // 컨텍스트 메뉴 제거됨 (드롭다운 버튼으로 대체)
 
     // [신규] 내보내기 버튼 이벤트
     if (exportButton) eventManager.addEventListener(exportButton, 'click', () => {
         openExportModal(projectData);
-    });
-
-    // 문서 클릭 시 컨텍스트 메뉴 숨기기
-    document.addEventListener('click', (e) => {
-        if (!contextMenu.contains(e.target)) {
-            contextMenu.style.display = 'none';
-        }
     });
 
     // 리사이저 바 드래그 기능은 함수 끝에서 구현됨
