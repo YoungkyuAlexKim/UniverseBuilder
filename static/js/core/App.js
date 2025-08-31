@@ -7,6 +7,7 @@ import * as panels from '../modules/panels.js';
 // 개별 패널 모듈들을 import
 import { showCharacterGeneratorUI } from '../modules/panels/character-generator.js';
 import { showRelationshipPanel } from '../modules/panels/relationship-panel.js';
+import { showRelationshipTimelinePanel, initializeRelationshipTimelinePanel } from '../modules/panels/relationship-timeline-panel.js';  // [추가] 타임라인 패널
 import { handleEditCardAI, handleManualEditCard } from '../modules/panels/character-editor.js';
 import { handleEditWorldviewCardAI } from '../modules/panels/worldview-editor.js';
 
@@ -32,6 +33,7 @@ export class App {
         this.panels = {
             showCharacterGeneratorUI,
             showRelationshipPanel,
+            showRelationshipTimelinePanel,  // [추가] 관계 타임라인 패널
             handleEditCardAI,
             handleManualEditCard,
             handleEditWorldviewCardAI,

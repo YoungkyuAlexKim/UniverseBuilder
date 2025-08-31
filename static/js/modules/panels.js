@@ -7,6 +7,7 @@
 // 개별 패널 모듈들을 import
 import { initializeCharacterGenerator } from './panels/character-generator.js';
 import { initializeRelationshipPanel } from './panels/relationship-panel.js';
+import { initializeRelationshipTimelinePanel } from './panels/relationship-timeline-panel.js';  // [추가] 타임라인 패널
 import { initializeCharacterEditor } from './panels/character-editor.js';
 import { initializeWorldviewEditor } from './panels/worldview-editor.js';
 
@@ -23,6 +24,7 @@ export function initializePanels(appInstance) {
     // 각 패널 모듈 초기화
     initializeCharacterGenerator(appInstance);
     initializeRelationshipPanel(appInstance);
+    initializeRelationshipTimelinePanel(appInstance);  // [추가] 타임라인 패널 초기화
     initializeCharacterEditor(appInstance);
     initializeWorldviewEditor(appInstance);
 }
@@ -30,6 +32,7 @@ export function initializePanels(appInstance) {
 // 개별 패널 모듈들의 함수들을 재export
 export { showCharacterGeneratorUI } from './panels/character-generator.js';
 export { showRelationshipPanel } from './panels/relationship-panel.js';
+export { showRelationshipTimelinePanel } from './panels/relationship-timeline-panel.js';  // [추가] 타임라인 패널
 export { handleEditCardAI, handleManualEditCard } from './panels/character-editor.js';
 export { handleEditWorldviewCardAI } from './panels/worldview-editor.js';
 

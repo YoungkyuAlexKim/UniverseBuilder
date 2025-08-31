@@ -529,6 +529,44 @@ export async function suggestRelationship(projectId, sourceCharacterId, targetCh
     return handleResponse(response);
 }
 
+// 관계 변화 단계 (Relationship Phases)
+// -------------------------
+// [Phase 2: RelationshipPhase API 함수들]
+
+export async function createRelationshipPhase(projectId, relationshipId, phaseData) {
+    const response = await fetch(`/api/v1/projects/${projectId}/relationships/${relationshipId}/phases`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(phaseData)
+    });
+    return handleResponse(response);
+}
+
+export async function getRelationshipPhases(projectId, relationshipId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/relationships/${relationshipId}/phases`, {
+        method: 'GET',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
+export async function updateRelationshipPhase(projectId, relationshipId, phaseId, phaseData) {
+    const response = await fetch(`/api/v1/projects/${projectId}/relationships/${relationshipId}/phases/${phaseId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(phaseData)
+    });
+    return handleResponse(response);
+}
+
+export async function deleteRelationshipPhase(projectId, relationshipId, phaseId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/relationships/${relationshipId}/phases/${phaseId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
 export async function enhanceSynopsis(requestBody) {
     const response = await fetch('/api/v1/generate/synopsis-enhance', {
         method: 'POST',

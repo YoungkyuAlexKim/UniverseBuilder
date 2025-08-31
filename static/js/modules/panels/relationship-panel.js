@@ -130,6 +130,10 @@ export async function showRelationshipPanel(projectId, currentCard) {
                                 관계 유형
                                 <input type="text" id="relationship-type" name="type" placeholder="예: 동맹, 적대, 스승..." required>
                             </label>
+                            <label for="relationship-phase">
+                                관계 변화 단계
+                                <input type="number" id="relationship-phase" name="phase_order" min="1" value="1" placeholder="1" required>
+                            </label>
                         </div>
                         <label for="relationship-desc">설명</label>
                         <textarea id="relationship-desc" name="description" rows="3" placeholder="관계에 대한 세부 설명..."></textarea>
@@ -329,11 +333,12 @@ export async function showRelationshipPanel(projectId, currentCard) {
             const sourceName = sourceChar ? sourceChar.name : '알 수 없음';
             const targetName = targetChar ? targetChar.name : '알 수 없음';
             const descriptionHTML = r.description ? `<p>${r.description}</p>` : '<p>세부 설명 없음</p>';
+            const phaseDisplay = `<span class="phase-badge">단계 ${r.phase_order || 1}</span>`;  // [추가] 관계 변화 단계 표시
 
             return `
                 <div class="relationship-card">
                     <div class="relationship-card-header">
-                        <h6><strong>${sourceName}</strong> → <strong>${targetName}</strong> : ${r.type}</h6>
+                        <h6><strong>${sourceName}</strong> → <strong>${targetName}</strong> : ${r.type} ${phaseDisplay}</h6>
                         <div class="relationship-card-header-buttons">
                             <button class="secondary outline edit-rel-btn icon-only" data-id="${r.id}" title="수정"><i data-lucide="edit-3"></i></button>
                             <button class="secondary outline delete-rel-btn icon-only" data-id="${r.id}" title="삭제"><i data-lucide="trash-2"></i></button>
@@ -352,6 +357,7 @@ export async function showRelationshipPanel(projectId, currentCard) {
         form.reset();
         form.elements.relationship_id.value = '';
         form.elements.target_character_id.disabled = false;
+        form.elements.phase_order.value = '1';  // [추가] 관계 변화 단계 기본값
         tendencyLabel.textContent = '중립';
     };
 
@@ -367,6 +373,7 @@ export async function showRelationshipPanel(projectId, currentCard) {
         form.elements.target_character_id.disabled = true;
         form.elements.type.value = rel.type;
         form.elements.description.value = rel.description || '';
+        form.elements.phase_order.value = rel.phase_order || 1;  // [추가] 관계 변화 단계
         form.scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -409,12 +416,17 @@ export async function showRelationshipPanel(projectId, currentCard) {
             source_character_id: currentCard.id,
             target_character_id: targetId,
             type: form.elements.type.value.trim(),
-            description: form.elements.description.value.trim()
+            description: form.elements.description.value.trim(),
+            phase_order: parseInt(form.elements.phase_order.value, 10)  // [추가] 관계 변화 단계
         };
 
         try {
             if (relationshipId) {
-                const updateData = { type: relationshipData.type, description: relationshipData.description };
+                const updateData = {
+                    type: relationshipData.type,
+                    description: relationshipData.description,
+                    phase_order: relationshipData.phase_order  // [추가] 관계 변화 단계
+                };
                 await api.updateRelationship(projectId, relationshipId, updateData);
                 alert('관계가 성공적으로 수정되었습니다.');
             } else {

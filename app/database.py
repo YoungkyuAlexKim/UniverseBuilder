@@ -96,7 +96,26 @@ class Relationship(Base):
     target_character_id = Column(String, ForeignKey("cards.id"), nullable=False, index=True)
     type = Column(String, nullable=False)
     description = Column(Text)
+    phase_order = Column(Integer, nullable=False, default=1)  # [추가] 관계 변화 단계 (1부터 시작)
     project = relationship("Project", back_populates="relationships")
+    phases = relationship("RelationshipPhase", back_populates="relationship", cascade="all, delete-orphan")  # [추가] 관계 변화 단계들
+
+class RelationshipPhase(Base):
+    __tablename__ = "relationship_phases"
+    id = Column(String, primary_key=True, index=True)
+    relationship_id = Column(String, ForeignKey("relationships.id"), nullable=False, index=True)
+    phase_order = Column(Integer, nullable=False)  # 단계 순서 (1, 2, 3...)
+    type = Column(String, nullable=False)  # 관계를 한두 단어로 요약한 키워드
+    description = Column(Text)  # 해당 단계에서의 관계에 대한 상세 서술
+    trigger_description = Column(Text)  # [핵심] 이 PHASE로 변화하게 된 계기(사건)를 작가가 직접 서술
+
+    # 호칭/말투 필드 (모두 Nullable)
+    source_to_target_address = Column(String)  # A가 B를 부르는 호칭
+    source_to_target_tone = Column(Text)  # A가 B에게 말하는 말투와 그 예시
+    target_to_source_address = Column(String)  # B가 A를 부르는 호칭
+    target_to_source_tone = Column(Text)  # B가 A에게 말하는 말투와 그 예시
+
+    relationship = relationship("Relationship", back_populates="phases")
 
 class Scenario(Base):
     __tablename__ = "scenarios"

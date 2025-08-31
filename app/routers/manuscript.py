@@ -402,7 +402,38 @@ async def edit_manuscript_block_with_ai(
         ).all()
         if relationships:
             char_map = {c.id: c.name for c in db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()}
-            rel_descs = [f"- {char_map.get(r.source_character_id)} → {char_map.get(r.target_character_id)}: {r.type}" for r in relationships]
+            rel_descs = []
+
+            for r in relationships:
+                # 현재 관계의 Phase 정보 가져오기 (가장 최신 단계)
+                from ..database import RelationshipPhase as RelationshipPhaseModel
+                latest_phase = db.query(RelationshipPhaseModel).filter(
+                    RelationshipPhaseModel.relationship_id == r.id
+                ).order_by(RelationshipPhaseModel.phase_order.desc()).first()
+
+                source_name = char_map.get(r.source_character_id, '알 수 없음')
+                target_name = char_map.get(r.target_character_id, '알 수 없음')
+
+                # 기본 관계 정보
+                desc = f"- {source_name} → {target_name}: {r.type}"
+                if r.description:
+                    desc += f" ({r.description})"
+
+                # Phase 정보가 있으면 추가
+                if latest_phase:
+                    desc += f"\n  └ 단계 {latest_phase.phase_order}: {latest_phase.type}"
+                    if latest_phase.trigger_description:
+                        desc += f" (계기: {latest_phase.trigger_description})"
+                    if latest_phase.source_to_target_address or latest_phase.source_to_target_tone:
+                        desc += f"\n    └ {source_name}의 말투/호칭: {latest_phase.source_to_target_tone or ''}"
+                        if latest_phase.source_to_target_address:
+                            desc += f" (호칭: {latest_phase.source_to_target_address})"
+                    if latest_phase.target_to_source_address or latest_phase.target_to_source_tone:
+                        desc += f"\n    └ {target_name}의 말투/호칭: {latest_phase.target_to_source_tone or ''}"
+                        if latest_phase.target_to_source_address:
+                            desc += f" (호칭: {latest_phase.target_to_source_address})"
+
+                rel_descs.append(desc)
             relationships_context = "\n\n**[캐릭터 간 관계]**\n" + "\n".join(rel_descs)
 
     style_guide_context = get_style_guide_content(request.style_guide_id)

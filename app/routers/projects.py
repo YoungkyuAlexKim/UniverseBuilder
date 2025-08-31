@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
-from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel
+from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewGroup as WorldviewGroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel, RelationshipPhase as RelationshipPhaseModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel
 
 # --- 비밀번호 해싱 설정 ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -57,6 +57,21 @@ class Relationship(BaseModel):
     target_character_id: str
     type: str
     description: Optional[str] = None
+    phase_order: int = 1  # [추가] 관계 변화 단계
+    class Config:
+        from_attributes = True
+
+class RelationshipPhase(BaseModel):
+    id: str
+    relationship_id: str
+    phase_order: int
+    type: str
+    description: Optional[str] = None
+    trigger_description: Optional[str] = None
+    source_to_target_address: Optional[str] = None
+    source_to_target_tone: Optional[str] = None
+    target_to_source_address: Optional[str] = None
+    target_to_source_tone: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -178,10 +193,33 @@ class CreateRelationshipRequest(BaseModel):
     target_character_id: str
     type: str
     description: Optional[str] = None
+    phase_order: int = 1  # [추가] 관계 변화 단계 (기본값: 1)
 
 class UpdateRelationshipRequest(BaseModel):
     type: str
     description: Optional[str] = None
+    phase_order: Optional[int] = None  # [추가] 관계 변화 단계 (선택적)
+
+class CreateRelationshipPhaseRequest(BaseModel):
+    relationship_id: str
+    phase_order: int
+    type: str
+    description: Optional[str] = None
+    trigger_description: Optional[str] = None
+    source_to_target_address: Optional[str] = None
+    source_to_target_tone: Optional[str] = None
+    target_to_source_address: Optional[str] = None
+    target_to_source_tone: Optional[str] = None
+
+class UpdateRelationshipPhaseRequest(BaseModel):
+    phase_order: Optional[int] = None
+    type: Optional[str] = None
+    description: Optional[str] = None
+    trigger_description: Optional[str] = None
+    source_to_target_address: Optional[str] = None
+    source_to_target_tone: Optional[str] = None
+    target_to_source_address: Optional[str] = None
+    target_to_source_tone: Optional[str] = None
 
 class ProjectPasswordRequest(BaseModel):
     password: str
@@ -595,7 +633,8 @@ def create_relationship(request: CreateRelationshipRequest, project: ProjectMode
         source_character_id=request.source_character_id,
         target_character_id=request.target_character_id,
         type=request.type,
-        description=request.description
+        description=request.description,
+        phase_order=request.phase_order  # [추가] 관계 변화 단계
     )
     db.add(new_rel)
     db.commit()
@@ -609,6 +648,8 @@ def update_relationship(relationship_id: str, request: UpdateRelationshipRequest
         raise HTTPException(status_code=404, detail="수정할 관계를 찾을 수 없습니다.")
     rel.type = request.type
     rel.description = request.description
+    if request.phase_order is not None:  # [추가] phase_order가 제공된 경우에만 업데이트
+        rel.phase_order = request.phase_order
     db.commit()
     db.refresh(rel)
     return rel
@@ -621,3 +662,88 @@ def delete_relationship(relationship_id: str, project: ProjectModel = Depends(ge
     db.delete(rel)
     db.commit()
     return {"message": "관계가 성공적으로 삭제되었습니다."}
+
+# --- 관계 변화 단계 (RelationshipPhase) ---
+
+@router.post("/{project_id}/relationships/{relationship_id}/phases", response_model=RelationshipPhase)
+def create_relationship_phase(relationship_id: str, request: CreateRelationshipPhaseRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    # 관계가 해당 프로젝트에 속하는지 확인
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project.id).first()
+    if not rel:
+        raise HTTPException(status_code=404, detail="관계를 찾을 수 없습니다.")
+
+    new_phase_id = f"phase-{int(time.time() * 1000)}"
+    new_phase = RelationshipPhaseModel(
+        id=new_phase_id,
+        relationship_id=relationship_id,
+        phase_order=request.phase_order,
+        type=request.type,
+        description=request.description,
+        trigger_description=request.trigger_description,
+        source_to_target_address=request.source_to_target_address,
+        source_to_target_tone=request.source_to_target_tone,
+        target_to_source_address=request.target_to_source_address,
+        target_to_source_tone=request.target_to_source_tone
+    )
+    db.add(new_phase)
+    db.commit()
+    db.refresh(new_phase)
+    return new_phase
+
+@router.get("/{project_id}/relationships/{relationship_id}/phases", response_model=List[RelationshipPhase])
+def get_relationship_phases(relationship_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    # 관계가 해당 프로젝트에 속하는지 확인
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project.id).first()
+    if not rel:
+        raise HTTPException(status_code=404, detail="관계를 찾을 수 없습니다.")
+
+    phases = db.query(RelationshipPhaseModel).filter(RelationshipPhaseModel.relationship_id == relationship_id).order_by(RelationshipPhaseModel.phase_order).all()
+    return phases
+
+@router.put("/{project_id}/relationships/{relationship_id}/phases/{phase_id}", response_model=RelationshipPhase)
+def update_relationship_phase(relationship_id: str, phase_id: str, request: UpdateRelationshipPhaseRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    # 관계가 해당 프로젝트에 속하는지 확인
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project.id).first()
+    if not rel:
+        raise HTTPException(status_code=404, detail="관계를 찾을 수 없습니다.")
+
+    phase = db.query(RelationshipPhaseModel).filter(RelationshipPhaseModel.id == phase_id, RelationshipPhaseModel.relationship_id == relationship_id).first()
+    if not phase:
+        raise HTTPException(status_code=404, detail="관계 단계를 찾을 수 없습니다.")
+
+    # 요청된 필드들만 업데이트
+    if request.phase_order is not None:
+        phase.phase_order = request.phase_order
+    if request.type is not None:
+        phase.type = request.type
+    if request.description is not None:
+        phase.description = request.description
+    if request.trigger_description is not None:
+        phase.trigger_description = request.trigger_description
+    if request.source_to_target_address is not None:
+        phase.source_to_target_address = request.source_to_target_address
+    if request.source_to_target_tone is not None:
+        phase.source_to_target_tone = request.source_to_target_tone
+    if request.target_to_source_address is not None:
+        phase.target_to_source_address = request.target_to_source_address
+    if request.target_to_source_tone is not None:
+        phase.target_to_source_tone = request.target_to_source_tone
+
+    db.commit()
+    db.refresh(phase)
+    return phase
+
+@router.delete("/{project_id}/relationships/{relationship_id}/phases/{phase_id}")
+def delete_relationship_phase(relationship_id: str, phase_id: str, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+    # 관계가 해당 프로젝트에 속하는지 확인
+    rel = db.query(RelationshipModel).filter(RelationshipModel.id == relationship_id, RelationshipModel.project_id == project.id).first()
+    if not rel:
+        raise HTTPException(status_code=404, detail="관계를 찾을 수 없습니다.")
+
+    phase = db.query(RelationshipPhaseModel).filter(RelationshipPhaseModel.id == phase_id, RelationshipPhaseModel.relationship_id == relationship_id).first()
+    if not phase:
+        raise HTTPException(status_code=404, detail="관계 단계를 찾을 수 없습니다.")
+
+    db.delete(phase)
+    db.commit()
+    return {"message": "관계 단계가 삭제되었습니다."}
