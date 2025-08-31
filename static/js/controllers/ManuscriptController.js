@@ -400,6 +400,111 @@ export class ManuscriptController {
         }
     }
 
+    /**
+     * 캐릭터 추출을 실행합니다.
+     */
+    async extractCharactersFromBlock(blockId, textContent) {
+        const charactersList = document.getElementById('related-characters-list');
+        const updateBtn = document.getElementById('update-characters-btn');
+
+        // 로딩 상태 표시
+        charactersList.innerHTML = `
+            <div class="character-loading">
+                <small>캐릭터 정보를 분석하는 중...</small>
+            </div>
+        `;
+
+        if (updateBtn) {
+            updateBtn.setAttribute('aria-busy', 'true');
+        }
+
+        try {
+            const projectId = this.stateManager.getState().currentProject.id;
+            const result = await api.extractCharactersFromManuscript(projectId, blockId, { text_content: textContent });
+
+            // 결과 표시
+            this.displayCharacterResults(result.characters, result.unidentified_entities);
+
+        } catch (error) {
+            console.error('캐릭터 추출 실패:', error);
+            charactersList.innerHTML = `
+                <div class="character-loading">
+                    <small style="color: var(--pico-form-element-invalid-active-border-color);">
+                        캐릭터 분석 중 오류가 발생했습니다.
+                    </small>
+                </div>
+            `;
+        } finally {
+            if (updateBtn) {
+                updateBtn.setAttribute('aria-busy', 'false');
+            }
+        }
+    }
+
+    /**
+     * 캐릭터 추출 결과를 화면에 표시합니다.
+     */
+    displayCharacterResults(characters, unidentifiedEntities) {
+        const charactersList = document.getElementById('related-characters-list');
+
+        if (!characters || characters.length === 0) {
+            charactersList.innerHTML = `
+                <div class="character-loading">
+                    <small>이 텍스트에서 특정 캐릭터를 찾을 수 없습니다.</small>
+                </div>
+            `;
+            return;
+        }
+
+        const characterItems = characters.map(character => {
+            const confidencePercent = Math.round(character.confidence * 100);
+            const avatarLetter = character.name.charAt(0).toUpperCase();
+
+            return `
+                <div class="character-item">
+                    <div class="character-avatar">${avatarLetter}</div>
+                    <div class="character-info">
+                        <div class="character-name">${character.name}</div>
+                        <span class="character-role">${this.getRoleDisplayText(character.role)}</span>
+                    </div>
+                    <div class="character-confidence">${confidencePercent}%</div>
+                </div>
+            `;
+        }).join('');
+
+        // 미확인 개체들도 표시 (있는 경우)
+        let unidentifiedItems = '';
+        if (unidentifiedEntities && unidentifiedEntities.length > 0) {
+            unidentifiedItems = unidentifiedEntities.map(entity => `
+                <div class="character-item" style="opacity: 0.7;">
+                    <div class="character-avatar" style="background: var(--pico-muted-border-color);">?</div>
+                    <div class="character-info">
+                        <div class="character-name">${entity.name}</div>
+                        <span class="character-role">미확인</span>
+                    </div>
+                    <div class="character-confidence">?</div>
+                </div>
+            `).join('');
+        }
+
+        charactersList.innerHTML = characterItems + unidentifiedItems;
+    }
+
+    /**
+     * 역할 텍스트를 한글로 변환합니다.
+     */
+    getRoleDisplayText(role) {
+        const roleMap = {
+            '주인공': '주인공',
+            'main': '주인공',
+            '조연': '조연',
+            'supporting': '조연',
+            '단역': '단역',
+            'minor': '단역'
+        };
+        return roleMap[role] || role;
+    }
+
     openPartialRefineModal(selectedText, surroundingContext) {
         const modal = document.getElementById('partial-refine-modal');
         const backdrop = document.getElementById('modal-backdrop');

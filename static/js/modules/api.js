@@ -673,3 +673,16 @@ export async function getStyleGuideContent(styleGuideId) {
     });
     return handleResponse(response);
 }
+
+// -------------------------
+// 캐릭터 추출 (Character Extraction)
+// -------------------------
+
+export async function extractCharactersFromManuscript(projectId, blockId, requestBody) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/extract-characters`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId),
+        body: JSON.stringify(requestBody)
+    });
+    return handleResponse(response);
+}

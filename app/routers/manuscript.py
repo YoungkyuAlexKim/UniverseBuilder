@@ -13,7 +13,7 @@ from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockT
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database # <--- 오류 수정을 위해 이 줄을 추가했습니다.
-from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, ManuscriptBlock as ManuscriptBlockModel, Card as CardModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
+from ..database import Project as ProjectModel, Scenario as ScenarioModel, PlotPoint as PlotPointModel, ManuscriptBlock as ManuscriptBlockModel, Card as CardModel, Group as GroupModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
 from .scenarios import PlotPoint
 from .projects import get_project_if_accessible
 from ..config import ai_prompts # 프롬프트 설정을 불러옵니다.
@@ -191,6 +191,24 @@ class SplitManuscriptBlockRequest(BaseModel):
 class ExportToScenarioRequest(BaseModel):
     confirm_overwrite: bool = False  # 덮어쓰기 확인
     max_plots: Optional[int] = 50  # AI 제한 고려한 최대 플롯 수
+
+class ExtractCharactersRequest(BaseModel):
+    text_content: str
+
+class CharacterInfo(BaseModel):
+    id: str
+    name: str
+    role: str
+    confidence: float
+    context: str
+
+class UnidentifiedEntity(BaseModel):
+    name: str
+    context: str
+
+class CharacterExtractionResult(BaseModel):
+    characters: List[CharacterInfo]
+    unidentified_entities: List[UnidentifiedEntity]
 
 # --- Pydantic 모델 ---
 class StyleGuideInfo(BaseModel):
@@ -706,6 +724,89 @@ def get_style_guide_content_only(style_guide_id: str):
     if not content:
         raise HTTPException(status_code=404, detail="스타일 가이드를 찾을 수 없습니다.")
     return {"content": content}
+
+@router.post("/blocks/{block_id}/extract-characters")
+async def extract_characters_from_manuscript(
+    block_id: str,
+    request: ExtractCharactersRequest,
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
+    """
+    집필 블록의 텍스트에서 등장하는 캐릭터들을 AI를 사용하여 추출합니다.
+    """
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
+
+    # 블록 존재 확인
+    block = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.id == block_id,
+        ManuscriptBlockModel.project_id == project.id
+    ).first()
+
+    if not block:
+        raise HTTPException(status_code=404, detail="블록을 찾을 수 없습니다.")
+
+    if not request.text_content or not request.text_content.strip():
+        raise HTTPException(status_code=400, detail="분석할 텍스트 내용이 없습니다.")
+
+    # 프로젝트의 모든 캐릭터 정보 수집 (Group을 통해 연결)
+    characters = db.query(CardModel).join(GroupModel).filter(GroupModel.project_id == project.id).all()
+    available_characters = "\n".join([
+        f"- ID: {c.id}, 이름: {c.name}, 설명: {c.description[:100] if c.description else '설명 없음'}..."
+        for c in characters
+    ])
+
+    if not available_characters:
+        available_characters = "등록된 캐릭터가 없습니다."
+
+    # AI 프롬프트 구성
+    prompt = ai_prompts.extract_related_characters.format(
+        text_content=request.text_content,
+        available_characters=available_characters
+    )
+
+    try:
+        chosen_model = AVAILABLE_MODELS[0]  # 기본 모델 사용
+        model = genai.GenerativeModel(chosen_model)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        generation_config = GenerationConfig(response_mime_type="application/json")
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+
+        if not response.parts:
+            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
+            error_detail = f"AI가 응답을 생성하지 못했습니다. (종료 사유: {finish_reason})"
+            if "SAFETY" in str(finish_reason):
+                error_detail = "AI 생성 내용이 안전 필터에 의해 차단되었습니다."
+            raise HTTPException(status_code=500, detail=error_detail)
+
+        raw_text = response.text.strip()
+        cleaned_text = raw_text.removeprefix("```json").removesuffix("```").strip()
+
+        result = json.loads(cleaned_text)
+
+        # 디버깅을 위한 로깅
+        print(f"DEBUG: AI 응답 파싱 성공 - 캐릭터: {len(result.get('characters', []))}, 미확인 개체: {len(result.get('unidentified_entities', []))}")
+
+        return CharacterExtractionResult(**result)
+
+    except json.JSONDecodeError:
+        error_detail = f"AI가 유효하지 않은 JSON 형식으로 응답했습니다. 원본 응답: {raw_text[:200]}"
+        raise HTTPException(status_code=500, detail=error_detail)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"캐릭터 추출 중 오류 발생: {e}")
 
 @router.delete("/blocks/{block_id}")
 def delete_manuscript_block(

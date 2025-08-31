@@ -520,6 +520,12 @@ function renderManuscriptTab(projectData) {
         saveButton.removeAttribute('data-current-block-id');
         if(charCountDisplay) charCountDisplay.textContent = '0';
         if(wordCountDisplay) wordCountDisplay.textContent = '0';
+
+        // [신규] 캐릭터 정보 및 피드백 섹션 숨기기
+        const characterSection = container.querySelector('#character-info-section');
+        const feedbackSection = container.querySelector('#feedback-section');
+        if (characterSection) characterSection.style.display = 'none';
+        if (feedbackSection) feedbackSection.style.display = 'none';
     };
     clearEditor();
 
@@ -645,6 +651,32 @@ function renderManuscriptTab(projectData) {
             } else {
                 contextContentEl.innerHTML = '<p class="empty-message">원본 플롯 정보를 찾을 수 없습니다.</p>';
             }
+
+            // [신규] 캐릭터 정보 섹션 표시 및 캐릭터 추출 실행
+            const characterSection = container.querySelector('#character-info-section');
+            const feedbackSection = container.querySelector('#feedback-section');
+
+            if (characterSection) {
+                characterSection.style.display = 'block';
+                // 캐릭터 추출 실행
+                const textContent = selectedBlock.content || '';
+                if (textContent.trim()) {
+                    app.manuscriptController.extractCharactersFromBlock(blockId, textContent);
+                } else {
+                    const charactersList = document.getElementById('related-characters-list');
+                    if (charactersList) {
+                        charactersList.innerHTML = `
+                            <div class="character-loading">
+                                <small>내용이 없어 캐릭터를 분석할 수 없습니다.</small>
+                            </div>
+                        `;
+                    }
+                }
+            }
+
+            if (feedbackSection) {
+                feedbackSection.style.display = 'block';
+            }
         }
 
         updateButtonStates();
@@ -757,6 +789,18 @@ function renderManuscriptTab(projectData) {
         }
     });
 
+
+    // [신규] 캐릭터 정보 갱신 버튼 이벤트
+    const updateCharactersBtn = container.querySelector('#update-characters-btn');
+    if (updateCharactersBtn) {
+        eventManager.addEventListener(updateCharactersBtn, 'click', () => {
+            const blockId = saveButton.getAttribute('data-current-block-id');
+            const textContent = contentTextarea.value;
+            if (blockId && textContent.trim()) {
+                app.manuscriptController.extractCharactersFromBlock(blockId, textContent);
+            }
+        });
+    }
 
     // 저장 버튼 이벤트
     eventManager.addEventListener(saveButton, 'click', () => {
