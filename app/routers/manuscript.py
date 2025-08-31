@@ -7,9 +7,9 @@ import time
 import json
 import os
 
-# Gemini AI 관련 임포트
-import google.generativeai as genai
-from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockThreshold
+# AI 유틸리티 임포트
+from ..utils.ai_utils import call_ai_model
+from google.generativeai.types import GenerationConfig
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database # <--- 오류 수정을 위해 이 줄을 추가했습니다.
@@ -18,11 +18,8 @@ from .scenarios import PlotPoint
 from .projects import get_project_if_accessible
 from ..config import ai_prompts # 프롬프트 설정을 불러옵니다.
 
-# --- Gemini API 설정 ---
+# --- 모델 설정 ---
 AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
-api_key = os.getenv("GOOGLE_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
 
 # --- 유틸리티 함수 ---
 # --- 스타일 가이드 관리 시스템 ---
@@ -378,22 +375,20 @@ async def edit_manuscript_block_with_ai(
     project: ProjectModel = Depends(get_project_if_accessible),
     db: Session = Depends(database.get_db)
 ):
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
-
     block_to_edit = db.query(ManuscriptBlockModel).filter(ManuscriptBlockModel.id == block_id).first()
     if not block_to_edit:
         raise HTTPException(status_code=404, detail="수정할 원고 블록을 찾을 수 없습니다.")
 
+    # 컨텍스트 구성 로직은 그대로 유지
     scenario = db.query(ScenarioModel).filter(ScenarioModel.project_id == project.id).first()
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering) if scenario else []
-    
+
     original_plot = next((p for p in all_plot_points if p.ordering == block_to_edit.ordering), None)
-    
+
     plot_title = original_plot.title if original_plot else "알 수 없음"
     plot_content = original_plot.content if original_plot else "원본 플롯 정보 없음"
     surrounding_context = _get_surrounding_plot_context(block_to_edit.ordering, all_plot_points)
-    
+
     characters_context = ""
     if request.character_ids:
         characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
@@ -412,6 +407,8 @@ async def edit_manuscript_block_with_ai(
 
     style_guide_context = get_style_guide_content(request.style_guide_id)
 
+    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+
     prompt = ai_prompts.manuscript_edit.format(
         style_guide_context=style_guide_context,
         plot_title=plot_title,
@@ -423,21 +420,14 @@ async def edit_manuscript_block_with_ai(
         user_edit_request=request.user_edit_request
     )
 
-    try:
-        chosen_model = request.model_name or AVAILABLE_MODELS[0]
-        model = genai.GenerativeModel(chosen_model)
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-        response = await model.generate_content_async(prompt, safety_settings=safety_settings)
-        
-        return {"edited_content": response.text.strip()}
+    # call_ai_model을 사용하여 AI 호출 (텍스트 응답)
+    edited_content = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        response_format="text"
+    )
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 원고 수정 중 오류 발생: {e}")
+    return {"edited_content": edited_content}
 
 @router.post("/blocks/{block_id}/refine-partial")
 async def refine_partial_manuscript_block(
@@ -449,9 +439,6 @@ async def refine_partial_manuscript_block(
     """
     선택된 텍스트의 일부를 AI를 통해 다듬고 여러 제안을 반환합니다.
     """
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
-
     style_guide_context = get_style_guide_content(request.style_guide_id)
 
     prompt = ai_prompts.manuscript_partial_refine.format(
@@ -461,47 +448,17 @@ async def refine_partial_manuscript_block(
         user_prompt=request.user_prompt or "문장을 더 자연스럽고 세련되게 다듬어줘." # 기본 프롬프트
     )
 
-    try:
-        chosen_model = request.model_name or AVAILABLE_MODELS[0]
-        model = genai.GenerativeModel(chosen_model)
-        
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    suggestions = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
 
-        response = await model.generate_content_async(
-            prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
-        
-        # AI 응답이 비어있는 경우에 대한 예외 처리 추가
-        if not response.parts:
-            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-            error_detail = f"AI가 응답을 생성하지 못했습니다. (종료 사유: {finish_reason})"
-            if "SAFETY" in str(finish_reason):
-                error_detail = "AI 생성 내용이 안전 필터에 의해 차단되었습니다."
-            raise HTTPException(status_code=500, detail=error_detail)
-
-        # JSON 파싱 전후의 텍스트를 확인하여 디버깅 용이성 확보
-        raw_text = response.text.strip()
-        cleaned_text = raw_text.removeprefix("```json").removesuffix("```").strip()
-        
-        suggestions = json.loads(cleaned_text)
-        return suggestions
-
-    except json.JSONDecodeError:
-        error_detail = f"AI가 유효하지 않은 JSON 형식으로 응답했습니다. 원본 응답: {raw_text[:200]}"
-        raise HTTPException(status_code=500, detail=error_detail)
-    except Exception as e:
-        # 이미 HTTPException인 경우 그대로 전달, 아닌 경우 새로 생성
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"AI 원고 부분 수정 중 오류 발생: {e}")
+    return suggestions
 
 @router.post("/blocks/merge", response_model=ManuscriptBlock)
 def merge_manuscript_blocks(
@@ -756,9 +713,6 @@ async def extract_characters_from_manuscript(
     """
     집필 블록의 텍스트에서 등장하는 캐릭터들을 AI를 사용하여 추출합니다.
     """
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
-
     # 블록 존재 확인
     block = db.query(ManuscriptBlockModel).filter(
         ManuscriptBlockModel.id == block_id,
@@ -787,47 +741,17 @@ async def extract_characters_from_manuscript(
         available_characters=available_characters
     )
 
-    try:
-        chosen_model = AVAILABLE_MODELS[0]  # 기본 모델 사용
-        model = genai.GenerativeModel(chosen_model)
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    chosen_model = AVAILABLE_MODELS[0]  # 기본 모델 사용
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    result = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
 
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(
-            prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
-
-        if not response.parts:
-            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-            error_detail = f"AI가 응답을 생성하지 못했습니다. (종료 사유: {finish_reason})"
-            if "SAFETY" in str(finish_reason):
-                error_detail = "AI 생성 내용이 안전 필터에 의해 차단되었습니다."
-            raise HTTPException(status_code=500, detail=error_detail)
-
-        raw_text = response.text.strip()
-        cleaned_text = raw_text.removeprefix("```json").removesuffix("```").strip()
-
-        result = json.loads(cleaned_text)
-
-        # 디버깅을 위한 로깅
-        print(f"DEBUG: AI 응답 파싱 성공 - 캐릭터: {len(result.get('characters', []))}, 미확인 개체: {len(result.get('unidentified_entities', []))}")
-
-        return CharacterExtractionResult(**result)
-
-    except json.JSONDecodeError:
-        error_detail = f"AI가 유효하지 않은 JSON 형식으로 응답했습니다. 원본 응답: {raw_text[:200]}"
-        raise HTTPException(status_code=500, detail=error_detail)
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"캐릭터 추출 중 오류 발생: {e}")
+    return CharacterExtractionResult(**result)
 
 @router.post("/blocks/{block_id}/generate-feedback")
 async def generate_expert_feedback(
@@ -839,9 +763,6 @@ async def generate_expert_feedback(
     """
     집필 블록의 텍스트에 대한 전문가 수준의 AI 피드백을 생성합니다.
     """
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않았습니다.")
-
     # 블록 존재 확인
     block = db.query(ManuscriptBlockModel).filter(
         ManuscriptBlockModel.id == block_id,
@@ -951,47 +872,17 @@ async def generate_expert_feedback(
         character_context=character_context
     )
 
-    try:
-        chosen_model = AVAILABLE_MODELS[0]  # 기본 모델 사용
-        model = genai.GenerativeModel(chosen_model)
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    chosen_model = AVAILABLE_MODELS[0]  # 기본 모델 사용
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    result = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
 
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(
-            prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
-
-        if not response.parts:
-            finish_reason = response.candidates[0].finish_reason if response.candidates else "UNKNOWN"
-            error_detail = f"AI가 응답을 생성하지 못했습니다. (종료 사유: {finish_reason})"
-            if "SAFETY" in str(finish_reason):
-                error_detail = "AI 생성 내용이 안전 필터에 의해 차단되었습니다."
-            raise HTTPException(status_code=500, detail=error_detail)
-
-        raw_text = response.text.strip()
-        cleaned_text = raw_text.removeprefix("```json").removesuffix("```").strip()
-
-        result = json.loads(cleaned_text)
-
-        # 디버깅을 위한 로깅
-        print(f"DEBUG: AI 피드백 생성 성공 - 점수: {result.get('overall_score', 'N/A')}")
-
-        return ExpertFeedbackResult(**result)
-
-    except json.JSONDecodeError:
-        error_detail = f"AI가 유효하지 않은 JSON 형식으로 응답했습니다. 원본 응답: {raw_text[:200]}"
-        raise HTTPException(status_code=500, detail=error_detail)
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"AI 피드백 생성 중 오류 발생: {e}")
+    return ExpertFeedbackResult(**result)
 
 @router.delete("/blocks/{block_id}")
 def delete_manuscript_block(

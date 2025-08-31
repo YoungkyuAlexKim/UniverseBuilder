@@ -32,7 +32,7 @@ async function handleResponse(response) {
 }
 
 // API 요청 시 인증 헤더를 생성하는 헬퍼 함수
-function getAuthHeaders(projectId) {
+export function getAuthHeaders(projectId) {
     const headers = { 'Content-Type': 'application/json' };
     const password = sessionStorage.getItem(`project-password-${projectId}`);
     if (password) {

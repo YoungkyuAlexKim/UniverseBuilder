@@ -5,6 +5,7 @@
 
 import * as api from '../api.js';
 import { showAiDiffModal } from '../modals.js';
+import { getAuthHeaders } from '../api.js';
 
 // DOM Elements
 const worldviewCardModal = document.getElementById('worldview-card-modal');
@@ -25,7 +26,7 @@ export function initializeWorldviewEditor(appInstance) {
  * @param {object} card - 편집할 세계관 카드
  * @param {string} projectId - 프로젝트 ID
  */
-export function handleEditWorldviewCardAI(card, projectId) {
+export async function handleEditWorldviewCardAI(card, projectId) {
     if (!card) {
         alert("먼저 카드를 저장해야 AI 수정을 사용할 수 있습니다.");
         return;
@@ -35,36 +36,95 @@ export function handleEditWorldviewCardAI(card, projectId) {
     if (existingPanel) existingPanel.remove();
     document.querySelectorAll('.shifted').forEach(view => view.classList.remove('shifted'));
 
-    // [수정] StateManager를 통해 현재 프로젝트 상태를 가져옴
-    const { projects } = app.stateManager.getState();
-    const project = projects.find(p => p.id === projectId);
-    if (!project) { alert('프로젝트를 찾을 수 없습니다.'); return; }
-
+    // [수정] 항상 서버에서 최신 프로젝트 데이터를 가져옴
+    console.log('서버에서 최신 프로젝트 데이터를 가져오는 중...');
+    let project = null;
     let originalCard = null;
-    for (const group of project.worldview_groups) {
-        const foundCard = group.worldview_cards.find(c => c.id === card.id);
+
+    try {
+        const response = await fetch(`/api/v1/projects/${projectId}`, {
+            headers: getAuthHeaders(projectId)
+        });
+
+        if (response.ok) {
+            project = await response.json();
+            console.log('서버 응답 데이터 구조:', Object.keys(project));
+            console.log('세계관 그룹 데이터:', project.worldview_groups);
+
+            // StateManager를 통해 프로젝트 데이터 새로고침
+            await app.stateManager.refreshCurrentProject();
+            console.log('StateManager를 통해 프로젝트 데이터를 새로고침함');
+
+            // 새로고침된 데이터에서 프로젝트 가져오기
+            const { projects: updatedProjects } = app.stateManager.getState();
+            const updatedProject = updatedProjects.find(p => p.id === projectId);
+            if (updatedProject) {
+                project = updatedProject;
+                console.log('새로고침된 프로젝트 데이터 사용');
+            }
+        } else {
+            console.error('프로젝트 데이터를 가져오는데 실패:', response.status);
+            // Fallback: StateManager에서 데이터 가져오기
+            const { projects: localProjects } = app.stateManager.getState();
+            project = localProjects.find(p => p.id === projectId);
+        }
+    } catch (error) {
+        console.error('서버 요청 중 오류 발생:', error);
+        // Fallback: StateManager에서 데이터 가져오기
+        const { projects: localProjects } = app.stateManager.getState();
+        project = localProjects.find(p => p.id === projectId);
+    }
+
+    if (!project) {
+        alert('프로젝트를 찾을 수 없습니다.');
+        return;
+    }
+
+    // 서버에서 가져온 데이터에서 카드 검색
+    for (const group of project.worldview_groups || []) {
+        const foundCard = group.worldview_cards?.find(c => c.id === card.id);
         if (foundCard) {
             originalCard = { ...foundCard, group_id: group.id };
+            console.log('카드를 찾았습니다:', originalCard);
             break;
         }
     }
-    if (!originalCard) { alert('원본 설정 카드 데이터를 찾을 수 없습니다.'); return; }
+
+    if (!originalCard) {
+        console.warn('카드를 찾을 수 없음 - 임시 객체 사용');
+        originalCard = { id: card.id, title: card.title || '제목 없음', content: card.content || '', group_id: 'unknown' };
+    }
 
     const panel = document.createElement('div');
     panel.className = 'ai-edit-panel';
 
+    // [디버깅] 프로젝트 데이터 확인
+    console.log('프로젝트 데이터:', project);
+    console.log('세계관 그룹들:', project.worldview_groups);
+    console.log('세계관 그룹 수:', project.worldview_groups?.length || 0);
+
     let worldviewCardCheckboxes = '';
-    project.worldview_groups.forEach(group => {
-        worldviewCardCheckboxes += `<fieldset><legend>${group.name}</legend>`;
-        group.worldview_cards.forEach(c => {
-            worldviewCardCheckboxes += `<label><input type="checkbox" name="selected_wv_cards" value="${c.id}" ${c.id === card.id ? 'checked disabled' : ''}>${c.title}</label>`;
+    if (project.worldview_groups && project.worldview_groups.length > 0) {
+        project.worldview_groups.forEach(group => {
+            console.log(`그룹 ${group.name}: 카드 수 ${group.worldview_cards?.length || 0}`);
+            worldviewCardCheckboxes += `<fieldset><legend>${group.name}</legend>`;
+            if (group.worldview_cards && group.worldview_cards.length > 0) {
+                group.worldview_cards.forEach(c => {
+                    console.log(`카드: ${c.title} (ID: ${c.id})`);
+                    worldviewCardCheckboxes += `<label><input type="checkbox" name="selected_wv_cards" value="${c.id}" ${c.id === card.id ? 'checked disabled' : ''}>${c.title}</label>`;
+                });
+            } else {
+                worldviewCardCheckboxes += `<p style="color: #666; font-style: italic;">이 그룹에 카드가 없습니다.</p>`;
+            }
+            worldviewCardCheckboxes += `</fieldset>`;
         });
-        worldviewCardCheckboxes += `</fieldset>`;
-    });
+    } else {
+        worldviewCardCheckboxes = '<p style="color: #666; font-style: italic;">참고할 수 있는 다른 설정 카드가 없습니다.</p>';
+    }
 
     panel.innerHTML = `
         <article>
-            <header style="display: flex; justify-content: space-between; align-items: center;"><hgroup style="margin-bottom: 0;"><h3><i data-lucide="wand-sparkles"></i>설정 카드 AI 수정</h3><p>수정 방향과 참고할 정보를 선택하세요.</p></hgroup><a href="#close" aria-label="Close" class="close"></a></header>
+            <header style="display: flex; justify-content: space-between; align-items: center;"><hgroup style="margin-bottom: 0;"><h3><i data-lucide="wand-sparkles"></i>설정 카드 AI 수정</h3><p>수정 방향과 참고할 정보를 선택하세요.</p></hgroup><button type="button" aria-label="Close" class="close"></button></header>
             <form id="ai-edit-wv-form" style="display: flex; flex-direction: column; gap: 1rem; height: calc(100% - 80px);">
                 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;">
                     <label for="prompt_text"><strong>요청사항 (프롬프트)</strong></label>
@@ -87,12 +147,21 @@ export function handleEditWorldviewCardAI(card, projectId) {
     }, 10);
 
     const closePanel = () => {
+        console.log('closePanel 함수 호출됨 - 패널 닫기 시작');
         panel.classList.remove('active');
         worldviewCardModal.classList.remove('shifted');
-        setTimeout(() => panel.remove(), 300);
+        setTimeout(() => {
+            panel.remove();
+            console.log('패널 완전히 제거됨');
+        }, 300);
     };
 
-    panel.querySelector('.close').addEventListener('click', (e) => { e.preventDefault(); closePanel(); });
+    panel.querySelector('.close').addEventListener('click', (e) => {
+        console.log('X 버튼 클릭됨 - 패널 닫기 시도');
+        e.preventDefault();
+        e.stopPropagation();
+        closePanel();
+    });
 
     panel.querySelector('#ai-edit-wv-form').addEventListener('submit', async (e) => {
         e.preventDefault();

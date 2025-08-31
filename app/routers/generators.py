@@ -5,9 +5,7 @@ from sqlalchemy.orm import Session
 import os
 import time
 import json
-import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
-from dotenv import load_dotenv
+import asyncio
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -15,6 +13,10 @@ from typing import Optional, List
 from .. import database
 from ..database import Project as ProjectModel, Group as GroupModel, Card as CardModel, Worldview as WorldviewModel, WorldviewCard as WorldviewCardModel, Relationship as RelationshipModel
 from ..config import ai_models
+
+# --- AI 유틸리티 임포트 ---
+from ..utils.ai_utils import call_ai_model
+from google.generativeai.types import GenerationConfig
 
 # --- Pydantic 모델 ---
 class GenerateRequest(BaseModel):
@@ -96,18 +98,12 @@ class EnhanceSynopsisRequest(BaseModel):
 
 # --- 설정 및 유틸리티 임포트 ---
 from ..config import ai_models, ai_prompts
-from ..error_responses import create_ai_error_response, ErrorCodes
 
-# --- 라우터 및 설정 ---
+# --- 라우터 설정 ---
 router = APIRouter(
     prefix="/api/v1",
     tags=["Generators & Cards"]
 )
-
-load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
 
 # --- 유틸리티 함수 ---
 def parse_card_fields(card_obj):
@@ -122,86 +118,44 @@ def parse_card_fields(card_obj):
 
 @router.post("/generate/worldview/new")
 async def generate_new_worldview(request: NewWorldviewRequest):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-    try:
-        chosen_model = request.model_name or ai_models.available[0]
-        model = genai.GenerativeModel(chosen_model)
-        prompt = ai_prompts.worldview_new.format(keywords=request.keywords)
-        response = await model.generate_content_async(prompt)
-        cleaned_response = response.text.strip().replace("```", "")
-        return {"worldview_text": cleaned_response}
-    except Exception as e:
-        error_response = create_ai_error_response(
-            operation="worldview",
-            original_error=e,
-            ai_response=response.text if 'response' in locals() and hasattr(response, 'text') else None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
+    chosen_model = request.model_name or ai_models.available[0]
+    prompt = ai_prompts.worldview_new.format(keywords=request.keywords)
+
+    # call_ai_model을 사용하여 AI 호출
+    worldview_text = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        response_format="text"
+    )
+
+    return {"worldview_text": worldview_text}
 
 
 @router.post("/generate/worldview/edit")
 async def edit_existing_worldview(request: EditWorldviewRequest):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-    try:
-        chosen_model = request.model_name or ai_models.available[0]
-        model = genai.GenerativeModel(chosen_model)
-        prompt = ai_prompts.worldview_edit.format(
-            existing_content=request.existing_content,
-            keywords=request.keywords
-        )
-        response = await model.generate_content_async(prompt)
-        cleaned_response = response.text.strip().replace("```", "")
-        return {"worldview_text": cleaned_response}
-    except Exception as e:
-        error_response = create_ai_error_response(
-            operation="worldview",
-            original_error=e,
-            ai_response=response.text if 'response' in locals() and hasattr(response, 'text') else None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
+    chosen_model = request.model_name or ai_models.available[0]
+    prompt = ai_prompts.worldview_edit.format(
+        existing_content=request.existing_content,
+        keywords=request.keywords
+    )
+
+    # call_ai_model을 사용하여 AI 호출
+    worldview_text = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        response_format="text"
+    )
+
+    return {"worldview_text": worldview_text}
 
 
 @router.post("/projects/{project_id}/generate/character")
 async def generate_character(project_id: str, request: GenerateRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
 
+    # 세계관 컨텍스트 구성 로직은 그대로 유지
     worldview_data = {"logline": "", "genre": "", "rules": []}
     if project.worldview and project.worldview.content:
         try:
@@ -213,7 +167,7 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
     base_worldview_prompt = ""
     genre_prompt = f"\n- 장르 및 분위기: {worldview_data.get('genre') or '미설정'}"
     rules_prompt = "\n- 이 세계의 핵심 설정:\n  - " + "\n  - ".join(worldview_data.get("rules", [])) if worldview_data.get("rules") else ""
-    
+
     if genre_prompt or rules_prompt:
         base_worldview_prompt = f"\n**참고할 메인 세계관 설정:**{genre_prompt}{rules_prompt}"
 
@@ -226,7 +180,7 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
         level_instruction = "\n- 캐릭터의 개인적인 서사 중심으로 서술하되, 세계관의 큰 흐름과는 무관하게 설정해주세요."
     else: # none
         level_instruction = "\n- 세계관의 고유 설정(지명, 특정 사건 등)은 언급하지 말고, 장르와 분위기만 참고하세요."
-    
+
     if base_worldview_prompt:
         worldview_context_prompt = base_worldview_prompt + level_instruction
 
@@ -245,7 +199,6 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
             character_context_prompt = "\n**참고할 기존 캐릭터 정보:**\n" + "\n".join(character_info)
 
     chosen_model = request.model_name or ai_models.available[0]
-    model = genai.GenerativeModel(chosen_model)
 
     prompt = ai_prompts.character_generation.format(
         worldview_context=worldview_context_prompt,
@@ -253,39 +206,23 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
         character_context=character_context_prompt,
         keywords=request.keywords
     )
-    try:
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(prompt, generation_config=generation_config)
-        character_data = json.loads(response.text)
-        return character_data
-    except Exception as e:
-        error_response = create_ai_error_response(
-            operation="character",
-            original_error=e,
-            ai_response=response.text if 'response' in locals() and hasattr(response, 'text') else None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
+
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    character_data = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
+
+    return character_data
 
 # [신규] 스트리밍 응답을 위한 엔드포인트들
 @router.post("/generate/character/stream")
 async def generate_character_stream(request: GenerateRequest):
     """스트리밍 방식으로 캐릭터를 생성합니다."""
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
     chosen_model = request.model_name or ai_models.available[0]
-    model = genai.GenerativeModel(chosen_model)
 
     prompt = ai_prompts.character_generation.format(
         worldview_context="",
@@ -294,25 +231,21 @@ async def generate_character_stream(request: GenerateRequest):
         keywords=request.keywords
     )
 
-    def generate():
+    # 스트리밍 모드로 call_ai_model 호출
+    generation_config = GenerationConfig(response_mime_type="application/json")
+
+    async def generate():
         try:
-            generation_config = GenerationConfig(response_mime_type="application/json")
-            response = model.generate_content_async(prompt, generation_config=generation_config, stream=True)
-
-            # 스트리밍 응답 처리
-            for chunk in response:
-                if chunk.text:
-                    yield f"data: {chunk.text}\n\n"
-
-            yield "data: [DONE]\n\n"
-
-        except Exception as e:
-            error_response = create_ai_error_response(
-                operation="character",
-                original_error=e,
-                ai_response=None
-            )
-            yield f"data: {error_response.model_dump_json()}\n\n"
+            async for chunk in call_ai_model(
+                prompt=prompt,
+                model_name=chosen_model,
+                generation_config=generation_config,
+                stream=True
+            ):
+                yield chunk
+        except Exception:
+            # call_ai_model에서 이미 오류 처리를 하므로 추가 처리 불필요
+            pass
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -370,21 +303,11 @@ def delete_card_from_project(project_id: str, group_id: str, card_id: str, db: S
 
 @router.put("/projects/{project_id}/cards/{card_id}/edit-with-ai")
 async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-    
+
+    # 컨텍스트 구성 로직은 그대로 유지
     all_card_ids = set(request.selected_card_ids or [])
     all_card_ids.add(card_id)
 
@@ -408,14 +331,14 @@ async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditReques
         })
         if card.id == card_id:
             edited_card_name = card.name
-    
+
     worldview_data = {"logline": "", "genre": "", "rules": []}
     if project.worldview and project.worldview.content:
         try:
             worldview_data = json.loads(project.worldview.content)
         except json.JSONDecodeError:
             pass
-            
+
     worldview_context_for_prompt = {
         "genre": worldview_data.get("genre"),
         "rules": worldview_data.get("rules")
@@ -432,7 +355,6 @@ async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditReques
         editing_instruction = f"""사용자의 요청에 따라 캐릭터 정보를 수정할 때, **'{edited_card_name}'** 캐릭터를 중심으로 서사를 변경해주세요. 한 캐릭터의 수정이 다른 캐릭터의 서사에 영향을 준다면, 컨텍스트로 제공된 관련된 다른 캐릭터들의 정보도 자연스럽게 수정해야 합니다."""
 
     chosen_model = request.model_name or ai_models.available[0]
-    model = genai.GenerativeModel(chosen_model)
 
     prompt = f"""당신은 세계관 설정의 일관성을 유지하는 전문 편집자입니다.
 아래에 제공되는 '프로젝트 데이터'와 '사용자 요청사항'을 바탕으로 캐릭터 카드 정보를 수정해주세요.
@@ -465,56 +387,81 @@ async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditReques
   ]
 }}
 """
-    try:
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(prompt, generation_config=generation_config)
-        ai_result = json.loads(response.text)
-        return ai_result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 수정 작업 중 오류가 발생했습니다: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    ai_result = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
+
+    return ai_result
 
 @router.put("/projects/{project_id}/worldview_cards/{card_id}/edit-with-ai")
 async def edit_worldview_card_with_ai(project_id: str, card_id: str, request: AIEditWorldviewRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
+    # 프로젝트 존재 확인
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
-    
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+
+    # 컨텍스트 구성 로직은 그대로 유지
     worldview_data = {"logline": "", "genre": "", "rules": []}
-    if project and project.worldview and project.worldview.content:
+    if project.worldview and project.worldview.content:
         try:
             worldview_data = json.loads(project.worldview.content)
         except json.JSONDecodeError:
             pass
     main_worldview_context = f"장르: {worldview_data.get('genre')}, 핵심 설정: {worldview_data.get('rules')}"
 
+    # 프로젝트에 속한 카드들만 조회하도록 필터링 추가
+    # WorldviewCard -> WorldviewGroup -> Project 순서로 연결되어 있음
+    from ..database import WorldviewGroup as WorldviewGroupModel
+
     all_card_ids = set(request.selected_card_ids or [])
     all_card_ids.add(card_id)
-    
-    cards_from_db = db.query(WorldviewCardModel).filter(WorldviewCardModel.id.in_(list(all_card_ids))).all()
+
+    # 디버깅: 요청된 카드 ID들 로깅
+    import logging
+    logging.warning(f"DEBUG: 요청된 카드 ID들: {list(all_card_ids)}")
+    logging.warning(f"DEBUG: 메인 카드 ID: {card_id}")
+    logging.warning(f"DEBUG: 선택된 카드 ID들: {request.selected_card_ids}")
+    logging.warning(f"DEBUG: 프로젝트 ID: {project_id}")
+
+    # WorldviewGroup을 join해서 프로젝트 확인
+    cards_from_db = db.query(WorldviewCardModel).join(
+        WorldviewGroupModel,
+        WorldviewCardModel.group_id == WorldviewGroupModel.id
+    ).filter(
+        WorldviewCardModel.id.in_(list(all_card_ids)),
+        WorldviewGroupModel.project_id == project_id
+    ).all()
+
+    logging.warning(f"DEBUG: 조회된 카드 수: {len(cards_from_db)}")
+    for card in cards_from_db:
+        logging.warning(f"DEBUG: 찾은 카드 - ID: {card.id}, 제목: {card.title}")
+
     if not cards_from_db:
-         raise HTTPException(status_code=404, detail="수정할 카드를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="원본 설정 카드 데이터를 찾을 수 없습니다.")
+
+    # 메인 카드(편집 대상)가 있는지 확인
+    main_card = next((card for card in cards_from_db if card.id == card_id), None)
+    if not main_card:
+        logging.error(f"DEBUG: 메인 카드 {card_id}를 찾을 수 없음")
+        raise HTTPException(status_code=404, detail="편집할 메인 카드를 찾을 수 없습니다.")
 
     edited_card_title = ""
     for card in cards_from_db:
         if card.id == card_id:
             edited_card_title = card.title
             break
-    
+
     editing_instruction = f"""**오직 '{edited_card_title}' 설정 카드만 수정**해야 합니다."""
     if request.edit_related_cards:
         editing_instruction = f"""**'{edited_card_title}'** 카드를 중심으로 내용을 변경하고, 관련된 다른 카드의 정보도 자연스럽게 수정해야 합니다."""
-    
+
     chosen_model = request.model_name or ai_models.available[0]
-    model = genai.GenerativeModel(chosen_model)
 
     prompt = f"""당신은 세계관 설정의 일관성을 유지하는 전문 편집자입니다.
 아래 정보를 바탕으로 **세계관 설정 카드**의 내용을 수정해주세요.
@@ -543,13 +490,17 @@ async def edit_worldview_card_with_ai(project_id: str, card_id: str, request: AI
   ]
 }}
 """
-    try:
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(prompt, generation_config=generation_config)
-        ai_result = json.loads(response.text)
-        return ai_result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 수정 작업 중 오류가 발생했습니다: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    ai_result = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
+
+    return ai_result
 
 @router.put("/projects/{project_id}/cards/{card_id}/move")
 def move_card(project_id: str, card_id: str, request: MoveCardRequest, db: Session = Depends(database.get_db)):
@@ -572,17 +523,6 @@ def update_card_order(project_id: str, group_id: str, request: UpdateCardOrderRe
 
 @router.post("/projects/{project_id}/cards/{card_id}/highlight-names")
 async def highlight_names_in_text(project_id: str, card_id: str, request: HighlightNamesRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-    
     protagonist_card = db.query(CardModel).filter(CardModel.id == card_id).first()
     if not protagonist_card:
         raise HTTPException(status_code=404, detail="주인공 카드를 찾을 수 없습니다.")
@@ -590,9 +530,7 @@ async def highlight_names_in_text(project_id: str, card_id: str, request: Highli
 
     all_cards_in_project = db.query(CardModel).join(GroupModel).filter(GroupModel.project_id == project_id, CardModel.id != card_id).all()
     other_character_names = list(set([card.name for card in all_cards_in_project]))
-    
-    model = genai.GenerativeModel(ai_models.available[0])
-    
+
     prompt = f"""당신은 텍스트에서 등장인물 이름을 정확히 찾아내는 AI 편집자입니다.
 **매우 중요한 규칙:**
 1.  주어진 '원본 텍스트'에서 '본인 이름'과 '타인 이름 목록'에 포함된 모든 이름을 찾으세요.
@@ -612,36 +550,29 @@ async def highlight_names_in_text(project_id: str, card_id: str, request: Highli
 ---
 [출력 (HTML 태그가 적용된 텍스트)]
 """
-    try:
-        response = await model.generate_content_async(prompt)
-        highlighted_text = response.text.strip()
-        return {"highlighted_text": highlighted_text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 이름 하이라이팅 처리 중 오류가 발생했습니다: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (HTML 태그 포함 텍스트 응답)
+    highlighted_text = await call_ai_model(
+        prompt=prompt,
+        model_name=ai_models.available[0],
+        response_format="text"
+    )
+
+    return {"highlighted_text": highlighted_text}
 
 
 @router.post("/projects/{project_id}/relationships/suggest")
 async def suggest_relationship(project_id: str, request: SuggestRelationshipRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
     char_a = db.query(CardModel).filter(CardModel.id == request.source_character_id).first()
     char_b = db.query(CardModel).filter(CardModel.id == request.target_character_id).first()
-    
+
     if not char_a or not char_b:
         raise HTTPException(status_code=404, detail="하나 이상의 캐릭터 정보를 찾을 수 없습니다.")
 
     char_a = parse_card_fields(char_a)
     char_b = parse_card_fields(char_b)
-    
+
+    # 컨텍스트 구성 로직은 그대로 유지
     existing_relationship = db.query(RelationshipModel).filter(
         RelationshipModel.source_character_id == request.target_character_id,
         RelationshipModel.target_character_id == request.source_character_id
@@ -657,7 +588,7 @@ async def suggest_relationship(project_id: str, request: SuggestRelationshipRequ
 이 정보를 바탕으로, '{char_a.name}'가 '{char_b.name}'를 어떻게 생각할지 일관성 있게 작성해주세요.
 ---
 """
-    
+
     additional_instructions = []
     if request.tendency < 0:
         additional_instructions.append("두 캐릭터의 관계는 '비우호적' (예: 라이벌, 불신)인 방향으로 설정해주세요.")
@@ -666,10 +597,9 @@ async def suggest_relationship(project_id: str, request: SuggestRelationshipRequ
 
     if request.keyword:
         additional_instructions.append(f"특히, 관계 설정 시 '{request.keyword}' 라는 키워드를 핵심적으로 반영해주세요.")
-    
+
     final_instruction = "\n".join(additional_instructions)
-    
-    model = genai.GenerativeModel(ai_models.available[0])
+
     prompt = f"""당신은 두 인물 사이의 관계를 창의적으로 설정하는 스토리 작가입니다.
 아래 제공된 두 캐릭터의 프로필과 기존 관계 정보를 자세히 분석하여, 둘 사이에 존재할 법한 가장 흥미롭고 개연성 있는 관계를 추천해주세요.
 **매우 중요한 규칙:**
@@ -694,27 +624,20 @@ async def suggest_relationship(project_id: str, request: SuggestRelationshipRequ
   "description": "관계에 대한 구체적인 설명 (2~3 문장)."
 }}
 """
-    try:
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        response = await model.generate_content_async(prompt, generation_config=generation_config)
-        suggestion = json.loads(response.text)
-        return suggestion
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 관계 추천 중 오류가 발생했습니다: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    suggestion = await call_ai_model(
+        prompt=prompt,
+        model_name=ai_models.available[0],
+        generation_config=generation_config,
+        response_format="json"
+    )
+
+    return suggestion
 
 @router.post("/generate/scenario-concept")
 async def refine_scenario_concept(request: RefineConceptRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-    
     worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == request.project_id).first()
     worldview_context = ""
     if worldview and worldview.content and worldview.content.strip():
@@ -732,11 +655,9 @@ async def refine_scenario_concept(request: RefineConceptRequest, db: Session = D
         except json.JSONDecodeError:
             worldview_context = f"\n[참고할 메인 세계관]\n{worldview.content}"
 
+    chosen_model = request.model_name or ai_models.available[0]
 
-    try:
-        chosen_model = request.model_name or ai_models.available[0]
-        model = genai.GenerativeModel(chosen_model)
-        prompt = f"""당신은 사용자의 아이디어를 존중하며 글을 다듬는 전문 스토리 에디터입니다.
+    prompt = f"""당신은 사용자의 아이디어를 존중하며 글을 다듬는 전문 스토리 에디터입니다.
 아래 정보를 바탕으로, '기존 컨셉'의 핵심 아이디어와 뉘앙스를 **반드시 유지**하면서, 문장을 더욱 생생하고 구체적으로 다듬어 주세요.
 {worldview_context}
 
@@ -753,29 +674,24 @@ async def refine_scenario_concept(request: RefineConceptRequest, db: Session = D
 [출력]
 (AI가 핵심 뉘앙스와 세계관을 유지하며 다듬은 새로운 컨셉)
 """
-        response = await model.generate_content_async(prompt)
-        return {"refined_concept": response.text.strip()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 컨셉 생성에 실패했습니다. 오류: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (텍스트 응답)
+    refined_concept = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        response_format="text"
+    )
+
+    return {"refined_concept": refined_concept}
 
 # [신규] 세계관 핵심 설정 다듬기 API 엔드포인트
 @router.post("/generate/worldview-rule")
 async def refine_worldview_rule(request: RefineWorldviewRuleRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
     project = db.query(ProjectModel).filter(ProjectModel.id == request.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
 
+    # 컨텍스트 구성 로직은 그대로 유지
     worldview_context = ""
     if project.worldview and project.worldview.content:
         try:
@@ -793,10 +709,9 @@ async def refine_worldview_rule(request: RefineWorldviewRuleRequest, db: Session
         except (json.JSONDecodeError, TypeError):
             pass
 
-    try:
-        chosen_model = request.model_name or ai_models.available[0]
-        model = genai.GenerativeModel(chosen_model)
-        prompt = f"""당신은 사용자의 아이디어를 존중하며 문장을 다듬는 전문 에디터입니다.
+    chosen_model = request.model_name or ai_models.available[0]
+
+    prompt = f"""당신은 사용자의 아이디어를 존중하며 문장을 다듬는 전문 에디터입니다.
 아래 정보를 바탕으로, '기존 설정 문장'의 핵심 아이디어와 뉘앙스를 **반드시 유지**하면서, 문장을 더욱 흥미롭고 구체적으로 다듬어 주세요.
 
 {worldview_context}
@@ -813,55 +728,47 @@ async def refine_worldview_rule(request: RefineWorldviewRuleRequest, db: Session
 [출력]
 (AI가 핵심 뉘앙스와 세계관을 유지하며 다듬은 새로운 문장)
 """
-        response = await model.generate_content_async(prompt)
-        return {"refined_rule": response.text.strip()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 설정 다듬기에 실패했습니다. 오류: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (텍스트 응답)
+    refined_rule = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        response_format="text"
+    )
+
+    return {"refined_rule": refined_rule}
 
 # [신규] 시놉시스 구체화 API 엔드포인트
 @router.post("/generate/synopsis-enhance")
 async def enhance_synopsis_with_ai(request: EnhanceSynopsisRequest, db: Session = Depends(database.get_db)):
-    if not api_key:
-        error_response = create_ai_error_response(
-            operation="setup",
-            original_error=Exception("GOOGLE_API_KEY not configured"),
-            ai_response=None
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_response.model_dump()
-        )
-
     project = db.query(ProjectModel).filter(ProjectModel.id == request.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
 
-    # [수정] 컨텍스트 정보 준비 (선택된 경우에만)
+    # [수정] 컨텍스트 정보 준비 (선택된 경우에만) - 로직은 그대로 유지
     context_parts = []
-    
+
     # 선택된 캐릭터 정보 추가
     if request.selected_character_ids:
         selected_characters = db.query(CardModel).filter(CardModel.id.in_(request.selected_character_ids)).all()
         if selected_characters:
             char_info = [f"- {card.name}: {card.description[:100]}..." if len(card.description) > 100 else f"- {card.name}: {card.description}" for card in selected_characters]
             context_parts.append(f"[참고할 캐릭터 정보]\n" + "\n".join(char_info))
-    
+
     # 선택된 세계관 카드 정보 추가
     if request.selected_worldview_card_ids:
         selected_cards = db.query(WorldviewCardModel).filter(WorldviewCardModel.id.in_(request.selected_worldview_card_ids)).all()
         if selected_cards:
             card_info = [f"- {card.title}: {card.content[:80]}..." if len(card.content) > 80 else f"- {card.title}: {card.content}" for card in selected_cards]
             context_parts.append(f"[참고할 세계관 설정]\n" + "\n".join(card_info))
-    
+
     # 컨텍스트 문자열 생성
     context_text = "\n\n".join(context_parts) if context_parts else ""
 
-    try:
-        chosen_model = request.model_name or ai_models.available[0]
-        model = genai.GenerativeModel(chosen_model)
-        
-        # [맛깔나게 업그레이드] 플롯 포인트와 동일한 창작자 관점의 매력적인 프롬프트
-        prompt = f"""당신은 독자의 마음을 사로잡는 매혹적인 스토리를 창조하는 베테랑 작가입니다.
+    chosen_model = request.model_name or ai_models.available[0]
+
+    # [맛깔나게 업그레이드] 플롯 포인트와 동일한 창작자 관점의 매력적인 프롬프트
+    prompt = f"""당신은 독자의 마음을 사로잡는 매혹적인 스토리를 창조하는 베테랑 작가입니다.
 한 문장 한 문장에서 독자가 상상력의 날개를 펼칠 수 있도록, 생생하고 감동적인 시놉시스를 만드는 전문가입니다.
 
 아래 창작 재료들을 바탕으로, 사용자의 요청에 따라 기존 시놉시스를 더욱 매력적이고 몰입도 높게 발전시켜 주세요.
@@ -895,7 +802,12 @@ async def enhance_synopsis_with_ai(request: EnhanceSynopsisRequest, db: Session 
 
 ---
 **개선된 시놉시스:**"""
-        response = await model.generate_content_async(prompt)
-        return {"enhanced_synopsis": response.text.strip()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 시놉시스 구체화에 실패했습니다. 오류: {e}")
+
+    # call_ai_model을 사용하여 AI 호출 (텍스트 응답)
+    enhanced_synopsis = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        response_format="text"
+    )
+
+    return {"enhanced_synopsis": enhanced_synopsis}

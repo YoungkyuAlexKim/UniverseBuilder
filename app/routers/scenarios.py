@@ -9,10 +9,9 @@ import re # [신규] 정규 표현식 모듈 추가
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Gemini AI 관련 임포트 ---
-import google.generativeai as genai
-from google.generativeai.types import GenerationConfig, HarmCategory, HarmBlockThreshold
-from google.api_core import exceptions as google_exceptions
+# --- AI 유틸리티 임포트 ---
+from ..utils.ai_utils import call_ai_model
+from google.generativeai.types import GenerationConfig
 
 # --- SQLAlchemy 모델과 DB 세션 함수 임포트 ---
 from .. import database
@@ -21,11 +20,8 @@ from .projects import get_project_if_accessible
 # [신규] 프롬프트 설정을 불러오기 위한 임포트
 from ..config import ai_prompts
 
-# --- Gemini API 설정 ---
+# --- 모델 설정 ---
 AVAILABLE_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
-api_key = os.getenv("GOOGLE_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
 
 
 # --- Pydantic 데이터 모델 ---
@@ -221,14 +217,11 @@ def update_scenario_details(scenario_id: str, scenario_data: ScenarioBase, proje
 
 @router.post("/{scenario_id}/generate-draft", response_model=Scenario)
 async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDraftRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
-
     scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
 
-    # [수정] 스타일 가이드 컨텍스트를 'macro' 타입으로 가져옴
+    # 컨텍스트 구성 로직은 그대로 유지
     style_guide_context = get_style_guide_content(request.style_guide_id, 'macro')
 
     world_data = {"logline": "", "genre": "", "rules": []}
@@ -240,7 +233,7 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
 
     worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(world_data.get("rules", [])) if world_data.get("rules") else ""
     story_genre_context = f"### 이야기 장르 및 분위기\n{world_data.get('genre', '정의되지 않음')}"
-    
+
     selected_characters = db.query(CardModel).filter(CardModel.id.in_(request.character_ids)).all()
 
     themes_list = json.loads(scenario.themes) if scenario.themes and scenario.themes != "[]" else []
@@ -250,9 +243,7 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
     synopsis_context = f"### 시놉시스 / 전체 줄거리\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
 
     chosen_model = request.model_name or AVAILABLE_MODELS[0]
-    model = genai.GenerativeModel(chosen_model)
 
-    # [수정] 프롬프트에 스타일 가이드 컨텍스트 추가
     prompt = ai_prompts.scenario_draft.format(
         worldview_rules_context=worldview_rules_context,
         story_genre_context=story_genre_context,
@@ -261,53 +252,18 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
         story_concept=story_concept,
         prologue_context=synopsis_context,
         plot_point_count=request.plot_point_count,
-        style_guide_context=style_guide_context # 스타일 가이드 컨텍스트 주입
+        style_guide_context=style_guide_context
     )
-    
+
     try:
+        # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
         generation_config = GenerationConfig(response_mime_type="application/json")
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-        
-        response = None
-        max_retries = 3
-        delay = 1.0
-        for attempt in range(max_retries):
-            try:
-                response = await model.generate_content_async(
-                    prompt, 
-                    generation_config=generation_config,
-                    safety_settings=safety_settings
-                )
-                break
-            except (google_exceptions.InternalServerError, google_exceptions.ServiceUnavailable) as e:
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(delay)
-                    delay *= 2
-                else:
-                    raise e
-
-        if response is None:
-            raise HTTPException(status_code=500, detail="AI 모델 호출에 실패했습니다.")
-
-        if not response.parts:
-            finish_reason_name = "UNKNOWN"
-            if response.candidates and response.candidates[0].finish_reason:
-                finish_reason_name = response.candidates[0].finish_reason.name
-            if finish_reason_name == "SAFETY":
-                raise HTTPException(status_code=400, detail="AI 생성 내용이 안전 필터에 의해 차단되었습니다.")
-            else:
-                 raise HTTPException(status_code=500, detail=f"AI로부터 유효한 응답을 받지 못했습니다. (종료 사유: {finish_reason_name})")
-
-        try:
-            cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
-            ai_result = json.loads(cleaned_response_text)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 응답을 반환했습니다: {response.text[:100]}")
+        ai_result = await call_ai_model(
+            prompt=prompt,
+            model_name=chosen_model,
+            generation_config=generation_config,
+            response_format="json"
+        )
 
         if not ai_result.get("plot_points"):
             raise HTTPException(status_code=400, detail="AI가 컨텍스트를 처리하지 못했습니다.")
@@ -340,28 +296,26 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
 
 @router.put("/{scenario_id}/edit-plots-with-ai")
 async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
-
     scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
     if not scenario.plot_points:
         raise HTTPException(status_code=400, detail="수정할 플롯 포인트가 없습니다. 먼저 플롯을 생성해주세요.")
 
-    # [신규] AI 제한 확인: 50개 초과시 제한
+    # AI 제한 확인: 50개 초과시 제한
     if len(scenario.plot_points) > 50:
         raise HTTPException(
             status_code=400,
             detail=f"플롯 포인트가 너무 많습니다 ({len(scenario.plot_points)}개). AI 전체 수정 기능은 최대 50개까지 지원합니다. 집필 탭에서 플롯을 분할하거나 정리한 후 다시 시도해주세요."
         )
 
+    # 컨텍스트 구성 로직은 그대로 유지
     world_data = json.loads(project.worldview.content) if project.worldview and project.worldview.content else {}
     worldview_rules_context = f"### 이 세계의 절대 규칙\n- " + "\n- ".join(world_data.get("rules", [])) if world_data.get("rules") else ""
     story_genre_context = f"### 이야기 장르 및 분위기\n{world_data.get('genre', '정의되지 않음')}"
     themes_list = json.loads(scenario.themes) if scenario.themes and scenario.themes != "[]" else []
     scenario_themes = f"### 핵심 테마\n{', '.join(themes_list)}" if themes_list else ""
-    
+
     all_characters = db.query(CardModel).join(GroupModel).filter(GroupModel.project_id == project.id).all()
     characters_context = "### 주요 등장인물\n" + "\n".join([f"- {c.name}: {c.description}" for c in all_characters])
     story_concept = f"### 이야기 핵심 컨셉\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
@@ -385,6 +339,8 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
             detail=f"선택된 플롯이 너무 많습니다 ({plot_point_count}개). AI는 최대 50개까지 지원합니다."
         )
 
+    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+
     prompt = ai_prompts.plot_points_edit.format(
         worldview_rules_context=worldview_rules_context,
         story_genre_context=story_genre_context,
@@ -397,33 +353,19 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
         plot_point_count=plot_point_count
     )
 
-    try:
-        chosen_model = request.model_name or AVAILABLE_MODELS[0]
-        model = genai.GenerativeModel(chosen_model)
-        generation_config = GenerationConfig(response_mime_type="application/json")
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
+    # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
+    generation_config = GenerationConfig(response_mime_type="application/json")
+    ai_result = await call_ai_model(
+        prompt=prompt,
+        model_name=chosen_model,
+        generation_config=generation_config,
+        response_format="json"
+    )
 
-        response = await model.generate_content_async(prompt, generation_config=generation_config, safety_settings=safety_settings)
-        
-        cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
-        ai_result = json.loads(cleaned_response_text)
+    if "plot_points" not in ai_result or len(ai_result["plot_points"]) != plot_point_count:
+        raise HTTPException(status_code=500, detail=f"AI가 요청된 플롯 개수({plot_point_count}개)와 다른 수({len(ai_result.get('plot_points', []))}개)의 플롯을 반환했습니다.")
 
-        if "plot_points" not in ai_result or len(ai_result["plot_points"]) != plot_point_count:
-            raise HTTPException(status_code=500, detail=f"AI가 요청된 플롯 개수({plot_point_count}개)와 다른 수({len(ai_result.get('plot_points', []))}개)의 플롯을 반환했습니다.")
-
-        return ai_result
-
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 JSON 응답을 반환했습니다: {response.text[:200]}")
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"AI 플롯 수정 중 서버 오류 발생: {e}")
+    return ai_result
 
 
 @router.post("/{scenario_id}/plot_points", response_model=PlotPoint)
@@ -509,9 +451,6 @@ def delete_plot_point(plot_point_id: str, project: ProjectModel = Depends(get_pr
 
 @router.post("/plot_points/{plot_point_id}/generate-scene", response_model=PlotPoint)
 async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSceneRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
-
     plot_point = db.query(PlotPointModel).join(ScenarioModel).filter(
         PlotPointModel.id == plot_point_id,
         ScenarioModel.project_id == project.id
@@ -519,13 +458,14 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     if not plot_point:
         raise HTTPException(status_code=404, detail="플롯 포인트를 찾을 수 없습니다.")
 
+    # 컨텍스트 구성 로직은 그대로 유지
     style_guide_context = get_style_guide_content(request.style_guide_id, 'micro')
 
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
     surrounding_context = _get_surrounding_plot_context(plot_point.ordering, all_plot_points)
-    
-    # [수정] 문체 일관성을 위한 지침 추가
+
+    # 문체 일관성을 위한 지침 추가
     if surrounding_context and "이전 장면 내용" in surrounding_context:
         style_guide_context += "\n\n**[문체 일관성 지침]**\n제공된 '이전 장면 내용'의 문체와 톤앤매너를 최대한 일관성 있게 유지하여 현재 장면을 작성해주세요."
 
@@ -541,7 +481,7 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
             plot_position_context, plot_pacing_instruction = "전환 (전)", "예상치 못한 반전이나 사건으로 흐름을 바꾸세요."
         else:
             plot_position_context, plot_pacing_instruction = "결말 (결)", "사건을 마무리하고 주제를 드러내세요."
-            
+
     character_ids = request.character_ids or []
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
@@ -563,6 +503,9 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     prompt_template = format_map.get(request.output_format)
     if not prompt_template:
         raise HTTPException(status_code=400, detail="지원하지 않는 출력 형식입니다.")
+
+    chosen_model = request.model_name or AVAILABLE_MODELS[0]
+
     prompt = prompt_template.format(
         plot_position_context=plot_position_context,
         plot_pacing_instruction=plot_pacing_instruction,
@@ -574,29 +517,27 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         relationships_context=relationships_context,
         style_guide_context=style_guide_context
     )
+
     try:
-        chosen_model = request.model_name or AVAILABLE_MODELS[0]
-        model = genai.GenerativeModel(chosen_model)
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-        response = await model.generate_content_async(prompt, safety_settings=safety_settings)
-        plot_point.scene_draft = response.text.strip()
+        # call_ai_model을 사용하여 AI 호출 (텍스트 응답)
+        scene_content = await call_ai_model(
+            prompt=prompt,
+            model_name=chosen_model,
+            response_format="text"
+        )
+
+        plot_point.scene_draft = scene_content
         db.commit()
         db.refresh(plot_point)
         return plot_point
     except Exception as e:
         db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=f"AI 장면 생성 중 오류 발생: {e}")
 
 @router.put("/plot_points/{plot_point_id}/edit-with-ai", response_model=PlotPoint)
 async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
-
     plot_point_to_edit = db.query(PlotPointModel).join(ScenarioModel).filter(
         PlotPointModel.id == plot_point_id,
         ScenarioModel.project_id == project.id
@@ -604,6 +545,7 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
     if not plot_point_to_edit:
         raise HTTPException(status_code=404, detail="수정할 플롯 포인트를 찾을 수 없습니다.")
 
+    # 컨텍스트 구성 로직은 그대로 유지
     scenario = plot_point_to_edit.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
 
@@ -613,6 +555,7 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
     story_concept = f"[이야기 핵심 컨셉]\n{scenario.summary}" if scenario.summary and scenario.summary.strip() else ""
     synopsis_context = f"[시놉시스 / 전체 줄거리]\n{scenario.synopsis}" if scenario.synopsis and scenario.synopsis.strip() else ""
 
+    chosen_model = request.model_name or AVAILABLE_MODELS[0]
 
     prompt = ai_prompts.plot_point_edit.format(
         story_concept=story_concept,
@@ -623,26 +566,16 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
         plot_content=plot_point_to_edit.content,
         user_prompt=request.user_prompt
     )
+
     try:
-        chosen_model = request.model_name or AVAILABLE_MODELS[0]
-        model = genai.GenerativeModel(chosen_model)
+        # call_ai_model을 사용하여 AI 호출 (JSON 응답 기대)
         generation_config = GenerationConfig(response_mime_type="application/json")
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-        response = await model.generate_content_async(
-            prompt, 
+        ai_result = await call_ai_model(
+            prompt=prompt,
+            model_name=chosen_model,
             generation_config=generation_config,
-            safety_settings=safety_settings
+            response_format="json"
         )
-        try:
-            cleaned_response_text = response.text.strip().removeprefix("```json").removesuffix("```").strip()
-            ai_result = json.loads(cleaned_response_text)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail=f"AI가 유효하지 않은 응답을 반환했습니다. (응답: {response.text[:100]})")
 
         plot_point_to_edit.title = ai_result.get("title", plot_point_to_edit.title)
         plot_point_to_edit.content = ai_result.get("content", plot_point_to_edit.content)
@@ -655,17 +588,11 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
         db.rollback()
         if isinstance(e, HTTPException):
             raise e
-        error_detail = f"AI 플롯 수정에 실패했습니다. 오류: {e}"
-        if 'response' in locals() and hasattr(response, 'text'):
-            error_detail += f" | AI 응답: {response.text[:200]}"
-        raise HTTPException(status_code=500, detail=error_detail)
+        raise HTTPException(status_code=500, detail=f"AI 플롯 수정에 실패했습니다. 오류: {e}")
 
 
 @router.put("/plot_points/{plot_point_id}/edit-scene", response_model=PlotPoint)
 async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY가 설정되지 않아 AI 기능을 사용할 수 없습니다.")
-
     plot_point = db.query(PlotPointModel).join(ScenarioModel).filter(
         PlotPointModel.id == plot_point_id,
         ScenarioModel.project_id == project.id
@@ -676,13 +603,14 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     if not plot_point.scene_draft:
         raise HTTPException(status_code=400, detail="수정할 장면 초안이 없습니다. 먼저 'AI로 장면 생성'을 사용해주세요.")
 
+    # 컨텍스트 구성 로직은 그대로 유지
     style_guide_context = get_style_guide_content(request.style_guide_id, 'micro')
 
     scenario = plot_point.scenario
     all_plot_points = sorted(scenario.plot_points, key=lambda p: p.ordering)
     surrounding_context = _get_surrounding_plot_context(plot_point.ordering, all_plot_points)
-    
-    # [수정] 문체 일관성을 위한 지침 추가
+
+    # 문체 일관성을 위한 지침 추가
     if surrounding_context and "이전 장면 내용" in surrounding_context:
         style_guide_context += "\n\n**[문체 일관성 지침]**\n제공된 '이전 장면 내용'의 문체와 톤앤매너를 최대한 일관성 있게 유지하여 현재 장면을 작성해주세요."
 
@@ -698,7 +626,7 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
             plot_position_context = "전환 (전)"
         else:
             plot_position_context = "결말 (결)"
-            
+
     character_ids = request.character_ids or []
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
@@ -714,13 +642,15 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
             relationship_descriptions = [f"- {char_name_map.get(r.source_character_id)} → {char_name_map.get(r.target_character_id)}: {r.type} ({r.description or ''})" for r in relationships]
             if relationship_descriptions:
                 relationships_context = f"\n\n**[캐릭터 간 관계]**\n" + "\n".join(relationship_descriptions)
-    
+
     word_count_map = {
         "short": "약 1000자 내외의 간결한 분량으로 수정해주세요.",
-        "medium": "약 2000자 내외의 적당한 분량으로 수정해주세요.", 
+        "medium": "약 2000자 내외의 적당한 분량으로 수정해주세요.",
         "long": "약 3000자 내외의 풍부한 분량으로 수정해주세요."
     }
     word_count_instruction = word_count_map.get(request.word_count, word_count_map["medium"])
+
+    chosen_model = request.model_name or AVAILABLE_MODELS[0]
 
     prompt = ai_prompts.scene_edit.format(
         existing_scene_draft=plot_point.scene_draft,
@@ -737,22 +667,20 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     )
 
     try:
-        chosen_model = request.model_name or AVAILABLE_MODELS[0]
-        model = genai.GenerativeModel(chosen_model)
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
+        # call_ai_model을 사용하여 AI 호출 (텍스트 응답)
+        scene_content = await call_ai_model(
+            prompt=prompt,
+            model_name=chosen_model,
+            response_format="text"
+        )
 
-        response = await model.generate_content_async(prompt, safety_settings=safety_settings)
-        
-        plot_point.scene_draft = response.text.strip()
+        plot_point.scene_draft = scene_content
         db.commit()
         db.refresh(plot_point)
 
         return plot_point
     except Exception as e:
         db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=f"AI 장면 수정 중 오류가 발생했습니다: {e}")

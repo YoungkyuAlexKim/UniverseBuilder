@@ -313,9 +313,9 @@ export function openWorldviewCardModal(card, projectId, groupId) {
     const deleteBtn = footer.querySelector('#wv-delete-btn');
 
     if (aiEditBtn) {
-        eventManager.addEventListener(aiEditBtn, 'click', (e) => {
+        eventManager.addEventListener(aiEditBtn, 'click', async (e) => {
             e.preventDefault();
-            app.panels.handleEditWorldviewCardAI(card, projectId);
+            await app.panels.handleEditWorldviewCardAI(card, projectId);
         });
     }
     if (deleteBtn) {
@@ -375,6 +375,7 @@ export function showAiDiffModal(projectId, originalCard, aiResult, cardType) {
     const suggestionContainer = document.getElementById('ai-diff-suggestion');
     const acceptBtn = document.getElementById('ai-diff-accept-btn');
     const rejectBtn = document.getElementById('ai-diff-reject-btn');
+    const closeBtn = diffModal.querySelector('.close');
 
     const suggestedCard = aiResult.updated_cards.find(c => c.id === originalCard.id);
     if (!suggestedCard) {
@@ -406,8 +407,18 @@ export function showAiDiffModal(projectId, originalCard, aiResult, cardType) {
     acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
     const newRejectBtn = rejectBtn.cloneNode(true);
     rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
+    const newCloseBtn = closeBtn.cloneNode(true);
+    closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
     newRejectBtn.onclick = () => {
+        console.log('반려 버튼 클릭됨 - 모달 닫기');
+        diffModal.classList.remove('active');
+        modalBackdrop.classList.remove('active');
+    };
+
+    newCloseBtn.onclick = (e) => {
+        console.log('X 버튼 클릭됨 - 모달 닫기');
+        e.preventDefault();
         diffModal.classList.remove('active');
         modalBackdrop.classList.remove('active');
     };
@@ -667,7 +678,19 @@ export function openRefineConceptModal(originalConcept, suggestedConcept, onAcce
     const newRerollBtn = rerollBtn.cloneNode(true);
     rerollBtn.parentNode.replaceChild(newRerollBtn, rerollBtn);
     newRerollBtn.addEventListener('click', () => onRerollCallback());
-    
+
+    // X 버튼 이벤트 리스너 추가
+    const closeBtn = refineConceptModal.querySelector('.close');
+    if (closeBtn) {
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        newCloseBtn.onclick = (e) => {
+            console.log('AI 컨셉 다듬기 X 버튼 클릭됨');
+            e.preventDefault();
+            closeModal();
+        };
+    }
+
     refineConceptModal.classList.add('active');
     modalBackdrop.classList.add('active');
     lucide.createIcons();
@@ -699,7 +722,19 @@ export function openRefineWorldviewRuleModal(originalRule, suggestedRule, onAcce
     const newRerollBtn = rerollBtn.cloneNode(true);
     rerollBtn.parentNode.replaceChild(newRerollBtn, rerollBtn);
     newRerollBtn.addEventListener('click', () => onRerollCallback());
-    
+
+    // X 버튼 이벤트 리스너 추가
+    const closeBtn = refineWorldviewRuleModal.querySelector('.close');
+    if (closeBtn) {
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        newCloseBtn.onclick = (e) => {
+            console.log('AI 핵심 설정 다듬기 X 버튼 클릭됨');
+            e.preventDefault();
+            closeModal();
+        };
+    }
+
     refineWorldviewRuleModal.classList.add('active');
     modalBackdrop.classList.add('active');
     lucide.createIcons();
