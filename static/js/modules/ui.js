@@ -833,57 +833,7 @@ function renderManuscriptTab(projectData) {
         }
     });
 
-    // --- 5. 패널 리사이저 기능 ---
-    const resizer = container.querySelector('#context-panel-resizer');
-    const characterSection = container.querySelector('#character-info-section');
-    const feedbackSection = container.querySelector('#feedback-section');
-
-    if (resizer && characterSection && feedbackSection) {
-        let isDragging = false;
-        let startY = 0;
-        let startCharacterHeight = 0;
-
-        const handleMouseDown = (e) => {
-            isDragging = true;
-            startY = e.clientY;
-            startCharacterHeight = characterSection.offsetHeight;
-            resizer.classList.add('dragging');
-            document.body.style.userSelect = 'none';
-            document.body.style.cursor = 'ns-resize';
-
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        };
-
-        const handleMouseMove = (e) => {
-            if (!isDragging) return;
-
-            const deltaY = e.clientY - startY;
-            const newCharacterHeight = Math.max(150, Math.min(
-                startCharacterHeight + deltaY,
-                container.offsetHeight - 300 // 최소 피드백 높이 150px + 헤더 고려
-            ));
-
-            // Grid template rows 업데이트
-            const totalHeight = container.offsetHeight;
-            const characterRatio = newCharacterHeight / totalHeight;
-            const feedbackRatio = 1 - characterRatio;
-
-            container.style.gridTemplateRows = `auto ${characterRatio}fr 8px ${feedbackRatio}fr`;
-        };
-
-        const handleMouseUp = () => {
-            isDragging = false;
-            resizer.classList.remove('dragging');
-            document.body.style.userSelect = '';
-            document.body.style.cursor = '';
-
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-
-        resizer.addEventListener('mousedown', handleMouseDown);
-    }
+    // 리사이저 바 드래그 기능은 함수 끝에서 구현됨
 
     // 글자 수 계산 및 부분 수정 버튼 활성화/비활성화
     const handleTextareaInput = () => {
@@ -974,6 +924,7 @@ function renderManuscriptTab(projectData) {
             }
         });
     }
+
 }
 
 // 스타일 가이드 관련 함수들은 main.js로 이동됨

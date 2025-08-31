@@ -33,15 +33,10 @@
     color: var(--text-primary);
 }
 
-/* 우측 패널 Grid 레이아웃 */
+/* 우측 패널 간단 레이아웃 */
 .manuscript-context-panel {
-    display: grid;
-    grid-template-rows: auto 0.4fr auto 0.6fr; /* header, character(40%), resizer, feedback(60%) */
-    grid-template-areas:
-        "header"
-        "character"
-        "resizer"
-        "feedback";
+    display: flex;
+    flex-direction: column;
     height: calc(100vh - 200px); /* 고정 높이 */
     overflow: hidden; /* 내부 스크롤만 허용 */
 }
@@ -161,22 +156,33 @@
 }
 
 .character-section {
-    grid-area: character;
-    min-height: 200px; /* 최소 높이 */
+    flex: 0 0 40%; /* 40% 고정 높이 */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 150px; /* 최소 높이 보장 */
 }
 
 .feedback-section {
-    grid-area: feedback;
-    min-height: 200px; /* 최소 높이 */
+    flex: 0 0 60%; /* 60% 고정 높이 */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px; /* 최소 높이 보장 */
 }
 
 /* 캐릭터 리스트 내부 스크롤 */
 .characters-list {
     flex: 1;
     overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-secondary) transparent;
+    padding: 0.5rem;
+}
+
+/* 피드백 컨텐츠 내부 스크롤 */
+.feedback-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
 }
 
 .characters-list::-webkit-scrollbar {
@@ -196,67 +202,7 @@
     background: var(--text-muted);
 }
 
-/* 패널 리사이저 스타일 */
-.panel-resizer {
-    grid-area: resizer;
-    height: 8px;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border-secondary);
-    border-bottom: 1px solid var(--border-secondary);
-    position: relative;
-    cursor: ns-resize;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.resizer-handle {
-    width: 40px;
-    height: 4px;
-    background: var(--border-secondary);
-    border-radius: 2px;
-    position: relative;
-}
-
-.resizer-handle::before,
-.resizer-handle::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 20px;
-    height: 2px;
-    background: var(--text-muted);
-    border-radius: 1px;
-}
-
-.resizer-handle::before {
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.resizer-handle::after {
-    transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.panel-resizer:hover .resizer-handle {
-    background: var(--primary-color);
-}
-
-.panel-resizer:hover .resizer-handle::before,
-.panel-resizer:hover .resizer-handle::after {
-    background: var(--primary-color);
-}
-
-/* 드래그 중 스타일 */
-.panel-resizer.dragging {
-    background: var(--primary-background);
-}
-
-.panel-resizer.dragging .resizer-handle {
-    background: var(--primary-color);
-}
+/* 리사이저 바 관련 스타일 제거됨 */
 
 .section-header {
     display: flex;
