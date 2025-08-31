@@ -611,19 +611,24 @@ def split_manuscript_block(
             project_id=project.id,
             title=second_part_title,
             content=second_part_content,
-            ordering=block.ordering + 1,
+            ordering=block.ordering + 1,  # 임시 ordering (나중에 재정렬됨)
             char_count=len(second_part_content),
             word_count=len(second_part_content.split()) if second_part_content else 0
         )
 
-        # 두 번째 블록 이후의 블록들의 순서를 조정합니다.
-        db.query(ManuscriptBlockModel).filter(
-            ManuscriptBlockModel.project_id == project.id,
-            ManuscriptBlockModel.ordering > block.ordering
-        ).update({"ordering": ManuscriptBlockModel.ordering + 1})
-
         # 두 번째 블록을 추가합니다.
         db.add(second_block)
+        db.flush()  # 모든 변경사항을 세션에 반영하지만 아직 커밋하지 않음
+
+        # 전체 블록들의 순서를 완전 재정렬 (0부터 시작)
+        all_blocks = db.query(ManuscriptBlockModel).filter(
+            ManuscriptBlockModel.project_id == project.id
+        ).order_by(ManuscriptBlockModel.ordering).all()
+
+        for index, block_item in enumerate(all_blocks):
+            block_item.ordering = index
+
+        # 모든 변경사항을 하나의 트랜잭션으로 커밋
         db.commit()
         db.refresh(block)
         db.refresh(second_block)
@@ -1005,14 +1010,19 @@ def delete_manuscript_block(
     if not block:
         raise HTTPException(status_code=404, detail="삭제할 블록을 찾을 수 없습니다.")
 
+    # 삭제 수행 및 세션에 반영 (아직 커밋하지 않음)
     db.delete(block)
+    db.flush()
 
-    # 삭제된 블록 이후의 블록들의 순서를 재정렬합니다.
-    db.query(ManuscriptBlockModel).filter(
-        ManuscriptBlockModel.project_id == project.id,
-        ManuscriptBlockModel.ordering > block.ordering
-    ).update({"ordering": ManuscriptBlockModel.ordering - 1})
+    # 같은 프로젝트의 남은 블록들의 순서 완전 재정렬 (0부터 시작)
+    remaining_blocks = db.query(ManuscriptBlockModel).filter(
+        ManuscriptBlockModel.project_id == project.id
+    ).order_by(ManuscriptBlockModel.ordering).all()
 
+    for index, block in enumerate(remaining_blocks):
+        block.ordering = index
+
+    # 삭제와 순서 변경을 하나의 트랜잭션으로 커밋
     db.commit()
     return {"message": "블록이 성공적으로 삭제되었습니다."}
 

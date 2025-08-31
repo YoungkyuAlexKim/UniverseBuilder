@@ -350,8 +350,20 @@ def delete_card_from_project(project_id: str, group_id: str, card_id: str, db: S
 
     if not card_to_delete:
         raise HTTPException(status_code=404, detail="삭제할 카드를 찾을 수 없거나 권한이 없습니다.")
-    
+
+    # 삭제 수행 및 세션에 반영 (아직 커밋하지 않음)
     db.delete(card_to_delete)
+    db.flush()
+
+    # 같은 그룹의 남은 카드들의 순서 재정렬
+    remaining_cards = db.query(CardModel).filter(
+        CardModel.group_id == group_id
+    ).order_by(CardModel.ordering).all()
+
+    for index, card in enumerate(remaining_cards):
+        card.ordering = index
+
+    # 삭제와 순서 변경을 하나의 트랜잭션으로 커밋
     db.commit()
     return {"message": "카드가 성공적으로 삭제되었습니다."}
 

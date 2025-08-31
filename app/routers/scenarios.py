@@ -488,7 +488,22 @@ def delete_plot_point(plot_point_id: str, project: ProjectModel = Depends(get_pr
     if not plot_point:
         raise HTTPException(status_code=404, detail="삭제할 플롯 포인트를 찾을 수 없거나 권한이 없습니다.")
 
+    # 삭제할 플롯 포인트가 속한 시나리오 ID 저장
+    scenario_id = plot_point.scenario_id
+
+    # 삭제 수행 및 세션에 반영 (아직 커밋하지 않음)
     db.delete(plot_point)
+    db.flush()
+
+    # 같은 시나리오의 남은 플롯 포인트들의 순서 재정렬
+    remaining_plot_points = db.query(PlotPointModel).filter(
+        PlotPointModel.scenario_id == scenario_id
+    ).order_by(PlotPointModel.ordering).all()
+
+    for index, plot_point in enumerate(remaining_plot_points):
+        plot_point.ordering = index
+
+    # 삭제와 순서 변경을 하나의 트랜잭션으로 커밋
     db.commit()
     return {"message": "플롯 포인트가 성공적으로 삭제되었습니다."}
 

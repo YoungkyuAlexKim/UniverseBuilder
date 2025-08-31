@@ -555,7 +555,23 @@ def delete_worldview_card(card_id: str, project: ProjectModel = Depends(get_proj
     card = db.query(WorldviewCardModel).join(WorldviewGroupModel).filter(WorldviewCardModel.id == card_id, WorldviewGroupModel.project_id == project.id).first()
     if not card:
         raise HTTPException(status_code=404, detail="삭제할 카드를 찾을 수 없습니다.")
+
+    # 삭제할 카드가 속한 그룹 ID 저장
+    group_id = card.group_id
+
+    # 삭제 수행 및 세션에 반영 (아직 커밋하지 않음)
     db.delete(card)
+    db.flush()
+
+    # 같은 그룹의 남은 카드들의 순서 재정렬
+    remaining_cards = db.query(WorldviewCardModel).filter(
+        WorldviewCardModel.group_id == group_id
+    ).order_by(WorldviewCardModel.ordering).all()
+
+    for index, card in enumerate(remaining_cards):
+        card.ordering = index
+
+    # 삭제와 순서 변경을 하나의 트랜잭션으로 커밋
     db.commit()
     return {"message": "세계관 카드가 삭제되었습니다."}
 
