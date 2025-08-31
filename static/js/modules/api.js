@@ -688,6 +688,26 @@ export async function extractCharactersFromManuscript(projectId, blockId, reques
 }
 
 // -------------------------
+// 플롯 불러오기/내보내기 (Plot Import/Export)
+// -------------------------
+
+export async function importBlockFromPlot(projectId, blockId, plotId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/import-from-plot/${plotId}`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
+export async function exportBlockToPlot(projectId, blockId, plotId) {
+    const response = await fetch(`/api/v1/projects/${projectId}/manuscript/blocks/${blockId}/export-to-plot/${plotId}`, {
+        method: 'POST',
+        headers: getAuthHeaders(projectId)
+    });
+    return handleResponse(response);
+}
+
+// -------------------------
 // AI 피드백 (AI Feedback)
 // -------------------------
 

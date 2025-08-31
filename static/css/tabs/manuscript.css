@@ -797,6 +797,60 @@
     border-bottom: none !important;
 }
 
+/* 플롯 선택 모달 스타일 */
+#plot-selection-modal .plot-selection-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.plot-selection-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-sm);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.plot-selection-item:hover {
+    border-color: var(--border-tertiary);
+    background: var(--bg-tertiary);
+}
+
+.plot-selection-item input[type="radio"] {
+    margin-top: 0.25rem;
+    accent-color: var(--pico-primary);
+}
+
+.plot-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.plot-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.plot-title i {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.plot-summary {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
 .dropdown-item.delete-block {
     color: var(--accent-red) !important;
 }

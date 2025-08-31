@@ -896,12 +896,17 @@ function renderManuscriptTab(projectData) {
         li.style.borderColor = 'var(--pico-secondary-border)';
 
         const blockId = li.dataset.blockId;
-        const selectedBlock = blocks.find(b => b.id === blockId);
+
+        // 가장 간단한 방법: 매번 최신 데이터를 가져옴
+        const { currentProject } = window.app?.stateManager?.getState() || {};
+        const selectedBlock = currentProject?.manuscript_blocks?.find(b => b.id === blockId);
 
         if (selectedBlock) {
-            titleInput.value = selectedBlock.title;
-            const content = selectedBlock.content || '';
-            contentTextarea.value = content;
+            // 그냥 바로 값 설정
+            titleInput.value = selectedBlock.title || '';
+            contentTextarea.value = selectedBlock.content || '';
+            contentTextarea.defaultValue = selectedBlock.content || '';
+
             titleInput.disabled = false;
             contentTextarea.disabled = false;
             saveButton.disabled = false;
@@ -910,36 +915,36 @@ function renderManuscriptTab(projectData) {
 
             if(charCountDisplay) charCountDisplay.textContent = selectedBlock.char_count || 0;
             if(wordCountDisplay) wordCountDisplay.textContent = selectedBlock.word_count || 0;
+        }
 
-            // [신규] 텍스트 선택 시 버튼 활성화 로직
-            partialRefineButton.disabled = true;
+        // [신규] 텍스트 선택 시 버튼 활성화 로직
+        partialRefineButton.disabled = true;
 
-                                // [신규] 우측 패널 초기화
-            const characterSection = container.querySelector('#character-info-section');
-            const feedbackSection = container.querySelector('#feedback-section');
+        // [신규] 우측 패널 초기화
+        const characterSection = container.querySelector('#character-info-section');
+        const feedbackSection = container.querySelector('#feedback-section');
 
-            // 캐릭터 섹션 초기화
-            if (characterSection) {
-                const charactersList = characterSection.querySelector('#related-characters-list');
-                if (charactersList) {
-                    charactersList.innerHTML = `
-                        <div class="character-loading">
-                            <small>편집할 블록을 선택했습니다. 캐릭터 정보를 분석하려면 갱신 버튼을 클릭하세요.</small>
-                        </div>
-                    `;
-                }
+        // 캐릭터 섹션 초기화
+        if (characterSection) {
+            const charactersList = characterSection.querySelector('#related-characters-list');
+            if (charactersList) {
+                charactersList.innerHTML = `
+                    <div class="character-loading">
+                        <small>편집할 블록을 선택했습니다. 캐릭터 정보를 분석하려면 갱신 버튼을 클릭하세요.</small>
+                    </div>
+                `;
             }
+        }
 
-            // 피드백 섹션 초기화
-            if (feedbackSection) {
-                const feedbackContent = feedbackSection.querySelector('#feedback-content');
-                if (feedbackContent) {
-                    feedbackContent.innerHTML = `
-                        <div class="feedback-loading">
-                            <small>편집할 블록을 선택했습니다. AI 피드백을 받으려면 버튼을 클릭하세요.</small>
-                        </div>
-                    `;
-                }
+        // 피드백 섹션 초기화
+        if (feedbackSection) {
+            const feedbackContent = feedbackSection.querySelector('#feedback-content');
+            if (feedbackContent) {
+                feedbackContent.innerHTML = `
+                    <div class="feedback-loading">
+                        <small>편집할 블록을 선택했습니다. AI 피드백을 받으려면 버튼을 클릭하세요.</small>
+                    </div>
+                `;
             }
         }
 
