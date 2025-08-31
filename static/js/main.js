@@ -11,24 +11,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // 전역 객체에 app 인스턴스 할당 (다른 모듈에서 접근할 수 있도록)
     window.app = app;
 
-    // 유효성 검사 컴포넌트 초기화 (안전하게 초기화)
-    setTimeout(() => {
+    // 유효성 검사 컴포넌트 초기화 - 이벤트 기반
+    if (app && app.eventManager) {
         try {
-            // eventManager가 준비되었는지 확인 후 초기화
-            if (app && app.eventManager) {
-                initializeValidationMessage(app.eventManager);
-                initializeValidationUtils(app, app.eventManager);
+            initializeValidationMessage(app.eventManager);
+            initializeValidationUtils(app, app.eventManager);
 
-                // 초기화가 성공했는지 확인
-                if (isValidationMessageReady() && isValidationUtilsReady()) {
-                    setupRealTimeValidation(app);
-                }
+            // 초기화가 성공했는지 확인
+            if (isValidationMessageReady() && isValidationUtilsReady()) {
+                setupRealTimeValidation(app);
             }
         } catch (error) {
             console.warn('유효성 검사 컴포넌트 초기화 실패:', error);
             // 유효성 검사 없이 앱은 계속 실행됨
         }
-    }, 500); // 앱이 완전히 초기화될 시간을 줌
+    }
 
     // 사이드바 리사이즈 기능 초기화
     initResizableSidebar();
@@ -131,29 +128,27 @@ function setupRealTimeValidation(app) {
             }
         }
 
-        // 시나리오 폼에 실시간 검증 추가 (DOM이 준비된 후)
-        setTimeout(() => {
-            try {
-                const scenarioForm = document.getElementById('scenario-details-form');
-                if (scenarioForm) {
-                    const titleInput = scenarioForm.querySelector('#scenario-title');
-                    if (titleInput) {
-                        ValidationHelpers.setupScenarioTitleValidation(titleInput);
-                    }
+        // 시나리오 폼에 실시간 검증 추가 - 이벤트 기반
+        try {
+            const scenarioForm = document.getElementById('scenario-details-form');
+            if (scenarioForm) {
+                const titleInput = scenarioForm.querySelector('#scenario-title');
+                if (titleInput) {
+                    ValidationHelpers.setupScenarioTitleValidation(titleInput);
                 }
-
-                // 플롯 포인트 생성 폼에 실시간 검증 추가
-                const plotForm = document.getElementById('add-plot-point-form');
-                if (plotForm) {
-                    const plotTitleInput = plotForm.querySelector('input[name="title"]');
-                    if (plotTitleInput) {
-                        ValidationHelpers.setupPlotTitleValidation(plotTitleInput);
-                    }
-                }
-            } catch (error) {
-                console.warn('실시간 검증 설정 중 오류:', error);
             }
-        }, 1000); // DOM이 완전히 로드될 때까지 대기
+
+            // 플롯 포인트 생성 폼에 실시간 검증 추가
+            const plotForm = document.getElementById('add-plot-point-form');
+            if (plotForm) {
+                const plotTitleInput = plotForm.querySelector('input[name="title"]');
+                if (plotTitleInput) {
+                    ValidationHelpers.setupPlotTitleValidation(plotTitleInput);
+                }
+            }
+        } catch (error) {
+            console.warn('실시간 검증 설정 중 오류:', error);
+        }
     } catch (error) {
         console.warn('실시간 검증 초기화 중 오류:', error);
     }
@@ -164,8 +159,7 @@ function setupRealTimeValidation(app) {
  */
 async function initializeStyleGuides() {
     try {
-        // DOM 요소들이 로드될 때까지 잠시 대기
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // DOM 요소들이 로드될 때까지 대기 - 이벤트 기반으로 변경됨
 
         // 스타일 가이드 선택 요소들을 동적으로 채움
         await populateStyleGuideSelects();

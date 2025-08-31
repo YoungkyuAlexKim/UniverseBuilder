@@ -132,31 +132,22 @@ export function activateTab(tabId) {
         tabsContainer.scrollTop = 0;
     }
 
-    // 탭이 활성화된 후 렌더링 트리거
+    // 탭이 활성화된 후 렌더링 트리거 - 이벤트 기반
     if (tabId === 'manuscript') {
-        // 약간의 지연을 주어 DOM과 앱이 완전히 준비되도록 함
-        setTimeout(() => {
-            // 앱이 완전히 로드될 때까지 재시도
-            const tryRender = (attempts = 0) => {
-                if (attempts > 50) { // 최대 5초 후 중단
-                    console.error('Failed to render manuscript tab after multiple attempts');
-                    return;
-                }
-
-                if (window.app && window.app.stateManager) {
-                    const currentProject = window.app.stateManager.getState().currentProject;
-                    if (currentProject) {
-                        renderManuscriptTab(currentProject);
-                    } else {
-                        setTimeout(() => tryRender(attempts + 1), 100);
-                    }
-                } else {
-                    setTimeout(() => tryRender(attempts + 1), 100);
-                }
-            };
-
-            tryRender();
-        }, 200);
+        // 프로젝트 렌더링 완료 이벤트를 기다림
+        if (window.app && window.app.stateManager) {
+            const currentProject = window.app.stateManager.getState().currentProject;
+            if (currentProject) {
+                renderManuscriptTab(currentProject);
+            } else {
+                // 프로젝트가 아직 로드되지 않은 경우 이벤트를 기다림
+                const handleProjectRendered = (project) => {
+                    renderManuscriptTab(project);
+                    window.app.stateManager.off('project:rendered', handleProjectRendered);
+                };
+                window.app.stateManager.on('project:rendered', handleProjectRendered);
+            }
+        }
     }
 }
 
@@ -501,9 +492,15 @@ function renderManuscriptTab(projectData) {
         return;
     }
 
-    // DOM이 완전히 로드되었는지 확인
+    // DOM이 완전히 로드되었는지 확인 - 이벤트 기반
     if (document.readyState !== 'complete') {
-        setTimeout(() => renderManuscriptTab(projectData), 200);
+        const handleDomReady = () => {
+            if (document.readyState === 'complete') {
+                renderManuscriptTab(projectData);
+                document.removeEventListener('readystatechange', handleDomReady);
+            }
+        };
+        document.addEventListener('readystatechange', handleDomReady);
         return;
     }
 

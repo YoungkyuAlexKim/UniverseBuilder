@@ -108,6 +108,8 @@ export class App {
         ui.renderProjectList(state.projects);
         if (state.currentProject) {
             ui.renderProjectDetail(state.currentProject);
+            // 프로젝트 상세 렌더링 완료 이벤트 발생
+            this.stateManager.emit('project:rendered', state.currentProject);
         } else {
             ui.showWelcomeView();
         }

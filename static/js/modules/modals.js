@@ -4,6 +4,7 @@
  * 모든 모달 창의 생성, 표시, 소멸 로직을 담당하는 모듈
  */
 import * as api from './api.js';
+import { EventListenerManager } from '../core/EventListenerManager.js';
 
 // DOM Elements
 const cardDetailsModal = document.getElementById('card-details-modal');
@@ -22,6 +23,9 @@ const manuscriptAiEditModal = document.getElementById('manuscript-ai-edit-modal'
 // App 인스턴스를 저장할 변수
 let app;
 
+// EventListenerManager 인스턴스
+const eventManager = new EventListenerManager();
+
 /**
  * 모듈을 초기화하고 App 인스턴스를 저장합니다.
  * @param {App} appInstance - 애플리케이션의 메인 컨트롤러 인스턴스
@@ -33,13 +37,21 @@ export function initializeModals(appInstance) {
 export function closeModal() {
     // [수정] 닫을 모달 목록에 manuscriptAiEditModal 추가
     [cardDetailsModal, worldviewCardModal, diffModal, modalBackdrop, aiScenarioDraftModal, plotPointEditModal, refineConceptModal, refineWorldviewRuleModal, commonAiModal, plotPointsDiffModal, manuscriptAiEditModal].forEach(el => {
-        if (el) el.classList.remove('active');
+        if (el) {
+            el.classList.remove('active');
+            // 모달 관련 이벤트 리스너 모두 제거
+            eventManager.removeAllEventListeners(el);
+        }
     });
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
-    if (existingPanel) existingPanel.remove();
-    
-    document.removeEventListener('keydown', handleEscKey);
+    if (existingPanel) {
+        eventManager.removeAllEventListeners(existingPanel);
+        existingPanel.remove();
+    }
+
+    // ESC 키 이벤트 리스너 제거
+    eventManager.removeEventListener(document, 'keydown', handleEscKey);
 }
 
 function handleEscKey(event) {
@@ -97,26 +109,24 @@ export function openPlotPointsDiffModal(originalPlots, suggestedPlots, onAcceptC
         `;
     }).join('');
     
-    const newAcceptBtn = acceptBtn.cloneNode(true);
-    acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
-    
-    // [수정] 적용 콜백에 '삭제할 초안 ID 목록'을 전달
-    newAcceptBtn.addEventListener('click', () => {
+    // 기존 이벤트 리스너 모두 제거
+    eventManager.removeAllEventListeners(acceptBtn);
+    eventManager.removeAllEventListeners(rejectBtn);
+
+    // 새로운 이벤트 핸들러 등록
+    eventManager.addEventListener(acceptBtn, 'click', () => {
         const draftsToClear = Array.from(suggestionContainer.querySelectorAll('input[name="clear_draft"]:checked'))
             .map(cb => cb.value);
-        
+
         onAcceptCallback(suggestedPlots, draftsToClear);
     });
 
-    const newRejectBtn = rejectBtn.cloneNode(true);
-    rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
-    newRejectBtn.addEventListener('click', () => closeModal());
+    eventManager.addEventListener(rejectBtn, 'click', () => closeModal());
 
     const closeButton = plotPointsDiffModal.querySelector('.close');
     if (closeButton) {
-        const newCloseButton = closeButton.cloneNode(true);
-        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
-        newCloseButton.addEventListener('click', (e) => {
+        eventManager.removeAllEventListeners(closeButton);
+        eventManager.addEventListener(closeButton, 'click', (e) => {
             e.preventDefault();
             closeModal();
         });
@@ -221,33 +231,49 @@ export function openCardModal(card, projectId) {
         <button class="secondary outline" id="modal-delete-btn"><i data-lucide="trash-2"></i>삭제</button>
     `;
 
-    footerEl.querySelector('#modal-manual-edit-btn').addEventListener('click', (e) => app.panels.handleManualEditCard(e, projectId, card.id));
-    footerEl.querySelector('#modal-edit-ai-btn').addEventListener('click', (e) => app.panels.handleEditCardAI(e, projectId, card.id));
-    footerEl.querySelector('#modal-delete-btn').addEventListener('click', (e) => {
-        closeModal();
-        app.handleDeleteCard(projectId, card.group_id, card.id);
-    });
-    
+    // 기존 이벤트 리스너들 제거
+    eventManager.removeAllEventListeners(footerEl);
+    eventManager.removeAllEventListeners(contentEl);
+
+    // 새로운 이벤트 핸들러들 등록
+    const manualEditBtn = footerEl.querySelector('#modal-manual-edit-btn');
+    const editAiBtn = footerEl.querySelector('#modal-edit-ai-btn');
+    const deleteBtn = footerEl.querySelector('#modal-delete-btn');
+
+    if (manualEditBtn) {
+        eventManager.addEventListener(manualEditBtn, 'click', (e) => app.panels.handleManualEditCard(e, projectId, card.id));
+    }
+    if (editAiBtn) {
+        eventManager.addEventListener(editAiBtn, 'click', (e) => app.panels.handleEditCardAI(e, projectId, card.id));
+    }
+    if (deleteBtn) {
+        eventManager.addEventListener(deleteBtn, 'click', (e) => {
+            closeModal();
+            app.handleDeleteCard(projectId, card.group_id, card.id);
+        });
+    }
+
     contentEl.querySelectorAll('.highlight-btn').forEach(button => {
-        button.addEventListener('click', (e) => handleHighlightClick(e, projectId, card.id));
+        eventManager.addEventListener(button, 'click', (e) => handleHighlightClick(e, projectId, card.id));
     });
 
     const closeButton = cardDetailsModal.querySelector('.close');
     if (closeButton) {
-        const newCloseButton = closeButton.cloneNode(true);
-        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
-        newCloseButton.addEventListener('click', (e) => {
+        eventManager.removeAllEventListeners(closeButton);
+        eventManager.addEventListener(closeButton, 'click', (e) => {
             e.preventDefault();
             closeModal();
         });
     }
 
-    modalBackdrop.onclick = null;
-    modalBackdrop.onclick = () => {
+    // 모달 백드롭 이벤트
+    eventManager.removeAllEventListeners(modalBackdrop);
+    eventManager.addEventListener(modalBackdrop, 'click', () => {
         closeModal();
-    };
+    });
 
-    document.addEventListener('keydown', handleEscKey);
+    // ESC 키 이벤트 리스너 등록
+    eventManager.addEventListener(document, 'keydown', handleEscKey);
 
     cardDetailsModal.classList.add('active');
     modalBackdrop.classList.add('active');
@@ -279,30 +305,47 @@ export function openWorldviewCardModal(card, projectId, groupId) {
     `;
     form.appendChild(footer);
 
-    footer.querySelector('#wv-ai-edit-btn').addEventListener('click', (e) => {
-        e.preventDefault();
-        app.panels.handleEditWorldviewCardAI(card, projectId);
-    });
-    footer.querySelector('#wv-delete-btn').addEventListener('click', async (e) => {
-        e.preventDefault();
-        await app.handleDeleteWorldviewCard(projectId, card.id);
-    });
+    // 기존 이벤트 리스너들 제거
+    eventManager.removeAllEventListeners(footer);
+
+    // 새로운 이벤트 핸들러들 등록
+    const aiEditBtn = footer.querySelector('#wv-ai-edit-btn');
+    const deleteBtn = footer.querySelector('#wv-delete-btn');
+
+    if (aiEditBtn) {
+        eventManager.addEventListener(aiEditBtn, 'click', (e) => {
+            e.preventDefault();
+            app.panels.handleEditWorldviewCardAI(card, projectId);
+        });
+    }
+    if (deleteBtn) {
+        eventManager.addEventListener(deleteBtn, 'click', async (e) => {
+            e.preventDefault();
+            await app.handleDeleteWorldviewCard(projectId, card.id);
+        });
+    }
 
     const closeButton = worldviewCardModal.querySelector('.close');
     if (closeButton) {
-        const newCloseButton = closeButton.cloneNode(true);
-        closeButton.parentNode.replaceChild(newCloseButton, closeButton);
-        newCloseButton.addEventListener('click', (e) => {
+        eventManager.removeAllEventListeners(closeButton);
+        eventManager.addEventListener(closeButton, 'click', (e) => {
             e.preventDefault();
             closeModal();
         });
     }
 
-    document.addEventListener('keydown', handleEscKey);
+    // ESC 키 이벤트 리스너 등록
+    eventManager.addEventListener(document, 'keydown', handleEscKey);
 
     worldviewCardModal.classList.add('active');
     modalBackdrop.classList.add('active');
     lucide.createIcons();
+
+    // 폼 이벤트 리스너 관리
+    if (form.onsubmit) {
+        // 기존 onsubmit 제거 (EventListenerManager로는 처리하기 어려움)
+        form.onsubmit = null;
+    }
 
     form.onsubmit = async (e) => {
         e.preventDefault();

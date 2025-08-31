@@ -102,6 +102,9 @@ export class StateManager extends EventEmitter {
             // 2. 상세 데이터는 백그라운드에서 로드
             this.loadProjectDetailsInBackground(data.projects);
 
+            // 프로젝트 목록 로드 완료 이벤트 발생
+            this.emit('projects:loaded', projectsWithStatus);
+
         } catch (error) {
             console.error('Error loading projects:', error);
             this.emit('error', '프로젝트 목록을 불러오는 데 실패했습니다.');
@@ -375,6 +378,9 @@ export class StateManager extends EventEmitter {
 
             this._setState({ projects: updatedProjects });
             this.setLoadingState('projectLoading', false);
+
+            // 프로젝트 로드 완료 이벤트 발생
+            this.emit('project:loaded', projectDetails);
 
             return true; // 성공을 나타내는 값 반환
 
