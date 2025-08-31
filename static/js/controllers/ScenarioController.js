@@ -545,12 +545,17 @@ export class ScenarioController {
         const wordCountOptions = ['short', 'medium', 'long'];
         const wordCount = wordCountOptions[parseInt(wordCountSlider.value)];
 
+        // [Phase 3+] 캐릭터별 선택된 관계 수집
+        const selectedRelationshipIds = getSelectedCharacterRelations();
+
         const requestBody = {
             output_format: formatSelect.value,
             character_ids: selectedCharacterIds,
             model_name: document.getElementById('ai-model-select').value,
             word_count: wordCount,
-            style_guide_id: styleGuideSelect.value
+            style_guide_id: styleGuideSelect.value,
+            include_relationships: selectedRelationshipIds.length > 0, // [Phase 3+] 선택된 관계가 있으면 true
+            relationship_ids: selectedRelationshipIds.length > 0 ? selectedRelationshipIds : null // [Phase 3+] 선택된 관계 ID들
         };
 
         button.setAttribute('aria-busy', 'true');
@@ -567,6 +572,33 @@ export class ScenarioController {
             button.setAttribute('aria-busy', 'false');
         }
     }
+
+    /**
+     * [Phase 3+] 캐릭터별 선택된 관계들을 수집하여 반환
+     */
+    getSelectedCharacterRelations() {
+        const selectedRelations = [];
+
+        // 로컬 스토리지에서 모든 캐릭터의 선택된 관계 수집
+        const keys = Object.keys(localStorage).filter(key => key.startsWith('selected_relations_'));
+
+        keys.forEach(key => {
+            const relations = localStorage.getItem(key);
+            if (relations) {
+                try {
+                    const relationIds = JSON.parse(relations);
+                    selectedRelations.push(...relationIds);
+                } catch (error) {
+                    console.error('관계 데이터 파싱 오류:', error);
+                }
+            }
+        });
+
+        // 중복 제거 후 반환
+        return [...new Set(selectedRelations)];
+    }
+
+
 
     /**
      * AI를 이용해 장면을 수정합니다.

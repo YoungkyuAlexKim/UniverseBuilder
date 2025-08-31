@@ -118,6 +118,9 @@ export async function fetchProjectDetails(projectId) {
     return handleResponse(response);
 }
 
+// Alias for backward compatibility
+export const getProjectDetails = fetchProjectDetails;
+
 export async function createProject(projectName, password) {
     const response = await fetch('/api/v1/projects', {
         method: 'POST',

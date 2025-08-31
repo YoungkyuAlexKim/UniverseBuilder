@@ -103,7 +103,11 @@ async function showRelationshipTimelineList(projectId, currentCard, panel, allCh
                 <div class="timeline-container">
                     ${relationships.length === 0
                         ? '<div class="empty-state"><p>아직 설정된 관계가 없습니다.<br>새로운 관계를 추가해보세요.</p></div>'
-                        : await generateRelationshipTimelineList(relationships, allCharacters, currentCard)
+                        : `
+                            <div class="relationship-grid">
+                                ${await generateRelationshipTimelineGrid(relationships, allCharacters, currentCard)}
+                            </div>
+                        `
                     }
                 </div>
 
@@ -124,6 +128,112 @@ async function showRelationshipTimelineList(projectId, currentCard, panel, allCh
  * 관계 타임라인 목록 HTML 생성
  */
 async function generateRelationshipTimelineList(relationships, allCharacters, currentCard) {
+    // [Phase 5] 관계들을 그룹화하여 표시 (관계 방향 고려)
+    const groupedRelationships = groupRelationshipsByCharacterPair(relationships, currentCard.id);
+    let html = '';
+
+    for (const group of Object.values(groupedRelationships)) {
+        const sourceChar = allCharacters.find(c => c.id === group.sourceId);
+        const targetChar = allCharacters.find(c => c.id === group.targetId);
+        const sourceName = sourceChar ? sourceChar.name : '알 수 없음';
+        const targetName = targetChar ? targetChar.name : '알 수 없음';
+
+        // 대표 관계 (첫 번째 관계)
+        const representativeRelationship = group.relationships[0];
+
+        html += `
+            <div class="timeline-relationship-card" data-relationship-id="${representativeRelationship.id}">
+                <div class="relationship-header">
+                    <div class="character-info">
+                        <strong>${sourceName}</strong> → <strong>${targetName}</strong>
+                    </div>
+                    <div class="relationship-current-phase">
+                        단계: ${representativeRelationship.phase_order || 1} / ${group.relationships.length}
+                    </div>
+                </div>
+
+                <div class="timeline-phases">
+                    ${await generateGroupedPhaseTimeline(group, allCharacters)}
+                </div>
+
+                <div class="relationship-actions">
+                    <button class="secondary outline view-timeline-btn" data-relationship-id="${representativeRelationship.id}">
+                        <i data-lucide="timeline"></i>타임라인 보기
+                    </button>
+                    <button class="secondary outline edit-relationship-btn" data-relationship-id="${representativeRelationship.id}">
+                        <i data-lucide="edit-3"></i>관계 편집
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    return html;
+}
+
+/**
+ * [Phase 5] 관계들을 캐릭터 쌍별로 그룹화 (관계 방향 고려)
+ */
+function groupRelationshipsByCharacterPair(relationships, currentCharacterId) {
+    const groups = {};
+
+    relationships.forEach(relationship => {
+        // [수정] 관계 방향을 고려하여 그룹화
+        // A→B와 B→A는 서로 다른 관계로 취급
+        const sourceId = relationship.source_character_id;
+        const targetId = relationship.target_character_id;
+
+        // 그룹 키 생성 (source-target 방향 유지)
+        const pairKey = `${sourceId}-${targetId}`;
+
+        if (!groups[pairKey]) {
+            groups[pairKey] = {
+                sourceId: sourceId,
+                targetId: targetId,
+                relationships: []
+            };
+        }
+
+        groups[pairKey].relationships.push(relationship);
+    });
+
+    // 각 그룹의 관계들을 phase_order로 정렬
+    Object.values(groups).forEach(group => {
+        group.relationships.sort((a, b) => (a.phase_order || 1) - (b.phase_order || 1));
+    });
+
+    return groups;
+}
+
+/**
+ * [Phase 5] 그룹화된 관계의 단계 타임라인 생성
+ */
+async function generateGroupedPhaseTimeline(group, allCharacters) {
+    let phasesHTML = '';
+
+    for (const relationship of group.relationships) {
+        const phases = await api.getRelationshipPhases(relationship.id);
+
+        if (phases.length === 0) {
+            phasesHTML += '<div class="phase-empty">단계 정보가 없습니다.</div>';
+        } else {
+            // 각 관계의 단계들을 표시
+            phasesHTML += `<div class="relationship-phase-group">
+                <div class="phase-group-header">단계 ${relationship.phase_order || 1}: ${relationship.type}</div>
+                <div class="phase-group-content">
+                    ${generatePhaseTimeline(phases)}
+                </div>
+            </div>`;
+        }
+    }
+
+    return phasesHTML || '<div class="phase-empty">단계 정보가 없습니다.</div>';
+}
+
+/**
+ * [Phase 4] 관계 목록 그리드 HTML 생성
+ */
+async function generateRelationshipTimelineGrid(relationships, allCharacters, currentCard) {
     let html = '';
 
     for (const relationship of relationships) {
@@ -133,30 +243,30 @@ async function generateRelationshipTimelineList(relationships, allCharacters, cu
         // 관계 단계들 가져오기
         const phases = await api.getRelationshipPhases(relationship.id);
 
+        // 간결한 설명 표시
+        const shortDescription = relationship.description
+            ? (relationship.description.length > 60 ? relationship.description.substring(0, 60) + '...' : relationship.description)
+            : '설명 없음';
+
         html += `
-            <div class="timeline-relationship-card" data-relationship-id="${relationship.id}">
-                <div class="relationship-header">
-                    <div class="character-info">
-                        <strong>${currentCard.name}</strong> ↔ <strong>${otherCharacter.name}</strong>
+            <div class="relationship-card-compact" data-relationship-id="${relationship.id}">
+                <div class="relationship-card-header">
+                    <div class="character-names">
+                        <span class="source-name">${currentCard.name}</span>
+                        <span class="arrow">↔</span>
+                        <span class="target-name">${otherCharacter.name}</span>
                     </div>
-                    <div class="relationship-current-phase">
-                        현재 단계: ${relationship.phase_order || 1}
-                    </div>
+                    <span class="phase-badge">단계 ${relationship.phase_order || 1}</span>
                 </div>
-
-                <div class="timeline-phases">
-                    ${phases.length === 0
-                        ? '<div class="phase-empty">단계 정보가 없습니다. 단계를 추가해보세요.</div>'
-                        : generatePhaseTimeline(phases)
-                    }
-                </div>
-
+                <div class="relationship-type">${relationship.type}</div>
+                <div class="relationship-description">${shortDescription}</div>
+                <div class="phase-count">총 ${phases.length}단계</div>
                 <div class="relationship-actions">
-                    <button class="secondary outline view-timeline-btn" data-relationship-id="${relationship.id}">
-                        <i data-lucide="timeline"></i>타임라인 보기
+                    <button class="secondary outline view-timeline-btn icon-only" data-relationship-id="${relationship.id}" title="타임라인 보기">
+                        <i data-lucide="timeline"></i>
                     </button>
-                    <button class="secondary outline edit-relationship-btn" data-relationship-id="${relationship.id}">
-                        <i data-lucide="edit-3"></i>관계 편집
+                    <button class="secondary outline edit-relationship-btn icon-only" data-relationship-id="${relationship.id}" title="관계 편집">
+                        <i data-lucide="edit-3"></i>
                     </button>
                 </div>
             </div>

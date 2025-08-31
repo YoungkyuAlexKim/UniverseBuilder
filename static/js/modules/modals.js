@@ -620,6 +620,8 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     
     // 캐릭터 선택 UI 설정
     setupCharacterSelection(projectId);
+
+
     
     // 전체 선택/해제 버튼 이벤트 리스너
     const selectAllBtn = document.getElementById('select-all-characters');
@@ -771,15 +773,20 @@ function setupCharacterSelection(projectId) {
                 characterCount++;
                 const isMainCharacter = characterCount <= 3; // 처음 3명을 주요 캐릭터로 간주하여 기본 선택
                 charactersHTML += `
-                <label style="display: flex; align-items: center; margin-bottom: 0.5rem; padding: 0.25rem; border: 1px solid var(--pico-muted-border-color); border-radius: 4px; cursor: pointer;">
-                    <input type="checkbox" name="selected_characters" value="${character.id}" ${isMainCharacter ? 'checked' : ''} style="margin-right: 0.5rem;">
-                    <div>
-                        <strong>${character.name}</strong>
-                        <div style="font-size: 0.8rem; color: var(--pico-muted-color); margin-top: 0.2rem;">
-                            ${character.description ? character.description.substring(0, 80) + (character.description.length > 80 ? '...' : '') : '설명 없음'}
+                <div style="margin-bottom: 0.5rem; padding: 0.25rem; border: 1px solid var(--pico-muted-border-color); border-radius: 4px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" name="selected_characters" value="${character.id}" ${isMainCharacter ? 'checked' : ''} style="margin-right: 0.5rem;">
+                        <div style="flex-grow: 1;">
+                            <strong>${character.name}</strong>
+                            <div style="font-size: 0.8rem; color: var(--pico-muted-color); margin-top: 0.2rem;">
+                                ${character.description ? character.description.substring(0, 80) + (character.description.length > 80 ? '...' : '') : '설명 없음'}
+                            </div>
                         </div>
-                    </div>
-                </label>
+                    </label>
+                    <button type="button" class="character-relations-btn secondary outline" data-character-id="${character.id}" data-character-name="${character.name}" style="margin-left: 0.5rem; font-size: 0.8rem; padding: 0.2rem 0.4rem;">
+                        <i data-lucide="link"></i> 관계
+                    </button>
+                </div>
                 `;
             });
         }
@@ -787,7 +794,281 @@ function setupCharacterSelection(projectId) {
     
     if (charactersHTML) {
         characterContainer.innerHTML = charactersHTML;
+
+        // [Phase 3+] 관계 선택 버튼 이벤트 리스너 추가
+        setupCharacterRelationsButtons(projectId);
     } else {
         characterContainer.innerHTML = '<p>등록된 캐릭터가 없습니다.</p>';
     }
+}
+
+/**
+ * [Phase 3+] 캐릭터 관계 선택 버튼 이벤트 설정
+ */
+function setupCharacterRelationsButtons(projectId) {
+    const relationsButtons = document.querySelectorAll('.character-relations-btn');
+
+    relationsButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const characterId = button.dataset.characterId;
+            const characterName = button.dataset.characterName;
+            showCharacterRelationsPopup(characterId, characterName, projectId);
+        });
+    });
+}
+
+/**
+ * [Phase 3+] 캐릭터 관계 선택 팝업 표시
+ */
+function showCharacterRelationsPopup(characterId, characterName, projectId) {
+    // 기존 팝업이 있으면 제거
+    const existingPopup = document.querySelector('.character-relations-popup');
+    if (existingPopup) existingPopup.remove();
+
+    // 팝업 생성
+    const popup = document.createElement('div');
+    popup.className = 'character-relations-popup';
+    popup.innerHTML = `
+        <div class="popup-overlay">
+            <div class="popup-content">
+                <div class="popup-header">
+                    <h4><i data-lucide="link"></i> ${characterName}의 관계 선택</h4>
+                    <button type="button" class="popup-close-btn">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="popup-body">
+                    <div class="relations-loading">
+                        <p>관계 정보를 불러오는 중...</p>
+                    </div>
+                    <div class="relations-list" style="display: none;"></div>
+                </div>
+                <div class="popup-footer">
+                    <button type="button" class="popup-select-all-btn secondary outline">전체 선택</button>
+                    <button type="button" class="popup-deselect-all-btn secondary outline">전체 해제</button>
+                    <button type="button" class="popup-confirm-btn primary">선택 완료</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(popup);
+    lucide.createIcons();
+
+    // 이벤트 리스너 설정
+    setupRelationsPopupEvents(popup, characterId, characterName, projectId);
+
+    // 관계 목록 로드
+    loadCharacterRelations(popup, characterId, characterName, projectId);
+}
+
+/**
+ * [Phase 3+] 관계 팝업 이벤트 설정
+ */
+function setupRelationsPopupEvents(popup, characterId, characterName, projectId) {
+    // 닫기 버튼
+    const closeBtn = popup.querySelector('.popup-close-btn');
+    const overlay = popup.querySelector('.popup-overlay');
+
+    const closePopup = () => popup.remove();
+
+    closeBtn.addEventListener('click', closePopup);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closePopup();
+    });
+
+    // ESC 키로 닫기
+    document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') {
+            closePopup();
+            document.removeEventListener('keydown', escHandler);
+        }
+    });
+
+    // 전체 선택/해제 버튼
+    const selectAllBtn = popup.querySelector('.popup-select-all-btn');
+    const deselectAllBtn = popup.querySelector('.popup-deselect-all-btn');
+    const confirmBtn = popup.querySelector('.popup-confirm-btn');
+
+    selectAllBtn.addEventListener('click', () => {
+        const checkboxes = popup.querySelectorAll('.relation-checkbox');
+        checkboxes.forEach(cb => cb.checked = true);
+    });
+
+    deselectAllBtn.addEventListener('click', () => {
+        const checkboxes = popup.querySelectorAll('.relation-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+    });
+
+    // 선택 완료 버튼
+    confirmBtn.addEventListener('click', () => {
+        const selectedRelations = Array.from(popup.querySelectorAll('.relation-checkbox:checked'))
+            .map(cb => cb.value);
+
+        // 선택된 관계들을 전역 변수에 저장 (나중에 AI 생성 시 사용)
+        saveSelectedCharacterRelations(characterId, selectedRelations);
+
+        // 팝업 닫기
+        closePopup();
+
+        // 선택 완료 피드백
+        showSelectionFeedback(characterName, selectedRelations.length);
+    });
+}
+
+/**
+ * [Phase 3+] 캐릭터 관계 목록 로드
+ */
+async function loadCharacterRelations(popup, characterId, characterName, projectId) {
+    const loadingDiv = popup.querySelector('.relations-loading');
+    const relationsListDiv = popup.querySelector('.relations-list');
+
+    try {
+        // 프로젝트의 모든 관계를 가져옴
+        const project = await api.getProjectDetails(projectId);
+        const allRelationships = project.relationships || [];
+
+        // 해당 캐릭터와 관련된 관계만 필터링
+        const characterRelationships = allRelationships.filter(rel =>
+            rel.source_character_id === characterId || rel.target_character_id === characterId
+        );
+
+        if (characterRelationships.length === 0) {
+            loadingDiv.innerHTML = '<p>설정된 관계가 없습니다.</p>';
+            return;
+        }
+
+        // 캐릭터 이름 맵 생성
+        const characterMap = {};
+        project.groups?.forEach(group => {
+            group.cards?.forEach(card => {
+                characterMap[card.id] = card.name;
+            });
+        });
+
+        // 관계 목록 HTML 생성
+        let relationsHTML = '<div style="max-height: 300px; overflow-y: auto;">';
+        characterRelationships.forEach(relationship => {
+            const otherCharacterId = relationship.source_character_id === characterId
+                ? relationship.target_character_id
+                : relationship.source_character_id;
+            const otherCharacterName = characterMap[otherCharacterId] || '알 수 없음';
+            const phaseDisplay = relationship.phase_order ? ` (단계 ${relationship.phase_order})` : '';
+
+            // 이미 선택된 관계인지 확인
+            const isSelected = isRelationSelected(characterId, relationship.id);
+
+            relationsHTML += `
+                <label style="display: block; margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: 4px; cursor: pointer;">
+                    <div style="display: flex; align-items: center;">
+                        <input type="checkbox" class="relation-checkbox" value="${relationship.id}" ${isSelected ? 'checked' : ''} style="margin-right: 0.5rem;">
+                        <div style="flex-grow: 1;">
+                            <strong>${characterName} ↔ ${otherCharacterName}</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                                ${relationship.type}${phaseDisplay}
+                            </div>
+                            ${relationship.description ? `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${relationship.description}</div>` : ''}
+                        </div>
+                    </div>
+                </label>
+            `;
+        });
+        relationsHTML += '</div>';
+
+        // 로딩 표시 숨기고 관계 목록 표시
+        loadingDiv.style.display = 'none';
+        relationsListDiv.style.display = 'block';
+        relationsListDiv.innerHTML = relationsHTML;
+
+    } catch (error) {
+        console.error('관계 목록 로드 실패:', error);
+        loadingDiv.innerHTML = '<p>관계 정보를 불러오는 중 오류가 발생했습니다.</p>';
+    }
+}
+
+/**
+ * [Phase 3+] 선택된 캐릭터 관계 저장
+ */
+function saveSelectedCharacterRelations(characterId, relationIds) {
+    // 로컬 스토리지에 선택된 관계 저장 (임시 저장)
+    const key = `selected_relations_${characterId}`;
+    if (relationIds.length > 0) {
+        localStorage.setItem(key, JSON.stringify(relationIds));
+    } else {
+        localStorage.removeItem(key);
+    }
+
+    // 선택된 관계들을 모아서 전역 변수에 저장
+    updateGlobalSelectedRelations();
+}
+
+/**
+ * [Phase 3+] 캐릭터 관계 선택 여부 확인
+ */
+function isRelationSelected(characterId, relationId) {
+    const key = `selected_relations_${characterId}`;
+    const selected = localStorage.getItem(key);
+    if (!selected) return false;
+
+    const selectedIds = JSON.parse(selected);
+    return selectedIds.includes(relationId);
+}
+
+/**
+ * [Phase 3+] 전역 선택된 관계 업데이트
+ */
+function updateGlobalSelectedRelations() {
+    const selectedRelations = [];
+
+    // 모든 캐릭터의 선택된 관계를 수집
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('selected_relations_'));
+    keys.forEach(key => {
+        const relations = localStorage.getItem(key);
+        if (relations) {
+            const relationIds = JSON.parse(relations);
+            selectedRelations.push(...relationIds);
+        }
+    });
+
+    // 중복 제거
+    const uniqueRelations = [...new Set(selectedRelations)];
+
+    // 전역 변수에 저장 (ScenarioController에서 사용)
+    window.selectedCharacterRelations = uniqueRelations;
+
+    console.log('선택된 관계들:', uniqueRelations);
+}
+
+/**
+ * [Phase 3+] 선택 완료 피드백 표시
+ */
+function showSelectionFeedback(characterName, count) {
+    // 간단한 토스트 메시지 표시 (CSS로 꾸밀 수 있음)
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--pico-primary-background);
+        color: var(--pico-primary);
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        border: 1px solid var(--pico-primary-border);
+        z-index: 1000;
+        font-size: 0.9rem;
+    `;
+
+    if (count > 0) {
+        toast.textContent = `${characterName}: ${count}개의 관계 선택됨`;
+    } else {
+        toast.textContent = `${characterName}: 관계 선택 해제됨`;
+    }
+
+    document.body.appendChild(toast);
+
+    // 3초 후 자동 제거
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }

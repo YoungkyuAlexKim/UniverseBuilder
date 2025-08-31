@@ -132,6 +132,487 @@
     margin: 0;
 }
 
+/* [Phase 4] 관계도 그리드 레이아웃 */
+.relationship-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+@media (max-width: 768px) {
+    .relationship-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 0.75rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    .relationship-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+}
+
+/* [Phase 4] 컴팩트한 관계 카드 */
+.relationship-card-compact {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--border-radius-sm);
+    padding: 1rem;
+    transition: all 0.2s ease;
+    position: relative;
+    height: fit-content;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+}
+
+.relationship-card-compact:hover {
+    border-color: var(--border-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.relationship-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.character-names {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.source-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--color-primary, #2563eb);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.target-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--color-secondary, #7c3aed);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.arrow {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.phase-badge {
+    background-color: var(--bg-accent);
+    color: var(--text-accent);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.relationship-type {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.relationship-description {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.phase-count {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+}
+
+.relationship-actions {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-tertiary);
+}
+
+.relationship-actions button {
+    font-size: 0.7rem;
+    padding: 0.3rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.relationship-actions button:hover {
+    background-color: var(--bg-hover);
+}
+
+/* [Phase 5] 그룹화된 관계 카드 */
+.relationship-card-grouped {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--border-radius-sm);
+    padding: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    height: fit-content;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+}
+
+.relationship-card-grouped:hover {
+    border-color: var(--border-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.relationship-card-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+.relationship-card-content {
+    flex: 1;
+    margin-bottom: 0.75rem;
+}
+
+.relationship-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.phase-navigation {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.phase-nav-btn {
+    background: none;
+    border: 1px solid var(--border-tertiary);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    font-size: 0.7rem;
+    position: relative;
+}
+
+.phase-nav-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+.prev-btn::before {
+    border-width: 4px 6px 4px 0;
+    border-color: transparent var(--text-secondary) transparent transparent;
+}
+
+.next-btn::before {
+    border-width: 4px 0 4px 6px;
+    border-color: transparent transparent transparent var(--text-secondary);
+}
+
+.prev-btn:hover:not(:disabled)::before {
+    border-color: transparent var(--text-primary) transparent transparent;
+}
+
+.next-btn:hover:not(:disabled)::before {
+    border-color: transparent transparent transparent var(--text-primary);
+}
+
+.phase-nav-btn:hover:not(:disabled) {
+    background-color: var(--bg-hover);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+}
+
+.phase-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.phase-indicator {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: center;
+}
+
+.relationship-content {
+    flex: 1;
+    margin: 0.75rem 0;
+}
+
+.relationship-content > .relationship-type {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.relationship-content > .relationship-description {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.relationship-content > .phase-badge {
+    align-self: flex-start;
+    background: linear-gradient(135deg, var(--bg-accent), var(--bg-accent-secondary, #e0e7ff));
+    color: var(--text-accent);
+    padding: 0.3rem 0.6rem;
+    border-radius: 16px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid var(--border-accent, rgba(59, 130, 246, 0.2));
+}
+
+/* 애니메이션 효과 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 단계 전환 시 애니메이션 */
+.relationship-card-grouped.updating .relationship-type {
+    animation: slideInRight 0.4s ease-out;
+}
+
+.relationship-card-grouped.updating .relationship-description {
+    animation: slideInLeft 0.4s ease-out;
+}
+
+.relationship-card-grouped.updating .phase-badge {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* 다중 단계 표시 개선 */
+.phase-count {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.phase-count::before {
+    content: "📊";
+    font-size: 0.8rem;
+}
+
+/* [Phase 5] 타임라인 관계 그룹 스타일 */
+.relationship-phase-group {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: var(--bg-surface-secondary, rgba(0, 0, 0, 0.02));
+    border-radius: 6px;
+    border: 1px solid var(--border-tertiary);
+}
+
+.relationship-phase-group:last-child {
+    margin-bottom: 0;
+}
+
+.phase-group-header {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border-tertiary);
+}
+
+.phase-group-content {
+    padding-left: 0.5rem;
+}
+
+/* 타임라인 관계 카드 스타일 개선 */
+.timeline-relationship-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--border-radius-sm);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.timeline-relationship-card:hover {
+    border-color: var(--border-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.timeline-relationship-card .character-info {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.timeline-relationship-card .relationship-current-phase {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+}
+
+/* 반응형 디자인 개선 */
+@media (max-width: 768px) {
+    .relationship-card-grouped {
+        padding: 0.75rem;
+        min-height: 160px;
+    }
+
+    .relationship-card-header {
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .relationship-card-content {
+        margin-bottom: 0.5rem;
+    }
+
+    .relationship-card-footer {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    .phase-navigation {
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .phase-nav-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+
+    .phase-indicator {
+        font-size: 0.8rem;
+        min-width: 45px;
+    }
+
+    .source-name, .target-name {
+        max-width: 100px;
+        font-size: 0.85rem;
+    }
+
+    .relationship-phase-group {
+        padding: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .timeline-relationship-card {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .relationship-card-grouped {
+        min-height: 140px;
+    }
+
+    .source-name, .target-name {
+        max-width: 80px;
+        font-size: 0.8rem;
+    }
+
+    .relationship-card-footer {
+        gap: 0.5rem;
+    }
+
+    .phase-navigation {
+        gap: 0.25rem;
+    }
+}
+
 /* AI 차이점 컨테이너 */
 #ai-diff-container ins {
     background-color: #a7f3d0;

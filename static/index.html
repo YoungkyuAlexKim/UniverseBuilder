@@ -440,6 +440,7 @@
                             <p>캐릭터 정보 로딩 중...</p>
                         </div>
                     </div>
+
                 </div>
             </form>
             <footer>
@@ -758,6 +759,90 @@
         .plot-point-card:has(.plot-select-checkbox:checked) {
             border-color: var(--pico-primary);
             background-color: var(--pico-primary-background);
+        }
+
+        /* [Phase 3+] 캐릭터 관계 선택 팝업 스타일 */
+        .character-relations-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+        }
+
+        .popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .popup-content {
+            background: var(--pico-background-color);
+            border-radius: 8px;
+            border: 1px solid var(--pico-muted-border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .popup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid var(--pico-muted-border-color);
+        }
+
+        .popup-header h4 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .popup-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--pico-muted-color);
+            padding: 0.25rem;
+            border-radius: 4px;
+        }
+
+        .popup-close-btn:hover {
+            background: var(--pico-muted-background-color);
+            color: var(--pico-color);
+        }
+
+        .popup-body {
+            padding: 1rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .popup-footer {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid var(--pico-muted-border-color);
+            justify-content: flex-end;
+        }
+
+        .popup-footer button {
+            flex: 1;
+            max-width: 120px;
         }
     </style>
 

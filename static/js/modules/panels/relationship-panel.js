@@ -327,30 +327,25 @@ export async function showRelationshipPanel(projectId, currentCard) {
             return;
         }
 
-        listContainer.innerHTML = activeRelationships.map(r => {
-            const sourceChar = allCharacters.find(c => c.id === r.source_character_id);
-            const targetChar = allCharacters.find(c => c.id === r.target_character_id);
-            const sourceName = sourceChar ? sourceChar.name : '알 수 없음';
-            const targetName = targetChar ? targetChar.name : '알 수 없음';
-            const descriptionHTML = r.description ? `<p>${r.description}</p>` : '<p>세부 설명 없음</p>';
-            const phaseDisplay = `<span class="phase-badge">단계 ${r.phase_order || 1}</span>`;  // [추가] 관계 변화 단계 표시
+        // [Phase 5] 관계들을 캐릭터 쌍별로 그룹화하여 표시
+        const groupedRelationships = groupRelationshipsByCharacterPair(activeRelationships, currentCard.id);
 
-            return `
-                <div class="relationship-card">
-                    <div class="relationship-card-header">
-                        <h6><strong>${sourceName}</strong> → <strong>${targetName}</strong> : ${r.type} ${phaseDisplay}</h6>
-                        <div class="relationship-card-header-buttons">
-                            <button class="secondary outline edit-rel-btn icon-only" data-id="${r.id}" title="수정"><i data-lucide="edit-3"></i></button>
-                            <button class="secondary outline delete-rel-btn icon-only" data-id="${r.id}" title="삭제"><i data-lucide="trash-2"></i></button>
-                        </div>
-                    </div>
-                    <div class="relationship-card-body">
-                        ${descriptionHTML}
-                    </div>
-                </div>
-            `;
-        }).join('');
+        listContainer.innerHTML = `
+            <div class="relationship-grid">
+                ${Object.values(groupedRelationships).map(group => {
+                    const sourceChar = allCharacters.find(c => c.id === group.sourceId);
+                    const targetChar = allCharacters.find(c => c.id === group.targetId);
+                    const sourceName = sourceChar ? sourceChar.name : '알 수 없음';
+                    const targetName = targetChar ? targetChar.name : '알 수 없음';
+
+                    return generateGroupedRelationshipCard(group, sourceName, targetName, allCharacters, currentCard);
+                }).join('')}
+            </div>
+        `;
         lucide.createIcons();
+
+        // [Phase 5] 그룹화된 관계 카드의 단계 전환 이벤트 설정
+        setupPhaseSwitcherEvents();
     };
 
     const clearForm = () => {
@@ -467,8 +462,27 @@ export async function showRelationshipPanel(projectId, currentCard) {
 
         if (target.matches('.edit-rel-btn')) {
             const relationshipId = target.dataset.id;
-            const relToEdit = relationships.find(r => r.id === relationshipId);
-            fillFormWithRelationship(relToEdit);
+            // [Phase 5] 그룹화된 카드에서 현재 표시중인 관계 찾기
+            const card = target.closest('.relationship-card-compact, .relationship-card-grouped');
+            let relToEdit = relationships.find(r => r.id === relationshipId);
+
+            // 그룹화된 카드인 경우 현재 표시중인 단계의 관계 찾기
+            if (card && card.classList.contains('relationship-card-grouped')) {
+                // phase-indicator 요소를 찾기 위해 더 넓은 범위에서 검색
+                const phaseIndicator = card.querySelector('.phase-indicator');
+                if (phaseIndicator) {
+                    const currentPhase = phaseIndicator.textContent.split(' / ')[0];
+                    const phaseData = card.querySelector(`.phase-data[data-phase="${currentPhase}"]`);
+                    if (phaseData) {
+                        const currentRelId = phaseData.dataset.id;
+                        relToEdit = relationships.find(r => r.id === currentRelId);
+                    }
+                }
+            }
+
+            if (relToEdit) {
+                fillFormWithRelationship(relToEdit);
+            }
         }
     });
 
@@ -481,4 +495,196 @@ export async function showRelationshipPanel(projectId, currentCard) {
     });
 
     renderRelationshipList();
+}
+
+/**
+ * [Phase 5] 관계들을 캐릭터 쌍별로 그룹화 (관계 방향 고려)
+ */
+function groupRelationshipsByCharacterPair(relationships, currentCharacterId) {
+    const groups = {};
+
+    relationships.forEach(relationship => {
+        // [수정] 관계 방향을 고려하여 그룹화
+        // A→B와 B→A는 서로 다른 관계로 취급
+        const sourceId = relationship.source_character_id;
+        const targetId = relationship.target_character_id;
+
+        // 그룹 키 생성 (source-target 방향 유지)
+        const pairKey = `${sourceId}-${targetId}`;
+
+        if (!groups[pairKey]) {
+            groups[pairKey] = {
+                sourceId: sourceId,
+                targetId: targetId,
+                relationships: []
+            };
+        }
+
+        groups[pairKey].relationships.push(relationship);
+    });
+
+    // 각 그룹의 관계들을 phase_order로 정렬
+    Object.values(groups).forEach(group => {
+        group.relationships.sort((a, b) => (a.phase_order || 1) - (b.phase_order || 1));
+    });
+
+    return groups;
+}
+
+/**
+ * [Phase 5] 그룹화된 관계 카드 HTML 생성
+ */
+function generateGroupedRelationshipCard(group, sourceName, targetName, allCharacters, currentCard) {
+    const relationships = group.relationships;
+    const currentRelationship = relationships[0]; // 기본적으로 첫 번째 관계 표시
+    const totalPhases = relationships.length;
+
+    // 간결한 설명 표시
+    const shortDescription = currentRelationship.description
+        ? (currentRelationship.description.length > 60 ? currentRelationship.description.substring(0, 60) + '...' : currentRelationship.description)
+        : '설명 없음';
+
+    return `
+        <div class="relationship-card-grouped" data-group-key="${[group.sourceId, group.targetId].sort().join('-')}">
+            <div class="relationship-card-header">
+                <div class="character-names">
+                    <span class="source-name">${sourceName}</span>
+                    <span class="arrow">↔</span>
+                    <span class="target-name">${targetName}</span>
+                </div>
+            </div>
+
+            <div class="relationship-card-content">
+                <div class="relationship-type" data-phase="1">${currentRelationship.type}</div>
+                <div class="relationship-description" data-phase="1">${shortDescription}</div>
+                <div class="phase-badge">단계 1</div>
+            </div>
+
+            <div class="relationship-card-footer">
+                <div class="phase-navigation">
+                    <button class="phase-nav-btn prev-btn" ${totalPhases <= 1 ? 'disabled' : ''} title="이전 단계">
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                    <span class="phase-indicator">1 / ${totalPhases}</span>
+                    <button class="phase-nav-btn next-btn" ${totalPhases <= 1 ? 'disabled' : ''} title="다음 단계">
+                        <i data-lucide="chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="relationship-actions">
+                    <button class="edit-rel-btn icon-only" data-id="${currentRelationship.id}" title="수정">
+                        <i data-lucide="edit-3"></i>
+                    </button>
+                    <button class="delete-rel-btn icon-only" data-id="${currentRelationship.id}" title="삭제">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 숨겨진 관계 데이터 -->
+            <div class="relationship-data" style="display: none;">
+                ${relationships.map((rel, index) => `
+                    <div class="phase-data"
+                         data-phase="${index + 1}"
+                         data-id="${rel.id}"
+                         data-type="${rel.type}"
+                         data-description="${rel.description || '설명 없음'}"
+                         data-phase-order="${rel.phase_order || 1}">
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * [Phase 5] 단계 전환 이벤트 설정
+ */
+function setupPhaseSwitcherEvents() {
+    // 이벤트 위임을 사용해서 동적으로 생성되는 요소들도 처리
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+
+        // 이전 단계 버튼
+        if (target.classList.contains('prev-btn') || target.closest('.prev-btn')) {
+            e.stopPropagation();
+            const card = target.closest('.relationship-card-grouped');
+            if (card) switchRelationshipPhase(card, -1);
+        }
+
+        // 다음 단계 버튼
+        if (target.classList.contains('next-btn') || target.closest('.next-btn')) {
+            e.stopPropagation();
+            const card = target.closest('.relationship-card-grouped');
+            if (card) switchRelationshipPhase(card, 1);
+        }
+    });
+}
+
+/**
+ * [Phase 5] 관계 단계 전환
+ */
+function switchRelationshipPhase(card, direction) {
+    const phaseIndicator = card.querySelector('.phase-indicator');
+    const currentText = phaseIndicator.textContent;
+    const [current, total] = currentText.split(' / ').map(Number);
+
+    let newPhase = current + direction;
+
+    // 범위 체크
+    if (newPhase < 1) newPhase = total;
+    if (newPhase > total) newPhase = 1;
+
+    // UI 업데이트
+    updateRelationshipCardPhase(card, newPhase, total);
+
+    // 액션 버튼 업데이트 (현재 단계의 관계 ID로)
+    const phaseData = card.querySelector(`.phase-data[data-phase="${newPhase}"]`);
+    if (phaseData) {
+        const relationshipId = phaseData.dataset.id;
+        const actionButtons = card.querySelectorAll('.relationship-actions button');
+        actionButtons.forEach(btn => {
+            btn.dataset.id = relationshipId;
+        });
+    }
+}
+
+/**
+ * [Phase 5] 관계 카드의 단계별 내용 업데이트
+ */
+function updateRelationshipCardPhase(card, phaseNumber, totalPhases) {
+    // 단계 표시기 업데이트
+    const phaseIndicator = card.querySelector('.phase-indicator');
+    phaseIndicator.textContent = `${phaseNumber} / ${totalPhases}`;
+
+    // 관계 데이터 가져오기
+    const phaseData = card.querySelector(`.phase-data[data-phase="${phaseNumber}"]`);
+    if (!phaseData) return;
+
+    const type = phaseData.dataset.type;
+    const description = phaseData.dataset.description;
+    const phaseOrder = phaseData.dataset.phaseOrder;
+
+    // 간결한 설명 표시
+    const shortDescription = description.length > 60
+        ? description.substring(0, 60) + '...'
+        : description;
+
+    // 내용 업데이트
+    const typeElement = card.querySelector('.relationship-card-content .relationship-type');
+    const descElement = card.querySelector('.relationship-card-content .relationship-description');
+    const badgeElement = card.querySelector('.relationship-card-content .phase-badge');
+
+    // 업데이트 중 클래스 추가 (애니메이션용)
+    card.classList.add('updating');
+
+    // 내용 변경
+    if (typeElement) typeElement.textContent = type;
+    if (descElement) descElement.textContent = shortDescription;
+    if (badgeElement) badgeElement.textContent = `단계 ${phaseOrder}`;
+
+    // 애니메이션이 끝난 후 클래스 제거
+    setTimeout(() => {
+        card.classList.remove('updating');
+    }, 400);
 }

@@ -76,6 +76,8 @@ class GenerateSceneRequest(BaseModel):
     model_name: Optional[str] = None
     word_count: Optional[str] = "medium"
     style_guide_id: Optional[str] = None # [신규] 스타일 가이드 ID 필드 추가
+    include_relationships: Optional[bool] = False # [Phase 3] 관계 정보 포함 여부 (기본값: False)
+    relationship_ids: Optional[List[str]] = None # [Phase 3] 포함할 관계 ID 목록
 
 class EditSceneRequest(BaseModel):
     user_edit_request: str
@@ -486,12 +488,22 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     relationships_context = ""
-    if len(character_ids) > 1:
-        relationships = db.query(RelationshipModel).filter(
-            RelationshipModel.source_character_id.in_(character_ids),
-            RelationshipModel.target_character_id.in_(character_ids),
-            RelationshipModel.project_id == project.id
-        ).all()
+    # [Phase 3] 관계 정보 포함 옵션이 활성화된 경우에만 처리
+    if request.include_relationships and len(character_ids) > 1:
+        # 선택된 관계 ID가 있으면 해당 관계만, 없으면 모든 관계를 가져옴
+        if request.relationship_ids:
+            relationships = db.query(RelationshipModel).filter(
+                RelationshipModel.id.in_(request.relationship_ids),
+                RelationshipModel.project_id == project.id
+            ).all()
+        else:
+            # 모든 관계를 가져오되 캐릭터 필터링
+            relationships = db.query(RelationshipModel).filter(
+                RelationshipModel.source_character_id.in_(character_ids),
+                RelationshipModel.target_character_id.in_(character_ids),
+                RelationshipModel.project_id == project.id
+            ).all()
+
         if relationships:
             char_name_map = {c.id: c.name for c in characters}
             relationship_descriptions = []
@@ -662,12 +674,22 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
     characters = db.query(CardModel).filter(CardModel.id.in_(character_ids)).all()
     characters_context = "\n".join([f"- {c.name}: {c.description}" for c in characters])
     relationships_context = ""
-    if len(character_ids) > 1:
-        relationships = db.query(RelationshipModel).filter(
-            RelationshipModel.source_character_id.in_(character_ids),
-            RelationshipModel.target_character_id.in_(character_ids),
-            RelationshipModel.project_id == project.id
-        ).all()
+    # [Phase 3] 관계 정보 포함 옵션이 활성화된 경우에만 처리
+    if request.include_relationships and len(character_ids) > 1:
+        # 선택된 관계 ID가 있으면 해당 관계만, 없으면 모든 관계를 가져옴
+        if request.relationship_ids:
+            relationships = db.query(RelationshipModel).filter(
+                RelationshipModel.id.in_(request.relationship_ids),
+                RelationshipModel.project_id == project.id
+            ).all()
+        else:
+            # 모든 관계를 가져오되 캐릭터 필터링
+            relationships = db.query(RelationshipModel).filter(
+                RelationshipModel.source_character_id.in_(character_ids),
+                RelationshipModel.target_character_id.in_(character_ids),
+                RelationshipModel.project_id == project.id
+            ).all()
+
         if relationships:
             char_name_map = {c.id: c.name for c in characters}
             relationship_descriptions = []
