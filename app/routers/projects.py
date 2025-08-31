@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 import time
 import json
+
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from passlib.context import CryptContext
@@ -233,12 +234,8 @@ def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
             card_dict = card_orm.__dict__
             for field in ['quote', 'personality', 'abilities', 'goal']:
                 field_value = getattr(card_orm, field, None)
-                if field_value and isinstance(field_value, str):
-                    try:
-                        card_dict[field] = json.loads(field_value)
-                    except json.JSONDecodeError:
-                        card_dict[field] = [s.strip() for s in field_value.split(',')]
-                elif not isinstance(field_value, list):
+                # JSON 타입이므로 이미 파싱된 상태, 빈 리스트 처리만 필요
+                if not isinstance(field_value, list) and field_value is not None:
                     card_dict[field] = []
             group_dict["cards"].append(card_dict)
         project_dict["groups"].append(group_dict)
@@ -508,7 +505,8 @@ def update_card(card_id: str, card_data: UpdateCardRequest, project: ProjectMode
     update_data = card_data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if key in ['quote', 'personality', 'abilities', 'goal'] and value is not None:
-            setattr(card, key, json.dumps(value, ensure_ascii=False))
+            # JSON 타입이므로 직접 할당
+            setattr(card, key, value)
         elif key != 'id':
             setattr(card, key, value)
     
@@ -518,11 +516,9 @@ def update_card(card_id: str, card_data: UpdateCardRequest, project: ProjectMode
     card_dict = card.__dict__
     for field in ['quote', 'personality', 'abilities', 'goal']:
         field_value = getattr(card, field, None)
-        if field_value and isinstance(field_value, str):
-            try:
-                card_dict[field] = json.loads(field_value)
-            except json.JSONDecodeError:
-                card_dict[field] = [s.strip() for s in field_value.split(',')]
+        # JSON 타입이므로 이미 파싱된 상태
+        if field_value is None:
+            card_dict[field] = []
         elif not isinstance(field_value, list):
             card_dict[field] = []
             

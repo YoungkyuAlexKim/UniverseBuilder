@@ -680,7 +680,6 @@ function renderManuscriptTab(projectData) {
             // 드롭다운 버튼 이벤트 - 직접 연결
             actionBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('버튼 클릭됨:', block.id);
 
                 // 드롭다운 메뉴 위치 조정 (우측 정렬)
                 const rect = actionBtn.getBoundingClientRect();
@@ -721,7 +720,6 @@ function renderManuscriptTab(projectData) {
             if (importBtn) {
                 importBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    console.log('불러오기 클릭:', block.id);
                     if (window.app && window.app.manuscriptController) {
                         window.app.manuscriptController.importBlockFromScenario(projectData.id, block.id);
                     }
@@ -731,7 +729,6 @@ function renderManuscriptTab(projectData) {
             if (exportBtn) {
                 exportBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    console.log('내보내기 클릭:', block.id);
                     if (window.app && window.app.manuscriptController) {
                         window.app.manuscriptController.exportBlockToScenario(projectData.id, block.id);
                     }
@@ -741,7 +738,6 @@ function renderManuscriptTab(projectData) {
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    console.log('삭제 클릭:', block.id);
                     if (window.app && window.app.manuscriptController) {
                         window.app.manuscriptController.handleDeleteManuscriptBlock(projectData.id, block.id);
                     }

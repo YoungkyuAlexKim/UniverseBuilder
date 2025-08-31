@@ -37,9 +37,8 @@ export function isValidationUtilsReady() {
  * @param {number} duration - 표시 시간 (밀리초)
  */
 export function showToast(message, type = 'info', duration = 3000) {
-    // 초기화되지 않은 경우 console에 출력
+    // 초기화되지 않은 경우 조용히 무시
     if (!isInitialized) {
-        console.log(`[${type.toUpperCase()}] ${message}`);
         return null;
     }
 

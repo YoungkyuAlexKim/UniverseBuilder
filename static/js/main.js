@@ -196,8 +196,6 @@ async function initializeStyleGuides() {
                 }
             }
         });
-
-        console.log('스타일 가이드 초기화 완료');
     } catch (error) {
         console.warn('스타일 가이드 초기화 실패:', error);
         // 실패 시 폴백으로 수동 초기화 시도
@@ -210,7 +208,6 @@ async function initializeStyleGuides() {
  * 실제 존재하는 파일들을 기반으로 동적으로 옵션 생성
  */
 function fallbackInitializeStyleGuides() {
-    console.log('폴백 스타일 가이드 초기화 시작');
 
     const styleGuideSelects = [
         'draft-style-guide-select',
@@ -251,8 +248,6 @@ function fallbackInitializeStyleGuides() {
             });
         }
     });
-
-    console.log(`폴백 스타일 가이드 초기화 완료: ${fallbackOptions.length}개 옵션 추가`);
 }
 
 /**
@@ -288,8 +283,6 @@ async function populateStyleGuideSelects() {
                 });
             }
         });
-
-        console.log(`${styleGuides.length}개의 스타일 가이드를 로드했습니다.`);
     } catch (error) {
         console.error('스타일 가이드 로드 실패:', error);
 

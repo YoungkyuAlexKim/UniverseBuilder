@@ -1,6 +1,6 @@
 import os
 import json
-from sqlalchemy import create_engine, Column, String, Text, Integer, ForeignKey
+from sqlalchemy import create_engine, Column, String, Text, Integer, ForeignKey, JSON
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 import sqlite3
@@ -54,10 +54,10 @@ class Card(Base):
     group_id = Column(String, ForeignKey("groups.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text)
-    goal = Column(Text)  # JSON 문자열로 저장
-    personality = Column(Text)  # JSON 문자열로 저장
-    abilities = Column(Text)  # JSON 문자열로 저장
-    quote = Column(Text)  # JSON 문자열로 저장
+    goal = Column(JSON)  # JSON 데이터로 저장
+    personality = Column(JSON)  # JSON 데이터로 저장
+    abilities = Column(JSON)  # JSON 데이터로 저장
+    quote = Column(JSON)  # JSON 데이터로 저장
     introduction_story = Column(Text)
     ordering = Column(Integer)
     group = relationship("Group", back_populates="cards")

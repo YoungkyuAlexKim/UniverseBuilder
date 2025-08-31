@@ -25,10 +25,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def read_root():
     return FileResponse('static/index.html')
 
-# -------------------------------------------
-
-# 삭제: @app.on_event("startup") 부터 끝까지 모두 삭제
-
 app.include_router(projects.router)
 app.include_router(generators.router)
 app.include_router(scenarios.router)

@@ -6,12 +6,6 @@
 
 // Helper function for handling fetch responses
 async function handleResponse(response) {
-    console.log('API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        headers: Object.fromEntries(response.headers.entries())
-    });
 
     if (!response.ok) {
         let errorData;
@@ -32,7 +26,6 @@ async function handleResponse(response) {
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         const jsonResponse = await response.json();
-        console.log('API Response Data:', jsonResponse);
         return jsonResponse;
     }
     return {};

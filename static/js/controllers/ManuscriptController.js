@@ -286,8 +286,6 @@ export class ManuscriptController {
                 requestBody.second_part_title = secondPartTitle.trim();
             }
 
-            console.log('Split request:', { blockId, splitPosition, firstPartTitle, secondPartTitle, requestBody });
-
             await api.splitManuscriptBlock(projectId, blockId, requestBody);
             alert('블록이 성공적으로 분할되었습니다.');
             await this.stateManager.refreshCurrentProject();
@@ -318,8 +316,6 @@ export class ManuscriptController {
      * 드롭다운 메뉴 토글
      */
     toggleBlockDropdown(blockId) {
-        console.log('드롭다운 토글 호출:', blockId);
-
         // 다른 모든 드롭다운 메뉴 닫기
         document.querySelectorAll('.manuscript-block-dropdown').forEach(dropdown => {
             if (!dropdown.contains(event.target)) {
@@ -331,13 +327,9 @@ export class ManuscriptController {
         const button = document.querySelector(`button[data-block-id="${blockId}"]`);
         const dropdown = button ? button.nextElementSibling : null;
 
-        console.log('찾은 버튼:', button);
-        console.log('찾은 드롭다운:', dropdown);
-
         if (dropdown && dropdown.classList.contains('manuscript-block-dropdown')) {
             const isVisible = dropdown.style.display === 'block';
             dropdown.style.display = isVisible ? 'none' : 'block';
-            console.log('드롭다운 표시 상태:', dropdown.style.display);
         } else {
             console.error('드롭다운을 찾을 수 없음');
         }

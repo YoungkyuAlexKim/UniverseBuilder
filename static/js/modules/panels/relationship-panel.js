@@ -58,15 +58,9 @@ export async function showRelationshipPanel(projectId, currentCard) {
 
     // 프로젝트 상세 데이터가 로드되지 않았으면 로드 대기
     if (!project.isDetailLoaded) {
-        console.log('프로젝트 상세 데이터 로딩 시작...');
-        console.log('프로젝트 ID:', projectId);
-        console.log('현재 프로젝트 상태:', project);
-
         try {
             // 현재 프로젝트 설정을 변경하지 않고 목록에서만 상세 데이터 로드
-            console.log('loadProjectDetailsInList 메소드 호출 시도...');
             const loadSuccess = await app.stateManager.loadProjectDetailsInList(projectId);
-            console.log('loadProjectDetailsInList 결과:', loadSuccess);
 
             if (!loadSuccess) {
                 console.error('프로젝트 상세 데이터 로드 실패 - loadProjectDetailsInList가 false 반환');
@@ -77,7 +71,6 @@ export async function showRelationshipPanel(projectId, currentCard) {
             // 다시 프로젝트 데이터 가져오기
             const updatedState = app.stateManager.getState();
             project = updatedState.projects.find(p => p.id === projectId);
-            console.log('업데이트된 프로젝트:', project);
 
             if (!project) {
                 console.error('업데이트 후에도 프로젝트를 찾을 수 없음');
@@ -91,30 +84,19 @@ export async function showRelationshipPanel(projectId, currentCard) {
         }
     }
 
-    console.log('Project data:', project);
-    console.log('Project groups:', project.groups);
-    console.log('Project groups length:', project.groups ? project.groups.length : 'undefined');
-    console.log('Project isDetailLoaded:', project.isDetailLoaded);
-
     const allCharacters = project.groups ? project.groups.flatMap(g => g.cards || []) : [];
-    console.log('All characters:', allCharacters);
-    console.log('All characters length:', allCharacters.length);
 
     const otherCharacters = allCharacters.filter(c => c.id !== currentCard.id);
-    console.log('Other characters:', otherCharacters);
 
     // 다른 캐릭터가 없으면 경고
     if (otherCharacters.length === 0) {
         console.warn('No other characters found! This might be the issue.');
         if (allCharacters.length === 0) {
             console.warn('No characters at all in the project!');
-        } else {
-            console.log('Only one character exists, which is the current character.');
         }
     }
 
     const relationships = project.relationships || [];
-    console.log('Relationships:', relationships);
 
     const panel = document.createElement('div');
     panel.className = 'relationship-panel';

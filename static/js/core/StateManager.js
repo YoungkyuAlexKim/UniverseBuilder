@@ -41,7 +41,6 @@ export class StateManager extends EventEmitter {
     _setState(newState) {
         this.state = { ...this.state, ...newState };
         this.emit('stateChanged', this.state);
-        console.log('State updated:', this.state);
     }
 
     /**
@@ -122,7 +121,6 @@ export class StateManager extends EventEmitter {
                 // 비밀번호가 설정된 프로젝트는 백그라운드에서 로드하지 않음
                 // 사용자가 직접 선택할 때 비밀번호 입력 과정을 거치도록 함
                 if (project.has_password) {
-                    console.log(`Skipping password-protected project: ${project.name}`);
                     continue;
                 }
 
@@ -140,12 +138,10 @@ export class StateManager extends EventEmitter {
                 });
 
                 this._setState({ projects: updatedProjects });
-                console.log(`Loaded details for project: ${project.name}`);
 
             } catch (error) {
                 // 403 에러는 비밀번호가 필요한 프로젝트이므로 무시하고 진행
                 if (error.message && error.message.includes('403')) {
-                    console.log(`Project ${project.name} requires password - skipping background load`);
                 } else {
                     console.warn(`Failed to load details for project ${project.id}:`, error);
                 }
@@ -360,16 +356,10 @@ export class StateManager extends EventEmitter {
      * @param {string} projectId - 상세 데이터를 로드할 프로젝트의 ID
      */
     async loadProjectDetailsInList(projectId) {
-        console.log(`Loading project details for: ${projectId}`);
-        console.log('Current loading states before:', this.state.loadingStates);
-
         this.setLoadingState('projectLoading', true);
-        console.log('Current loading states after set:', this.state.loadingStates);
 
         try {
-            console.log('Calling api.fetchProjectDetails...');
             const projectDetails = await api.fetchProjectDetails(projectId);
-            console.log('Project details fetched successfully:', projectDetails);
 
             // 프로젝트 목록에서 해당 프로젝트를 상세 데이터로 업데이트
             const updatedProjects = this.state.projects.map(p => {
@@ -378,18 +368,13 @@ export class StateManager extends EventEmitter {
                         ...projectDetails,
                         isDetailLoaded: true
                     };
-                    console.log('Updated project:', updatedProject);
                     return updatedProject;
                 }
                 return p;
             });
 
             this._setState({ projects: updatedProjects });
-            console.log(`Successfully loaded details for project: ${projectDetails.name}`);
-            console.log('Current loading states before clearing:', this.state.loadingStates);
-
             this.setLoadingState('projectLoading', false);
-            console.log('Current loading states after clearing:', this.state.loadingStates);
 
             return true; // 성공을 나타내는 값 반환
 
@@ -403,9 +388,7 @@ export class StateManager extends EventEmitter {
             });
 
             // 로딩 상태를 확실히 해제
-            console.log('Clearing loading state due to error...');
             this.setLoadingState('projectLoading', false);
-            console.log('Current loading states after error:', this.state.loadingStates);
 
             this.emit('error', '프로젝트 상세 정보를 불러오는 데 실패했습니다.');
             return false; // 실패를 나타내는 값 반환

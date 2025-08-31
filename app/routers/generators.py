@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-import json
+
 import os
 import time
+import json
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from dotenv import load_dotenv
@@ -112,12 +113,8 @@ if api_key:
 def parse_card_fields(card_obj):
     for field in ['quote', 'personality', 'abilities', 'goal']:
         field_value = getattr(card_obj, field, None)
-        if field_value and isinstance(field_value, str):
-            try:
-                setattr(card_obj, field, json.loads(field_value))
-            except json.JSONDecodeError:
-                setattr(card_obj, field, [s.strip() for s in field_value.split(',') if s.strip()])
-        elif field_value is None:
+        # JSON 타입이므로 이미 파싱된 상태, None만 빈 리스트로 처리
+        if field_value is None:
              setattr(card_obj, field, [])
     return card_obj
 
@@ -333,10 +330,10 @@ def add_card_to_project(project_id: str, group_id: str, card: CharacterCard, db:
         group_id=group_id,
         name=card.name,
         description=card.description,
-        goal=json.dumps(card.goal, ensure_ascii=False) if card.goal else "[]",
-        personality=json.dumps(card.personality, ensure_ascii=False) if card.personality else "[]",
-        abilities=json.dumps(card.abilities, ensure_ascii=False) if card.abilities else "[]",
-        quote=json.dumps(card.quote, ensure_ascii=False) if card.quote else "[]",
+        goal=card.goal if card.goal else [],
+        personality=card.personality if card.personality else [],
+        abilities=card.abilities if card.abilities else [],
+        quote=card.quote if card.quote else [],
         introduction_story=card.introduction_story,
         ordering=card_count
     )
