@@ -875,9 +875,9 @@ async def generate_expert_feedback(
                 other_plots.append(f"- ({position}) {plot.ordering + 1}. {plot.title}: {plot.content}")
 
         if other_plots:
-            # AI 토큰 제한 고려한 최적화 (최대 15개 플롯, 5000자 제한)
-            MAX_PLOTS = 15
-            MAX_CHARS = 5000
+            # AI 토큰 제한 고려한 최적화 (최대 20개 플롯, 6000자 제한)
+            MAX_PLOTS = 20
+            MAX_CHARS = 6000
 
             if len(other_plots) > MAX_PLOTS:
                 # 현재 플롯 주변의 플롯들을 우선적으로 포함
@@ -885,7 +885,7 @@ async def generate_expert_feedback(
                 prioritized_plots = []
 
                 # 현재 플롯 바로 앞뒤 플롯들을 먼저 수집
-                for offset in range(1, 6):  # ±5 플롯 범위
+                for offset in range(1, 11):  # ±10 플롯 범위
                     # 이전 플롯들
                     prev_idx = current_index - offset
                     if prev_idx >= 0 and len(prioritized_plots) < MAX_PLOTS:
