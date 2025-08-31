@@ -852,13 +852,84 @@ async def generate_expert_feedback(
     # 플롯 배경 정보 수집
     scenario = db.query(ScenarioModel).filter(ScenarioModel.project_id == project.id).first()
     plot_context = "플롯 정보가 없습니다."
+    other_plots_context = ""
+
     if scenario:
+        # 현재 플롯 정보
         original_plot = db.query(PlotPointModel).filter(
             PlotPointModel.scenario_id == scenario.id,
             PlotPointModel.ordering == block.ordering
         ).first()
         if original_plot:
-            plot_context = f"플롯 제목: {original_plot.title}\n플롯 내용: {original_plot.content or '상세 내용 없음'}"
+            plot_context = f"현재 플롯 제목: {original_plot.title}\n현재 플롯 내용: {original_plot.content or '상세 내용 없음'}"
+
+        # 다른 모든 플롯들의 요약 정보 수집
+        all_plot_points = db.query(PlotPointModel).filter(
+            PlotPointModel.scenario_id == scenario.id
+        ).order_by(PlotPointModel.ordering).all()
+
+        other_plots = []
+        for plot in all_plot_points:
+            if plot.ordering != block.ordering and plot.content:  # 현재 플롯 제외
+                position = "이전" if plot.ordering < block.ordering else "다음"
+                other_plots.append(f"- ({position}) {plot.ordering + 1}. {plot.title}: {plot.content}")
+
+        if other_plots:
+            # AI 토큰 제한 고려한 최적화 (최대 15개 플롯, 5000자 제한)
+            MAX_PLOTS = 15
+            MAX_CHARS = 5000
+
+            if len(other_plots) > MAX_PLOTS:
+                # 현재 플롯 주변의 플롯들을 우선적으로 포함
+                current_index = block.ordering
+                prioritized_plots = []
+
+                # 현재 플롯 바로 앞뒤 플롯들을 먼저 수집
+                for offset in range(1, 6):  # ±5 플롯 범위
+                    # 이전 플롯들
+                    prev_idx = current_index - offset
+                    if prev_idx >= 0 and len(prioritized_plots) < MAX_PLOTS:
+                        plot = all_plot_points[prev_idx]
+                        if plot.content:
+                            prioritized_plots.append(f"- (이전) {prev_idx + 1}. {plot.title}: {plot.content[:200]}...")
+
+                    # 다음 플롯들
+                    next_idx = current_index + offset
+                    if next_idx < len(all_plot_points) and len(prioritized_plots) < MAX_PLOTS:
+                        plot = all_plot_points[next_idx]
+                        if plot.content:
+                            prioritized_plots.append(f"- (다음) {next_idx + 1}. {plot.title}: {plot.content[:200]}...")
+
+                # 남은 공간이 있다면 처음과 끝의 주요 플롯들 추가
+                if len(prioritized_plots) < MAX_PLOTS:
+                    for plot in all_plot_points[:3]:  # 시작부 플롯들
+                        if plot.ordering != current_index and plot.content and len(prioritized_plots) < MAX_PLOTS:
+                            prioritized_plots.append(f"- (초반) {plot.ordering + 1}. {plot.title}: {plot.content[:150]}...")
+
+                    for plot in all_plot_points[-3:]:  # 종료부 플롯들
+                        if plot.ordering != current_index and plot.content and len(prioritized_plots) < MAX_PLOTS:
+                            prioritized_plots.append(f"- (후반) {plot.ordering + 1}. {plot.title}: {plot.content[:150]}...")
+
+                # 최종 컨텍스트 생성 (문자 수 제한 적용)
+                context_text = "\n".join(prioritized_plots)
+                if len(context_text) > MAX_CHARS:
+                    context_text = context_text[:MAX_CHARS] + "..."
+
+                other_plots_context = f"### 전체 스토리 흐름 (주변 및 주요 플롯 위주, 총 {len(other_plots)}개 중 {len(prioritized_plots)}개 표시)\n{context_text}"
+            else:
+                # 플롯 수가 적으면 전체 포함하되, 각 플롯 내용은 300자로 제한
+                limited_plots = []
+                for plot_info in other_plots:
+                    if len(plot_info) > 350:  # 제목 포함해서 대략 300자 정도로 제한
+                        # "제목: 내용" 형식에서 내용 부분만 자르기
+                        colon_idx = plot_info.find(": ")
+                        if colon_idx > 0:
+                            title_part = plot_info[:colon_idx + 2]
+                            content_part = plot_info[colon_idx + 2:][:300] + "..."
+                            plot_info = title_part + content_part
+                    limited_plots.append(plot_info)
+
+                other_plots_context = "### 전체 스토리 흐름\n" + "\n".join(limited_plots)
 
     # 캐릭터 정보 수집 (해당 블록에 등장하는 캐릭터들)
     characters = db.query(CardModel).join(GroupModel).filter(GroupModel.project_id == project.id).all()
@@ -871,6 +942,7 @@ async def generate_expert_feedback(
     prompt = ai_prompts.generate_expert_feedback.format(
         text_content=request.text_content,
         plot_context=plot_context,
+        other_plots_context=other_plots_context,
         character_context=character_context
     )
 

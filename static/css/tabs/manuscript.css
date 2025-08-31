@@ -570,6 +570,125 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* 플롯 참조 정보 섹션 */
+.plot-reference-section {
+    margin-bottom: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-sm);
+    padding: 1rem;
+}
+
+.plot-reference-section h6 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.current-plot-info {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-xs);
+    font-size: 0.85rem;
+}
+
+.current-plot-info strong {
+    color: var(--text-primary);
+}
+
+.other-plots-summary {
+    font-size: 0.85rem;
+}
+
+.other-plots-summary strong {
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.other-plots-summary details {
+    margin-top: 0.5rem;
+}
+
+.other-plots-summary summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 0.25rem 0;
+    user-select: none;
+}
+
+.other-plots-summary summary:hover {
+    color: var(--text-primary);
+}
+
+.plot-list {
+    margin-top: 0.5rem;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-xs);
+    background: var(--bg-primary);
+}
+
+.plot-item {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: 0.8rem;
+}
+
+.plot-item:last-child {
+    border-bottom: none;
+}
+
+.plot-number {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-right: 0.5rem;
+    min-width: 2rem;
+}
+
+.plot-title {
+    flex: 1;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plot-position {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: auto;
+    padding: 0.125rem 0.25rem;
+    background: var(--bg-accent);
+    border-radius: 0.25rem;
+}
+
+.plot-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.plot-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.plot-list::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+    border-radius: 2px;
+}
+
+.plot-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
 /* 반응형 디자인 */
 @media (max-width: 1200px) {
     .manuscript-layout {

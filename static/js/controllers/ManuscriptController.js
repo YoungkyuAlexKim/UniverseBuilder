@@ -555,6 +555,45 @@ export class ManuscriptController {
 
         const scoreColor = getScoreColor(feedback.overall_score);
 
+        // 참조된 플롯 정보 표시용 데이터 준비
+        const { currentProject } = this.stateManager.getState();
+        const currentBlockId = document.getElementById('manuscript-save-btn').getAttribute('data-current-block-id');
+        const currentBlock = currentProject?.manuscript_blocks?.find(block => block.id === currentBlockId);
+        const scenario = currentProject?.scenarios?.[0];
+
+        let plotReferenceInfo = '';
+        if (scenario && currentBlock) {
+            const currentPlotPoint = scenario.plot_points?.find(plot => plot.ordering === currentBlock.ordering);
+            const otherPlots = scenario.plot_points?.filter(plot => plot.ordering !== currentBlock.ordering && plot.content) || [];
+
+            plotReferenceInfo = `
+                <div class="plot-reference-section">
+                    <h6>📚 AI가 참고한 플롯 정보</h6>
+                    <div class="current-plot-info">
+                        <strong>현재 플롯:</strong> ${currentPlotPoint ? `${currentPlotPoint.title} (플롯 ${currentPlotPoint.ordering + 1})` : '정보 없음'}
+                    </div>
+                    <div class="other-plots-summary">
+                        <strong>참조된 다른 플롯:</strong> ${otherPlots.length}개
+                        ${otherPlots.length > 0 ? `
+                            <details>
+                                <summary>플롯 목록 보기</summary>
+                                <div class="plot-list">
+                                    ${otherPlots.slice(0, 10).map(plot =>
+                                        `<div class="plot-item">
+                                            <span class="plot-number">${plot.ordering + 1}.</span>
+                                            <span class="plot-title">${plot.title}</span>
+                                            <span class="plot-position">(${plot.ordering < currentBlock.ordering ? '이전' : '다음'})</span>
+                                        </div>`
+                                    ).join('')}
+                                    ${otherPlots.length > 10 ? `<div class="plot-item">... 외 ${otherPlots.length - 10}개 플롯</div>` : ''}
+                                </div>
+                            </details>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
         // 개선사항 우선순위별 정렬 및 표시
         const sortedImprovements = feedback.improvements.sort((a, b) => {
             const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
@@ -594,6 +633,9 @@ export class ManuscriptController {
                         <div class="score-fill" style="width: ${feedback.overall_score * 10}%; background-color: ${scoreColor}"></div>
                     </div>
                 </div>
+
+                <!-- AI가 참고한 플롯 정보 -->
+                ${plotReferenceInfo}
 
                 <!-- 장점 -->
                 ${feedback.strengths.length > 0 ? `
