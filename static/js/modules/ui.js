@@ -510,11 +510,9 @@ function renderManuscriptTab(projectData) {
     // 중복 실행 방지 - 전역 플래그 사용
     const renderKey = `manuscript_${projectData.id}`;
     if (renderedTabs.has(renderKey)) {
-        console.log('이미 렌더링됨, 건너뜀:', renderKey);
         return;
     }
     renderedTabs.add(renderKey);
-    console.log('새로 렌더링 시작:', renderKey);
 
     // DOM에 렌더링 완료 마킹
     container.dataset.rendered = 'true';

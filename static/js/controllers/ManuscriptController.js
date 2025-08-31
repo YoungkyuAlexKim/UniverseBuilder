@@ -378,16 +378,10 @@ export class ManuscriptController {
      */
     async openPlotSelectionModal(projectId, blockId, action) {
         // 프로젝트 데이터를 최신으로 갱신
-        console.log('Refreshing project data...');
         await this.stateManager.refreshCurrentProject();
 
         const { currentProject } = this.stateManager.getState();
-        console.log('Current project:', currentProject);
-        console.log('Scenarios:', currentProject?.scenarios);
-
         const scenario = currentProject?.scenarios?.[0];
-        console.log('Selected scenario:', scenario);
-        console.log('Plot points:', scenario?.plot_points);
 
         if (!scenario) {
             alert('시나리오 탭을 먼저 생성해주세요.\n시나리오 탭으로 이동하여 시놉시스와 플롯을 작성한 후 다시 시도해주세요.');
@@ -446,21 +440,15 @@ export class ManuscriptController {
         });
 
         // 모달 추가 및 표시
-        console.log('Creating modal with HTML:', modalHTML.substring(0, 200) + '...');
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
         const modalElement = document.getElementById('plot-selection-modal');
         const backdropElement = document.getElementById('modal-backdrop');
 
-        console.log('Modal element created:', modalElement);
-        console.log('Backdrop element:', backdropElement);
-
         if (modalElement && backdropElement) {
             modalElement.classList.add('active');
             backdropElement.classList.add('active');
-            console.log('Modal and backdrop activated');
         } else {
-            console.error('Failed to find modal or backdrop elements');
             alert('모달을 생성하는데 실패했습니다.');
             return;
         }
@@ -530,10 +518,8 @@ export class ManuscriptController {
     async executeImportBlock(projectId, blockId, plotId) {
         try {
             const result = await api.importBlockFromPlot(projectId, blockId, plotId);
-            console.log('Import successful:', result);
             return result;
         } catch (error) {
-            console.error('Import failed:', error);
             throw error;
         }
     }
@@ -544,17 +530,12 @@ export class ManuscriptController {
      * 플롯 불러오기 후 개요창과 중앙 텍스트 모두 갱신
      */
     updateBlockUIAfterImport(blockId) {
-        console.log('Updating UI after import for block:', blockId);
-
         const { currentProject } = this.stateManager.getState();
         const block = currentProject?.manuscript_blocks?.find(b => b.id === blockId);
 
         if (!block) {
-            console.warn('Block not found for UI update:', blockId);
             return;
         }
-
-        console.log('Updating block:', block.title, 'Content length:', block.content?.length || 0);
 
         // 1. 개요창의 블록 제목 갱신
         const blockLi = document.querySelector(`li[data-block-id="${blockId}"]`);
@@ -564,7 +545,6 @@ export class ManuscriptController {
             if (titleSpan && block) {
                 // 현재 innerHTML에서 순서 번호와 아이콘은 유지하고 제목만 교체
                 const currentHtml = titleSpan.innerHTML;
-                console.log('Current HTML:', currentHtml);
 
                 // 정규표현식으로 아이콘 + 숫자. + 기존제목 패턴 찾기
                 const pattern = /^(<i[^>]*><\/i>\s*)(\d+\.\s*)(.*)$/;
@@ -577,19 +557,14 @@ export class ManuscriptController {
                     const newTitle = block.title || '제목 없음';
 
                     titleSpan.innerHTML = iconPart + numberPart + newTitle;
-                    console.log('Block title updated in list:', newTitle);
-                    console.log('New HTML:', titleSpan.innerHTML);
                 } else {
                     // 패턴이 맞지 않으면 전체 교체
-                    console.warn('HTML pattern not matched, using fallback');
                     titleSpan.innerHTML = `<i data-lucide="file-text"></i> ${block.ordering + 1}. ${block.title || '제목 없음'}`;
                 }
 
                 // 아이콘 재생성
                 if (window.lucide) {
-                    setTimeout(() => {
-                        window.lucide.createIcons();
-                    }, 50);
+                    setTimeout(() => window.lucide.createIcons(), 50);
                 }
             }
         }
@@ -600,13 +575,11 @@ export class ManuscriptController {
 
         if (titleInput) {
             titleInput.value = block.title || '';
-            console.log('Title input updated');
         }
 
         if (contentTextarea) {
             contentTextarea.value = block.content || '';
             contentTextarea.defaultValue = block.content || '';
-            console.log('Content textarea updated');
         }
 
         // 3. 글자 수/단어 수 표시 갱신
@@ -620,202 +593,10 @@ export class ManuscriptController {
             wordCountDisplay.textContent = block.word_count || 0;
         }
 
-        console.log('UI update completed for imported block');
+
     }
 
-    /**
-     * 강제로 집필 블록들을 새로고침 (fallback 방법)
-     */
-    forceRefreshManuscriptBlocks(currentProject) {
-        const blockListEl = document.getElementById('manuscript-block-list');
-        const titleInput = document.getElementById('manuscript-block-title');
-        const contentTextarea = document.getElementById('manuscript-block-content');
-        const charCountDisplay = document.getElementById('char-count-display');
-        const wordCountDisplay = document.getElementById('word-count-display');
 
-        if (!blockListEl) return;
-
-        const blocks = currentProject.manuscript_blocks || [];
-
-        // 블록 리스트 재생성
-        if (blocks.length === 0) {
-            blockListEl.innerHTML = '<li class="empty-message">작업할 내용이 없습니다. \'불러오기\'를 눌러 시작하세요.</li>';
-        } else {
-            blockListEl.innerHTML = blocks.map(block => `
-                <li data-block-id="${block.id}">
-                    <input type="checkbox" class="manuscript-block-checkbox" data-block-id="${block.id}">
-                    <span class="block-title">${block.title || '제목 없음'}</span>
-                    <button class="manuscript-block-action-btn" data-block-id="${block.id}">⋮</button>
-                    <div class="manuscript-block-dropdown" data-block-id="${block.id}">
-                        <button class="dropdown-item import-from-scenario" data-action="import" data-block-id="${block.id}">
-                            <i data-lucide="download"></i>
-                            <span>시나리오에서 불러오기</span>
-                        </button>
-                        <button class="dropdown-item export-to-scenario" data-action="export" data-block-id="${block.id}">
-                            <i data-lucide="upload"></i>
-                            <span>시나리오로 내보내기</span>
-                        </button>
-                        <button class="dropdown-item delete-block" data-action="delete" data-block-id="${block.id}">
-                            <i data-lucide="trash-2"></i>
-                            <span>블록 삭제</span>
-                        </button>
-                    </div>
-                </li>
-            `).join('');
-        }
-
-        // 현재 선택된 블록이 있으면 해당 블록 선택 상태 복원
-        const currentBlockId = document.getElementById('manuscript-save-btn')?.getAttribute('data-current-block-id');
-        if (currentBlockId) {
-            const currentBlock = blocks.find(b => b.id === currentBlockId);
-            if (currentBlock) {
-                // UI 요소들 업데이트
-                if (titleInput) titleInput.value = currentBlock.title || '';
-                if (contentTextarea) {
-                    contentTextarea.value = currentBlock.content || '';
-                    contentTextarea.disabled = false;
-                }
-                if (charCountDisplay) charCountDisplay.textContent = currentBlock.char_count || 0;
-                if (wordCountDisplay) wordCountDisplay.textContent = currentBlock.word_count || 0;
-
-                // 블록 리스트에서 선택 상태 표시
-                const li = blockListEl.querySelector(`li[data-block-id="${currentBlockId}"]`);
-                if (li) {
-                    blockListEl.querySelectorAll('li').forEach(item => {
-                        item.style.backgroundColor = 'transparent';
-                        item.style.borderColor = 'transparent';
-                    });
-                    li.style.backgroundColor = 'var(--pico-secondary-background)';
-                    li.style.borderColor = 'var(--pico-secondary-border)';
-                }
-            }
-        }
-
-        // 아이콘 재생성
-        if (window.lucide) {
-            setTimeout(() => {
-                window.lucide.createIcons();
-            }, 100);
-        }
-
-        console.log('Manuscript blocks refreshed completely');
-
-        // 이벤트 리스너 재연결 (중요!)
-        this.reconnectManuscriptEventListeners(currentProject);
-    }
-
-    /**
-     * 집필 탭 이벤트 리스너들을 다시 연결
-     */
-    reconnectManuscriptEventListeners(currentProject) {
-        console.log('Reconnecting manuscript event listeners...');
-
-        // 약간의 지연을 주어 DOM이 완전히 렌더링된 후 이벤트 연결
-        setTimeout(() => {
-            const container = document.querySelector('#tab-content-manuscript');
-            if (!container) return;
-
-            // UI 모듈의 이벤트 연결 함수 호출
-            if (window.ui && typeof window.ui.setupManuscriptTabEvents === 'function') {
-                window.ui.setupManuscriptTabEvents(container, currentProject);
-            } else {
-                // 직접 이벤트 연결 (fallback)
-                this.setupBasicManuscriptEvents(container, currentProject);
-            }
-        }, 200);
-    }
-
-    /**
-     * 기본적인 집필 탭 이벤트들을 연결 (fallback)
-     */
-    setupBasicManuscriptEvents(container, currentProject) {
-        const blockListEl = container.querySelector('#manuscript-block-list');
-        const titleInput = container.querySelector('#manuscript-block-title');
-        const contentTextarea = container.querySelector('#manuscript-block-content');
-        const saveButton = container.querySelector('#manuscript-save-btn');
-
-        if (!blockListEl) return;
-
-        // 블록 클릭 이벤트 재연결
-        if (blockListEl) {
-            const clickHandler = (e) => {
-                const li = e.target.closest('li[data-block-id]');
-                if (!li) return;
-
-                if (e.target.type === 'checkbox') return;
-
-                const blockId = li.dataset.blockId;
-                const blocks = currentProject.manuscript_blocks || [];
-                const selectedBlock = blocks.find(b => b.id === blockId);
-
-                if (selectedBlock) {
-                    // UI 업데이트
-                    if (titleInput) titleInput.value = selectedBlock.title || '';
-                    if (contentTextarea) {
-                        contentTextarea.value = selectedBlock.content || '';
-                        contentTextarea.disabled = false;
-                    }
-                    if (saveButton) {
-                        saveButton.disabled = false;
-                        saveButton.setAttribute('data-current-block-id', blockId);
-                    }
-
-                    // 선택 상태 표시
-                    blockListEl.querySelectorAll('li').forEach(item => {
-                        item.style.backgroundColor = 'transparent';
-                        item.style.borderColor = 'transparent';
-                    });
-                    li.style.backgroundColor = 'var(--pico-secondary-background)';
-                    li.style.borderColor = 'var(--pico-secondary-border)';
-                }
-            };
-
-            blockListEl.addEventListener('click', clickHandler);
-        }
-
-        // 드롭다운 버튼 이벤트 재연결
-        const actionButtons = container.querySelectorAll('.manuscript-block-action-btn');
-        actionButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const blockId = button.dataset.blockId;
-                const dropdown = button.nextElementSibling;
-
-                if (dropdown && dropdown.classList.contains('manuscript-block-dropdown')) {
-                    const rect = button.getBoundingClientRect();
-                    dropdown.style.position = 'fixed';
-                    dropdown.style.top = `${rect.bottom + 4}px`;
-                    dropdown.style.left = `${rect.left}px`;
-                    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-                }
-            });
-        });
-
-        // 드롭다운 메뉴 아이템 이벤트 재연결
-        const dropdownItems = container.querySelectorAll('.dropdown-item');
-        dropdownItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                const action = item.dataset.action;
-                const blockId = item.dataset.blockId;
-
-                if (action === 'import' && blockId) {
-                    this.importBlockFromScenario(currentProject.id, blockId);
-                } else if (action === 'export' && blockId) {
-                    this.exportBlockToScenario(currentProject.id, blockId);
-                } else if (action === 'delete' && blockId) {
-                    this.handleDeleteManuscriptBlock(currentProject.id, blockId);
-                }
-
-                // 드롭다운 닫기
-                const dropdown = item.closest('.manuscript-block-dropdown');
-                if (dropdown) {
-                    dropdown.style.display = 'none';
-                }
-            });
-        });
-
-        console.log('Basic manuscript events reconnected');
-    }
 
     /**
      * 특정 블록의 최신 데이터를 가져옵니다 (UI에서 사용)
@@ -831,10 +612,8 @@ export class ManuscriptController {
     async executeExportBlock(projectId, blockId, plotId) {
         try {
             const result = await api.exportBlockToPlot(projectId, blockId, plotId);
-            console.log('Export successful:', result);
             return result;
         } catch (error) {
-            console.error('Export failed:', error);
             throw error;
         }
     }
