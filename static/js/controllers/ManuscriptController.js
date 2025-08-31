@@ -11,6 +11,46 @@ export class ManuscriptController {
         this.stateManager = app.stateManager;
         this.eventManager = app.eventManager;
         this.modals = app.modals;
+        this.renderer = null;
+    }
+
+    /**
+     * 탭이 활성화될 때 호출되는 메서드
+     * @param {Object} projectData - 프로젝트 데이터
+     */
+    async onTabActivated(projectData) {
+        const container = document.getElementById('tab-content-manuscript');
+
+        if (!container) {
+            console.error('Manuscript tab container not found');
+            return;
+        }
+
+        // ManuscriptRenderer 초기화 (최초 한 번만)
+        if (!this.renderer) {
+            // 동적 import로 ManuscriptRenderer 로드
+            const { ManuscriptRenderer } = await import('../modules/renderers/ManuscriptRenderer.js');
+            this.renderer = new ManuscriptRenderer(container, this.eventManager, this.app);
+        }
+
+        // 렌더링
+        await this.renderer.render(projectData);
+    }
+
+    /**
+     * 블록 선택 이벤트를 처리합니다.
+     * @param {string} blockId - 선택된 블록 ID
+     */
+    handleBlockSelection(blockId) {
+        // EditorPanel에 블록 선택 이벤트 전달
+        if (this.renderer && this.renderer.components && this.renderer.components.editorPanel) {
+            this.renderer.components.editorPanel._handleBlockSelected({ blockId });
+        }
+
+        // ContextPanel에 블록 선택 이벤트 전달
+        if (this.renderer && this.renderer.components && this.renderer.components.contextPanel) {
+            this.renderer.components.contextPanel._handleBlockSelected({ blockId });
+        }
     }
 
     /**
@@ -700,277 +740,69 @@ export class ManuscriptController {
      * 캐릭터 추출을 실행합니다.
      */
     async extractCharactersFromBlock(blockId, textContent) {
-        const charactersList = document.getElementById('related-characters-list');
-        const updateBtn = document.getElementById('update-characters-btn');
-
-        // 로딩 상태 표시
-        charactersList.innerHTML = `
-            <div class="character-loading">
-                <small>캐릭터 정보를 분석하는 중...</small>
-            </div>
-        `;
-
-        if (updateBtn) {
-            updateBtn.setAttribute('aria-busy', 'true');
-        }
-
         try {
             const projectId = this.stateManager.getState().currentProject.id;
             const result = await api.extractCharactersFromManuscript(projectId, blockId, { text_content: textContent });
 
-            // 결과 표시
-            this.displayCharacterResults(result.characters, result.unidentified_entities);
+            // ContextPanel에 결과 표시
+            if (this.renderer && this.renderer.components && this.renderer.components.contextPanel) {
+                this.renderer.components.contextPanel.displayCharacterResults(result.characters, result.unidentified_entities);
+            }
 
         } catch (error) {
             console.error('캐릭터 추출 실패:', error);
-            charactersList.innerHTML = `
-                <div class="character-loading">
-                    <small style="color: var(--pico-form-element-invalid-active-border-color);">
-                        캐릭터 분석 중 오류가 발생했습니다.
-                    </small>
-                </div>
-            `;
-        } finally {
-            if (updateBtn) {
-                updateBtn.setAttribute('aria-busy', 'false');
+
+            // ContextPanel에 에러 표시
+            if (this.renderer && this.renderer.components && this.renderer.components.contextPanel) {
+                const charactersList = this.renderer.components.contextPanel.container.querySelector('#related-characters-list');
+                if (charactersList) {
+                    charactersList.innerHTML = `
+                        <div class="character-loading">
+                            <small style="color: var(--pico-form-element-invalid-active-border-color);">
+                                캐릭터 분석 중 오류가 발생했습니다.
+                            </small>
+                        </div>
+                    `;
+                }
             }
         }
     }
 
-    /**
-     * 캐릭터 추출 결과를 화면에 표시합니다.
-     */
-    displayCharacterResults(characters, unidentifiedEntities) {
-        const charactersList = document.getElementById('related-characters-list');
 
-        if (!characters || characters.length === 0) {
-            charactersList.innerHTML = `
-                <div class="character-loading">
-                    <small>이 텍스트에서 특정 캐릭터를 찾을 수 없습니다.</small>
-                </div>
-            `;
-            return;
-        }
-
-        const characterItems = characters.map(character => {
-            const confidencePercent = Math.round(character.confidence * 100);
-            const avatarLetter = character.name.charAt(0).toUpperCase();
-
-            return `
-                <div class="character-item">
-                    <div class="character-avatar">${avatarLetter}</div>
-                    <div class="character-info">
-                        <div class="character-name">${character.name}</div>
-                        <span class="character-role">${this.getRoleDisplayText(character.role)}</span>
-                    </div>
-                    <div class="character-confidence">${confidencePercent}%</div>
-                </div>
-            `;
-        }).join('');
-
-        // 미확인 개체들도 표시 (있는 경우)
-        let unidentifiedItems = '';
-        if (unidentifiedEntities && unidentifiedEntities.length > 0) {
-            unidentifiedItems = unidentifiedEntities.map(entity => `
-                <div class="character-item" style="opacity: 0.7;">
-                    <div class="character-avatar" style="background: var(--pico-muted-border-color);">?</div>
-                    <div class="character-info">
-                        <div class="character-name">${entity.name}</div>
-                        <span class="character-role">미확인</span>
-                    </div>
-                    <div class="character-confidence">?</div>
-                </div>
-            `).join('');
-        }
-
-        charactersList.innerHTML = characterItems + unidentifiedItems;
-    }
-
-    /**
-     * 역할 텍스트를 한글로 변환합니다.
-     */
-    getRoleDisplayText(role) {
-        const roleMap = {
-            '주인공': '주인공',
-            'main': '주인공',
-            '조연': '조연',
-            'supporting': '조연',
-            '단역': '단역',
-            'minor': '단역'
-        };
-        return roleMap[role] || role;
-    }
 
     /**
      * AI 전문가 피드백을 요청합니다.
      */
     async requestExpertFeedback(blockId, textContent) {
-        const feedbackContent = document.getElementById('feedback-content');
-
-        // 로딩 상태 표시
-        feedbackContent.innerHTML = `
-            <div class="feedback-loading">
-                <small>AI가 전문가 피드백을 생성하고 있습니다...</small>
-                <div class="loading-dots">
-                    <span></span><span></span><span></span>
-                </div>
-            </div>
-        `;
-
         try {
             const projectId = this.stateManager.getState().currentProject.id;
             const result = await api.generateExpertFeedback(projectId, blockId, { text_content: textContent });
 
-            // 결과 표시
-            this.displayExpertFeedback(result);
+            // ContextPanel에 결과 표시
+            if (this.renderer && this.renderer.components && this.renderer.components.contextPanel) {
+                this.renderer.components.contextPanel.displayExpertFeedback(result);
+            }
 
         } catch (error) {
             console.error('AI 피드백 요청 실패:', error);
-            feedbackContent.innerHTML = `
-                <div class="feedback-loading">
-                    <small style="color: var(--pico-form-element-invalid-active-border-color);">
-                        피드백 생성 중 오류가 발생했습니다. 다시 시도해주세요.
-                    </small>
-                </div>
-            `;
+
+            // ContextPanel에 에러 표시
+            if (this.renderer && this.renderer.components && this.renderer.components.contextPanel) {
+                const feedbackContent = this.renderer.components.contextPanel.container.querySelector('#feedback-content');
+                if (feedbackContent) {
+                    feedbackContent.innerHTML = `
+                        <div class="feedback-loading">
+                            <small style="color: var(--pico-form-element-invalid-active-border-color);">
+                                피드백 생성 중 오류가 발생했습니다. 다시 시도해주세요.
+                            </small>
+                        </div>
+                    `;
+                }
+            }
         }
     }
 
-    /**
-     * AI 전문가 피드백 결과를 화면에 표시합니다.
-     */
-    displayExpertFeedback(feedback) {
-        const feedbackContent = document.getElementById('feedback-content');
 
-        // 점수별 색상 설정
-        const getScoreColor = (score) => {
-            if (score >= 8) return '#10b981'; // 초록
-            if (score >= 6) return '#f59e0b'; // 노랑
-            return '#ef4444'; // 빨강
-        };
-
-        const scoreColor = getScoreColor(feedback.overall_score);
-
-        // 참조된 플롯 정보 표시용 데이터 준비
-        const { currentProject } = this.stateManager.getState();
-        const currentBlockId = document.getElementById('manuscript-save-btn').getAttribute('data-current-block-id');
-        const currentBlock = currentProject?.manuscript_blocks?.find(block => block.id === currentBlockId);
-        const scenario = currentProject?.scenarios?.[0];
-
-        let plotReferenceInfo = '';
-        if (scenario && currentBlock) {
-            const currentPlotPoint = scenario.plot_points?.find(plot => plot.ordering === currentBlock.ordering);
-            const otherPlots = scenario.plot_points?.filter(plot => plot.ordering !== currentBlock.ordering && plot.content) || [];
-
-            plotReferenceInfo = `
-                <div class="plot-reference-section">
-                    <h6>📚 AI가 참고한 플롯 정보</h6>
-                    <div class="current-plot-info">
-                        <strong>현재 플롯:</strong> ${currentPlotPoint ? `${currentPlotPoint.title} (플롯 ${currentPlotPoint.ordering + 1})` : '정보 없음'}
-                    </div>
-                    <div class="other-plots-summary">
-                        <strong>참조된 다른 플롯:</strong> ${otherPlots.length}개
-                        ${otherPlots.length > 0 ? `
-                            <details>
-                                <summary>플롯 목록 보기</summary>
-                                <div class="plot-list">
-                                    ${otherPlots.slice(0, 10).map(plot =>
-                                        `<div class="plot-item">
-                                            <span class="plot-number">${plot.ordering + 1}.</span>
-                                            <span class="plot-title">${plot.title}</span>
-                                            <span class="plot-position">(${plot.ordering < currentBlock.ordering ? '이전' : '다음'})</span>
-                                        </div>`
-                                    ).join('')}
-                                    ${otherPlots.length > 10 ? `<div class="plot-item">... 외 ${otherPlots.length - 10}개 플롯</div>` : ''}
-                                </div>
-                            </details>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }
-
-        // 개선사항 우선순위별 정렬 및 표시
-        const sortedImprovements = feedback.improvements.sort((a, b) => {
-            const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
-            return priorityOrder[b.priority] - priorityOrder[a.priority];
-        });
-
-        const improvementItems = sortedImprovements.map(improvement => {
-            const priorityIcon = {
-                'high': '🔴',
-                'medium': '🟡',
-                'low': '🟢'
-            }[improvement.priority];
-
-            return `
-                <div class="improvement-item priority-${improvement.priority}">
-                    <div class="improvement-header">
-                        <span class="priority-badge">${priorityIcon}</span>
-                        <span class="category">${improvement.category}</span>
-                    </div>
-                    <div class="improvement-content">
-                        <div class="issue">${improvement.issue}</div>
-                        <div class="suggestion">💡 ${improvement.suggestion}</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        feedbackContent.innerHTML = `
-            <div class="feedback-result">
-                <!-- 점수 표시 -->
-                <div class="score-section">
-                    <div class="score-display">
-                        <span class="score-number" style="color: ${scoreColor}">${feedback.overall_score}</span>
-                        <span class="score-label">/10점</span>
-                    </div>
-                    <div class="score-bar">
-                        <div class="score-fill" style="width: ${feedback.overall_score * 10}%; background-color: ${scoreColor}"></div>
-                    </div>
-                </div>
-
-                <!-- AI가 참고한 플롯 정보 -->
-                ${plotReferenceInfo}
-
-                <!-- 장점 -->
-                ${feedback.strengths.length > 0 ? `
-                    <div class="strengths-section">
-                        <h6>✨ 잘된 점</h6>
-                        <ul>
-                            ${feedback.strengths.map(strength => `<li>${strength}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-
-                <!-- 개선사항 -->
-                ${sortedImprovements.length > 0 ? `
-                    <div class="improvements-section">
-                        <h6>🔧 개선 제안</h6>
-                        ${improvementItems}
-                    </div>
-                ` : ''}
-
-                <!-- 작문 팁 -->
-                ${feedback.writing_tips.length > 0 ? `
-                    <div class="tips-section">
-                        <h6>💡 작문 팁</h6>
-                        <ul>
-                            ${feedback.writing_tips.map(tip => `<li>${tip}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-
-                <!-- 격려 메시지 -->
-                ${feedback.encouragement ? `
-                    <div class="encouragement-section">
-                        <h6>🌟 격려의 말</h6>
-                        <p class="encouragement-text">${feedback.encouragement}</p>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
 
     openPartialRefineModal(selectedText, surroundingContext) {
         const modal = document.getElementById('partial-refine-modal');
