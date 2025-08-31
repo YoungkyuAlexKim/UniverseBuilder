@@ -43,7 +43,7 @@ class Project(Base):
 class Group(Base):
     __tablename__ = "groups"
     id = Column(String, primary_key=True, index=True)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     project = relationship("Project", back_populates="groups")
     cards = relationship("Card", back_populates="group", cascade="all, delete-orphan")
@@ -51,7 +51,7 @@ class Group(Base):
 class Card(Base):
     __tablename__ = "cards"
     id = Column(String, primary_key=True, index=True)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False)
+    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     description = Column(Text)
     goal = Column(JSON)  # JSON 데이터로 저장
@@ -74,7 +74,7 @@ class Worldview(Base):
 class WorldviewGroup(Base):
     __tablename__ = "worldview_groups"
     id = Column(String, primary_key=True, index=True)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
     name = Column(String, nullable=False)
     project = relationship("Project", back_populates="worldview_groups")
     worldview_cards = relationship("WorldviewCard", back_populates="group", cascade="all, delete-orphan")
@@ -82,7 +82,7 @@ class WorldviewGroup(Base):
 class WorldviewCard(Base):
     __tablename__ = "worldview_cards"
     id = Column(String, primary_key=True, index=True)
-    group_id = Column(String, ForeignKey("worldview_groups.id"), nullable=False)
+    group_id = Column(String, ForeignKey("worldview_groups.id"), nullable=False, index=True)
     title = Column(String)
     content = Column(Text)
     ordering = Column(Integer)
@@ -91,9 +91,9 @@ class WorldviewCard(Base):
 class Relationship(Base):
     __tablename__ = "relationships"
     id = Column(String, primary_key=True, index=True)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
-    source_character_id = Column(String, ForeignKey("cards.id"), nullable=False)
-    target_character_id = Column(String, ForeignKey("cards.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
+    source_character_id = Column(String, ForeignKey("cards.id"), nullable=False, index=True)
+    target_character_id = Column(String, ForeignKey("cards.id"), nullable=False, index=True)
     type = Column(String, nullable=False)
     description = Column(Text)
     project = relationship("Project", back_populates="relationships")
@@ -101,7 +101,7 @@ class Relationship(Base):
 class Scenario(Base):
     __tablename__ = "scenarios"
     id = Column(String, primary_key=True, index=True)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
     title = Column(String, nullable=False, default="메인 시나리오")
     summary = Column(Text)
     themes = Column(Text) # JSON list of strings e.g., '["복수", "희생"]'
@@ -112,7 +112,7 @@ class Scenario(Base):
 class PlotPoint(Base):
     __tablename__ = "plot_points"
     id = Column(String, primary_key=True, index=True)
-    scenario_id = Column(String, ForeignKey("scenarios.id"), nullable=False)
+    scenario_id = Column(String, ForeignKey("scenarios.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     content = Column(Text)
     ordering = Column(Integer, nullable=False)
