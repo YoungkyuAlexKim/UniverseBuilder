@@ -662,25 +662,37 @@ export class ScenarioController {
      * AI를 이용해 개별 플롯 포인트를 수정합니다.
      */
     async handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
-        const userPrompt = prompt("이 플롯의 '내용(요약)'을 어떻게 수정하고 싶으신가요?\n(예: '주인공이 더 극적으로 승리하는 장면으로 바꿔줘')");
-        if (!userPrompt) return;
-
-        const project = this.stateManager.getState().projects.find(p => p.id === projectId);
-        const allCharacterIds = project.groups.flatMap(g => g.cards.map(c => c.id));
-        
-        try {
-            const requestBody = {
-                user_prompt: userPrompt,
-                character_ids: allCharacterIds,
-                model_name: document.getElementById('ai-model-select').value
-            };
-            await api.editPlotPointWithAi(projectId, scenarioId, plotPoint.id, requestBody);
-            alert('AI가 플롯 요약을 성공적으로 수정했습니다.');
-            this.modals.closeModal();
-            await this.stateManager.refreshCurrentProject();
-        } catch(error) {
-            alert(`AI 수정 실패: ${error.message}`);
-        }
+        const config = {
+            title: '✨ AI 플롯 요약 수정',
+            originalLabel: '현재 플롯 내용',
+            originalContent: plotPoint.content || '내용 없음',
+            presets: [
+                { text: '📝 더 구체적으로 묘사', prompt: '이 내용을 더 구체적이고 생생하게 묘사해줘.' },
+                { text: '🔥 긴장감 고조', prompt: '이 부분의 긴장감을 더 높여줘.' },
+                { text: '🤫 복선 추가', prompt: '다음 사건을 암시하는 복선을 자연스럽게 추가해줘.' }
+            ],
+            placeholder: '어떻게 수정하고 싶으신가요? (예: 주인공이 더 극적으로 승리하는 장면으로 바꿔줘)',
+            showCharacters: true,
+            showWorldviewCards: true,
+            showGroupSelection: false,
+            projectId: projectId,
+            onExecute: async (characterIds, worldviewCardIds, userPrompt) => {
+                const requestBody = {
+                    user_prompt: userPrompt,
+                    character_ids: characterIds,
+                    // 참고: 현재 백엔드는 worldview_card_ids를 받지 않지만, 향후 확장을 위해 전달
+                    model_name: document.getElementById('ai-model-select').value
+                };
+                // API는 수정된 플롯 객체를 반환해야 함
+                return await api.editPlotPointWithAi(projectId, scenarioId, plotPoint.id, requestBody);
+            },
+            onApply: async (result) => {
+                showToast('AI의 제안이 성공적으로 적용되었습니다!', 'success');
+                await this.stateManager.refreshCurrentProject();
+            }
+        };
+    
+        commonAiModal.openCommonAiModal(config);
     }
 
     /**

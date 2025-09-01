@@ -26,6 +26,7 @@ const acceptBtn = document.getElementById('common-ai-accept-btn');
 // App 인스턴스를 저장할 변수
 let app;
 let currentConfig = null;
+let lastExecutionResult = null; // AI 실행 결과를 저장할 변수
 
 /**
  * 공통 AI 모달 모듈을 초기화합니다.
@@ -130,6 +131,7 @@ export function openCommonAiModal(config) {
 export function closeModal() {
     closeAllModals(); // 기존 모달 시스템과 통합
     currentConfig = null;
+    lastExecutionResult = null; // AI 실행 결과 초기화
 }
 
 /**
@@ -176,8 +178,11 @@ function setupPresetButtons(presets) {
  * 캐릭터 목록을 로딩합니다.
  */
 function loadCharacters(projectId) {
-    const { projects } = app.stateManager.getState();
-    const project = projects.find(p => p.id === projectId);
+    const state = app.stateManager.getState();
+    // currentProject를 먼저 확인하고, 없으면 projects 목록에서 찾도록 수정
+    const project = (state.currentProject && state.currentProject.id === projectId)
+        ? state.currentProject
+        : state.projects.find(p => p.id === projectId);
     
     if (!project || !project.groups) {
         charactersContainer.innerHTML = '<small>캐릭터가 없습니다.</small>';
@@ -205,8 +210,11 @@ function loadCharacters(projectId) {
  * 세계관 카드 목록을 로딩합니다.
  */
 function loadWorldviewCards(projectId) {
-    const { projects } = app.stateManager.getState();
-    const project = projects.find(p => p.id === projectId);
+    const state = app.stateManager.getState();
+    // currentProject를 먼저 확인하고, 없으면 projects 목록에서 찾도록 수정
+    const project = (state.currentProject && state.currentProject.id === projectId)
+        ? state.currentProject
+        : state.projects.find(p => p.id === projectId);
     
     if (!project || !project.worldview_groups) {
         worldviewCardsContainer.innerHTML = '<small>서브 설정이 없습니다.</small>';
@@ -256,11 +264,19 @@ async function handleGenerate() {
     
     try {
         const result = await currentConfig.onExecute(selectedCharacterIds, selectedWorldviewCardIds, userPrompt);
-        
-        // 결과 표시
-        suggestionElement.textContent = result;
+        lastExecutionResult = result; // AI의 원본 결과를 변수에 저장
+
+        // AI 결과가 객체인지 문자열인지 확인하여 다르게 표시
+        if (typeof result === 'object' && result !== null && result.content) {
+            // 플롯 수정과 같이 객체를 반환하는 경우
+            suggestionElement.textContent = result.content;
+        } else {
+            // 캐릭터 생성과 같이 문자열을 반환하는 경우 (기존 호환성 유지)
+            suggestionElement.textContent = result;
+        }
+
         acceptBtn.style.display = 'inline-block';
-        
+
     } catch (error) {
         console.error('AI 실행 실패:', error);
         suggestionElement.textContent = `오류가 발생했습니다: ${error.message}`;
@@ -274,8 +290,11 @@ async function handleGenerate() {
  * 그룹 목록을 로딩합니다.
  */
 function loadGroups(projectId) {
-    const { projects } = app.stateManager.getState();
-    const project = projects.find(p => p.id === projectId);
+    const state = app.stateManager.getState();
+    // currentProject를 먼저 확인하고, 없으면 projects 목록에서 찾도록 수정
+    const project = (state.currentProject && state.currentProject.id === projectId)
+        ? state.currentProject
+        : state.projects.find(p => p.id === projectId);
     
     if (!project || !project.groups || project.groups.length === 0) {
         groupSelect.innerHTML = '<option value="" disabled>그룹이 없습니다</option>';
@@ -297,9 +316,10 @@ async function handleApply() {
         console.error('적용 콜백이 설정되지 않았습니다.');
         return;
     }
-    
-    const result = suggestionElement.textContent;
-    
+
+    // 화면 텍스트 대신 저장해둔 원본 AI 결과(lastExecutionResult)를 사용
+    const result = lastExecutionResult;
+
     // 그룹 선택이 필요한 경우 검증
     let selectedGroupId = null;
     if (currentConfig.showGroupSelection) {
