@@ -85,7 +85,9 @@ class EditSceneRequest(BaseModel):
     character_ids: Optional[List[str]] = None
     model_name: Optional[str] = None
     word_count: Optional[str] = "medium"
-    style_guide_id: Optional[str] = None # [신규] 스타일 가이드 ID 필드 추가
+    style_guide_id: Optional[str] = None
+    include_relationships: Optional[bool] = False 
+    relationship_ids: Optional[List[str]] = None 
 
 
 # --- 라우터 생성 ---

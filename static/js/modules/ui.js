@@ -500,9 +500,14 @@ function renderScenarioTab(projectData) {
         const plotList = newContainer.querySelector('#plot-list');
         eventManager.addEventListener(plotList, 'click', (e) => {
             const editButton = e.target.closest('.open-plot-modal-btn');
+            const aiEditButton = e.target.closest('.ai-quick-edit-btn');
+
             if (editButton) {
                 const plotData = JSON.parse(editButton.dataset.plotPoint);
                 app.modals.openPlotPointEditModal(plotData, projectData.id, mainScenario.id);
+            } else if (aiEditButton) {
+                const plotData = JSON.parse(aiEditButton.dataset.plotPoint);
+                app.call('scenario', 'handleAiEditPlotPoint', plotData, projectData.id, mainScenario.id);
             }
         });
     });
