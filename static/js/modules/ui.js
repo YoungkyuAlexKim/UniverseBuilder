@@ -577,6 +577,118 @@ const ui = {
     addWorldviewRuleInput
 };
 
+/**
+ * 텍스트 필드에 AI 타이핑 애니메이션과 Lucide 아이콘을 표시합니다.
+ * @param {HTMLTextAreaElement} textarea - 애니메이션을 표시할 텍스트 영역
+ * @param {HTMLElement} iconContainer - Lucide 아이콘을 표시할 컨테이너
+ * @returns {Function} 애니메이션을 중지하는 함수
+ */
+export function showAiWritingAnimation(textarea, iconContainer) {
+    const messages = [
+        { icon: "star", text: "최고급 뉘앙스를 공수하는 중..." },
+        { icon: "user-check", text: "캐릭터에게 빙의해보는 중..." },
+        { icon: "wrench", text: "플롯의 구멍을 몰래 메우는 중..." },
+        { icon: "brain-circuit", text: "작가님의 필력을 훔...아니, 학습하는 중..." },
+        { icon: "blender", text: "영감을 한 스푼, 마감을 두 스푼 넣는 중..." },
+        { icon: "users", text: "뇌세포들과 격렬하게 토론 중..." },
+        { icon: "tv", text: "막장 드라마 정주행하며 아이디어 찾는 중..." },
+        { icon: "brick", text: "클리셰를 부수고 다시 조립하는 중..." },
+        { icon: "sparkles", text: "알고리즘의 신에게 기도하는 중..." },
+        { icon: "bot", text: "데우스 엑스 마키나를 잠시 빌리는 중..." },
+        { icon: "lightbulb", text: "복선을 어디다 숨길지 고민하는 중..." },
+        { icon: "battery-charging", text: "창의력 배터리 110% 충전 완료!" },
+        { icon: "coffee", text: "잠시 커피 한 잔... 아니, 냉각수 한 잔..." },
+        { icon: "award", text: "작품에 '개연성'이라는 양념을 추가하는 중..." },
+        { icon: "book-open-check", text: "엔딩을 먼저 보고 오는 중..." },
+        { icon: "feather", text: "퇴고 요정들을 소환하는 중..." },
+        { icon: "keyboard", text: "키보드 워리어의 영혼을 불태우는 중..." },
+        { icon: "moon", text: "작가님의 마감을 위해 밤샘 근무 중..." },
+        { icon: "zap", text: "번개처럼 영감이 떠오르는 중..." },
+        { icon: "palette", text: "색감과 분위기를 조율하는 중..." },
+        { icon: "music", text: "BGM을 상상하며 장면을 연출하는 중..." },
+        { icon: "camera", text: "감독처럼 각도를 계산하는 중..." },
+        { icon: "microphone", text: "대사 톤을 맞춰보는 중..." },
+        { icon: "theater", text: "연극 무대를 꾸미는 중..." },
+        { icon: "book-heart", text: "감동 포인트를 전략적으로 배치하는 중..." },
+        { icon: "heart", text: "독자의 심장을 두근거리게 만드는 중..." },
+        { icon: "eye", text: "시각적 묘사를 섬세하게 다듬는 중..." },
+        { icon: "sun", text: "빛과 그림자를 계산하는 중..." },
+        { icon: "cloud", text: "분위기를 맞춰보는 중..." },
+        { icon: "wind", text: "장면의 리듬을 조율하는 중..." },
+        { icon: "flame", text: "열정을 불태우며 창작하는 중..." },
+        { icon: "crown", text: "마스터피스를 탄생시키는 중..." },
+        { icon: "gem", text: "보석 같은 문장을 갈고닦는 중..." },
+        { icon: "compass", text: "스토리의 방향을 잡는 중..." },
+        { icon: "map", text: "플롯 지도를 그리고 있는 중..." },
+        { icon: "sword", text: "갈등의 날을 벼리는 중..." },
+        { icon: "shield", text: "캐릭터의 방어력을 강화하는 중..." },
+        { icon: "target", text: "감정의 목표물을 조준하는 중..." },
+        { icon: "bullseye", text: "완벽한 타이밍을 계산하는 중..." },
+        { icon: "trophy", text: "작품의 승리를 기원하는 중..." },
+        { icon: "rocket", text: "스토리를 우주로 쏘아올리는 중..." },
+        { icon: "atom", text: "창의력의 원자를 분열시키는 중..." },
+        { icon: "dna", text: "스토리의 DNA를 설계하는 중..." },
+        { icon: "microscope", text: "세부 사항을 확대해서 보는 중..." },
+        { icon: "telescope", text: "큰 그림을 내다보는 중..." },
+        { icon: "puzzle", text: "퍼즐 조각들을 맞추는 중..." },
+        { icon: "gamepad-2", text: "게임처럼 플롯을 설계하는 중..." },
+        { icon: "dice-6", text: "운명의 주사위를 굴리는 중..." },
+        { icon: "clover", text: "행운의 네잎클로버를 찾는 중..." },
+        { icon: "wand", text: "마법의 지팡이로 창작하는 중..." },
+        { icon: "magic-wand", text: "요술 방망이로 영감을 불러오는 중..." },
+        { icon: "ghost", text: "유령 같은 아이디어를 붙잡는 중..." },
+        { icon: "alien", text: "외계인 같은 상상력을 발휘하는 중..." },
+        { icon: "robot", text: "로봇처럼 정확하게 계산하는 중..." },
+        { icon: "cpu", text: "프로세서를 가동하며 연산하는 중..." },
+        { icon: "hard-drive", text: "메모리를 정리하며 저장하는 중..." },
+        { icon: "wifi", text: "창의력 네트워크에 연결하는 중..." },
+        { icon: "battery", text: "아이디어 배터리를 충전하는 중..." },
+        { icon: "plug", text: "영감의 플러그를 연결하는 중..." }
+    ];
+
+    let shuffledMessages = messages.sort(() => 0.5 - Math.random());
+    let messageIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let timeoutId;
+
+    const type = () => {
+        const currentItem = shuffledMessages[messageIndex];
+        const fullMessage = currentItem.text;
+
+        // 아이콘 업데이트
+        iconContainer.innerHTML = `<i data-lucide="${currentItem.icon}" style="width: 24px; height: 24px; color: var(--pico-primary);"></i>`;
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        if (isDeleting) {
+            charIndex--;
+        } else {
+            charIndex++;
+        }
+
+        textarea.value = fullMessage.substring(0, charIndex) + '█';
+
+        if (!isDeleting && charIndex === fullMessage.length) {
+            isDeleting = true;
+            timeoutId = setTimeout(type, 2000);
+        } else if (isDeleting && charIndex === 0) {
+            isDeleting = false;
+            messageIndex = (messageIndex + 1) % shuffledMessages.length;
+            timeoutId = setTimeout(type, 500);
+        } else {
+            timeoutId = setTimeout(type, isDeleting ? 50 : 100);
+        }
+    };
+
+    type();
+
+    return () => {
+        clearTimeout(timeoutId);
+    };
+}
+
 // 기본 export
 export default ui;
 

@@ -5,6 +5,7 @@
 
 import * as api from './api.js';
 import { closeModal as closeAllModals } from './modals.js';
+import { showAiWritingAnimation } from './ui.js';
 
 // DOM Elements
 const modal = document.getElementById('common-ai-modal');
@@ -132,6 +133,12 @@ export function closeModal() {
     closeAllModals(); // 기존 모달 시스템과 통합
     currentConfig = null;
     lastExecutionResult = null; // AI 실행 결과 초기화
+
+    // 애니메이션 아이콘 컨테이너 정리
+    const iconContainer = document.getElementById('common-ai-writing-icon-container');
+    if (iconContainer) {
+        iconContainer.innerHTML = '';
+    }
 }
 
 /**
@@ -257,11 +264,23 @@ async function handleGenerate() {
     const selectedCharacterIds = Array.from(modal.querySelectorAll('input[name="common-ai-character"]:checked')).map(cb => cb.value);
     const selectedWorldviewCardIds = Array.from(modal.querySelectorAll('input[name="common-ai-worldview-card"]:checked')).map(cb => cb.value);
     
-    // 버튼 상태 설정
+        // 버튼 상태 설정
     generateBtn.setAttribute('aria-busy', 'true');
     generateBtn.disabled = true;
-    suggestionElement.textContent = '생성 중...';
-    
+
+    // 아이콘을 표시할 컨테이너를 찾거나 생성합니다.
+    let iconContainer = document.getElementById('common-ai-writing-icon-container');
+    if (!iconContainer) {
+        iconContainer = document.createElement('div');
+        iconContainer.id = 'common-ai-writing-icon-container';
+        iconContainer.style.textAlign = 'center';
+        iconContainer.style.padding = '1rem';
+        suggestionElement.parentNode.insertBefore(iconContainer, suggestionElement);
+    }
+
+    // 타이핑 애니메이션을 시작합니다.
+    const stopAnimation = showAiWritingAnimation(suggestionElement, iconContainer);
+
     try {
         const result = await currentConfig.onExecute(selectedCharacterIds, selectedWorldviewCardIds, userPrompt);
         lastExecutionResult = result; // AI의 원본 결과를 변수에 저장
@@ -281,7 +300,10 @@ async function handleGenerate() {
         console.error('AI 실행 실패:', error);
         suggestionElement.textContent = `오류가 발생했습니다: ${error.message}`;
     } finally {
-        generateBtn.setAttribute('aria-busy', 'false');  
+        // API 호출 완료 후 애니메이션을 정지하고 컨테이너를 정리합니다.
+        stopAnimation();
+        iconContainer.innerHTML = ''; // 아이콘 컨테이너 비우기
+        generateBtn.setAttribute('aria-busy', 'false');
         generateBtn.disabled = false;
     }
 }

@@ -4,6 +4,7 @@
  */
 import * as api from '../modules/api.js';
 import * as modals from '../modules/modals.js';
+import { showAiWritingAnimation } from '../modules/ui.js';
 
 export class ManuscriptController {
     constructor(app) {
@@ -238,7 +239,19 @@ export class ManuscriptController {
         const acceptBtn = document.getElementById('manuscript-ai-accept-btn');
         
         generateBtn.setAttribute('aria-busy', 'true');
-        suggestionEl.value = "AI가 원고를 수정하고 있습니다...";
+
+        // 아이콘을 표시할 컨테이너를 찾거나 생성합니다.
+        let iconContainer = document.getElementById('manuscript-ai-writing-icon-container');
+        if (!iconContainer) {
+            iconContainer = document.createElement('div');
+            iconContainer.id = 'manuscript-ai-writing-icon-container';
+            iconContainer.style.textAlign = 'center';
+            iconContainer.style.padding = '1rem';
+            suggestionEl.parentNode.insertBefore(iconContainer, suggestionEl);
+        }
+
+        // 타이핑 애니메이션을 시작합니다.
+        const stopAnimation = showAiWritingAnimation(suggestionEl, iconContainer);
 
         try {
             const projectId = this.stateManager.getState().currentProject.id;
@@ -257,6 +270,9 @@ export class ManuscriptController {
         } catch (error) {
             suggestionEl.value = `오류 발생: ${error.message}`;
         } finally {
+            // API 호출 완료 후 애니메이션을 정지하고 컨테이너를 정리합니다.
+            stopAnimation();
+            iconContainer.innerHTML = ''; // 아이콘 컨테이너 비우기
             generateBtn.setAttribute('aria-busy', 'false');
         }
     }

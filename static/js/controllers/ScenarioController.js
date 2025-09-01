@@ -5,6 +5,7 @@
 import * as api from '../modules/api.js';
 import { showToast, showFieldValidation, validateFormBeforeSubmit, ValidationRules, ErrorHandlers } from '../components/validation/validation-utils.js';
 import * as commonAiModal from '../modules/common-ai-modal.js';
+import { showAiWritingAnimation } from '../modules/ui.js';
 
 export class ScenarioController {
     constructor(app) {
@@ -559,8 +560,21 @@ export class ScenarioController {
         };
 
         button.setAttribute('aria-busy', 'true');
-        sceneDraftTextarea.value = "AI가 장면을 생성하고 있습니다...";
-        
+        sceneDraftTextarea.value = ""; // 필드를 먼저 비웁니다.
+
+        // 아이콘을 표시할 컨테이너를 찾거나 생성합니다.
+        let iconContainer = document.getElementById('ai-writing-icon-container');
+        if (!iconContainer) {
+            iconContainer = document.createElement('div');
+            iconContainer.id = 'ai-writing-icon-container';
+            iconContainer.style.textAlign = 'center';
+            iconContainer.style.padding = '1rem';
+            sceneDraftTextarea.parentNode.insertBefore(iconContainer, sceneDraftTextarea);
+        }
+
+        // 타이핑 애니메이션을 시작합니다.
+        const stopAnimation = showAiWritingAnimation(sceneDraftTextarea, iconContainer);
+
         try {
             const result = await api.generateSceneForPlotPoint(projectId, plotPointId, requestBody);
             sceneDraftTextarea.value = result.scene_draft;
@@ -569,6 +583,9 @@ export class ScenarioController {
             alert(`AI 장면 생성 실패: ${error.message}`);
             sceneDraftTextarea.value = "오류가 발생했습니다. 다시 시도해주세요.";
         } finally {
+            // API 호출 완료 후 애니메이션을 정지하고 컨테이너를 정리합니다.
+            stopAnimation();
+            iconContainer.innerHTML = ''; // 아이콘 컨테이너 비우기
             button.setAttribute('aria-busy', 'false');
         }
     }

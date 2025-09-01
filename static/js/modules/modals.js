@@ -43,6 +43,19 @@ export function closeModal() {
             eventManager.removeAllEventListeners(el);
         }
     });
+
+    // AI 애니메이션 아이콘 컨테이너 정리
+    const iconContainers = [
+        'manuscript-ai-writing-icon-container',
+        'common-ai-writing-icon-container',
+        'ai-writing-icon-container'
+    ];
+    iconContainers.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '';
+        }
+    });
     cardDetailsModal.classList.remove('shifted');
     const existingPanel = document.querySelector('.ai-edit-panel, .manual-edit-panel, .relationship-panel');
     if (existingPanel) {
