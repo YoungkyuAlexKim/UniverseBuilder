@@ -546,7 +546,7 @@ export class ScenarioController {
         const wordCount = wordCountOptions[parseInt(wordCountSlider.value)];
 
         // [Phase 3+] 캐릭터별 선택된 관계 수집
-        const selectedRelationshipIds = getSelectedCharacterRelations();
+        const selectedRelationshipIds = this.getSelectedCharacterRelations();
 
         const requestBody = {
             output_format: formatSelect.value,
