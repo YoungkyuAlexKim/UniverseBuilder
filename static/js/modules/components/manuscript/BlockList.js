@@ -172,9 +172,7 @@ export class BlockList {
         const blockId = blockItem.dataset.blockId;
 
         // ManuscriptController를 통해 블록 선택 이벤트 발생
-        if (this.app.manuscriptController && this.app.manuscriptController.handleBlockSelection) {
-            this.app.manuscriptController.handleBlockSelection(blockId);
-        }
+        this.app.call('manuscript', 'handleBlockSelection', blockId);
 
         // 기존 방식과의 호환성을 위해 이벤트 발생
         const event = new CustomEvent('blockSelected', {
@@ -229,30 +227,21 @@ export class BlockList {
         // 액션에 따라 처리
         switch (action) {
             case 'import':
-                if (this.app.manuscriptController && this.app.manuscriptController.importBlockFromScenario) {
-                    this.app.manuscriptController.importBlockFromScenario(
-                        this.app.stateManager.getState().currentProject.id,
-                        blockId
-                    );
-                }
+                this.app.call('manuscript', 'importBlockFromScenario',
+                    this.app.stateManager.getState().currentProject.id,
+                    blockId);
                 break;
 
             case 'export':
-                if (this.app.manuscriptController && this.app.manuscriptController.exportBlockToScenario) {
-                    this.app.manuscriptController.exportBlockToScenario(
-                        this.app.stateManager.getState().currentProject.id,
-                        blockId
-                    );
-                }
+                this.app.call('manuscript', 'exportBlockToScenario',
+                    this.app.stateManager.getState().currentProject.id,
+                    blockId);
                 break;
 
             case 'delete':
-                if (this.app.manuscriptController && this.app.manuscriptController.handleDeleteManuscriptBlock) {
-                    this.app.manuscriptController.handleDeleteManuscriptBlock(
-                        this.app.stateManager.getState().currentProject.id,
-                        blockId
-                    );
-                }
+                this.app.call('manuscript', 'handleDeleteManuscriptBlock',
+                    this.app.stateManager.getState().currentProject.id,
+                    blockId);
                 break;
         }
     }
@@ -335,10 +324,8 @@ export class BlockList {
                         .map(li => li.dataset.blockId);
 
                     // 순서 변경 처리
-                    if (this.app.manuscriptController && this.app.manuscriptController.handleUpdateManuscriptOrder) {
-                        const projectId = this.app.stateManager.getState().currentProject.id;
-                        this.app.manuscriptController.handleUpdateManuscriptOrder(projectId, blockIds);
-                    }
+                    const projectId = this.app.stateManager.getState().currentProject.id;
+                    this.app.call('manuscript', 'handleUpdateManuscriptOrder', projectId, blockIds);
                 }
             });
         }
