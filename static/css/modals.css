@@ -1,5 +1,65 @@
 /* 모달 및 패널 스타일 */
 
+/* 통합된 관계 편집 폼 스타일 */
+.relationship-form-container {
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-tertiary);
+    border-radius: var(--border-radius-sm);
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out, max-height 0.3s ease-out;
+    max-height: 0;
+    overflow: hidden;
+}
+
+.relationship-form-container.active {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 1000px; /* 충분히 큰 값으로 설정 */
+    overflow: auto; /* 스크롤 허용 */
+}
+
+/* X 버튼은 애니메이션 영향을 받지 않도록 별도 설정 */
+.relationship-form-container .form-header {
+    transition: none;
+}
+
+.relationship-form-container hr {
+    margin: 1.5rem 0;
+    border: none;
+    border-top: 1px solid var(--border-tertiary);
+}
+
+/* 폼 헤더 스타일 */
+.form-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.form-header .close {
+    color: var(--text-muted, #666);
+    font-size: 1.2rem;
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    visibility: visible;
+    opacity: 1;
+}
+
+.form-header .close:hover {
+    background-color: var(--bg-hover, rgba(0, 0, 0, 0.05));
+    color: var(--text-primary, #333);
+}
+
+/* 모달 및 패널 스타일 */
+
 /* AI 편집 패널 */
 .ai-edit-panel { 
     position: absolute; 
@@ -66,10 +126,6 @@
 
 .relationship-panel.active {
     transform: translateX(0%);
-}
-
-.vis-network text {
-    color: #ffffff !important;
 }
 
 .relationship-form .grid *, 

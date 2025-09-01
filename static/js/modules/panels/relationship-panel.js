@@ -109,21 +109,21 @@ export async function showRelationshipPanel(projectId, currentCard) {
                 <a href="#close" aria-label="Close" class="close"></a>
             </header>
 
-            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;">
-                <div id="relationship-graph" style="height: 400px; border: 1px solid #30363d; border-radius: 6px; background-color: #0d1117;"></div>
-
-                <form id="relationship-form" class="relationship-form">
+                        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;">
+                <!-- 통합된 관계 편집 폼 (상단 배치) -->
+                <div id="relationship-form-container" class="relationship-form-container">
+                    <div class="form-header">
+                        <a href="#close" aria-label="Close" class="close" id="form-close-btn"></a>
+                    </div>
+                    <form id="relationship-form" class="relationship-form">
                     <input type="hidden" name="relationship_id" value="">
                     <fieldset id="relationship-fieldset">
                         <legend><strong><i data-lucide="plus-circle"></i>새 관계 추가 / 수정</strong></legend>
                         <div class="grid">
                             <label for="target-character-select">
-                                대상
+                                    대상 캐릭터
                                 <select id="target-character-select" name="target_character_id" required>
                                     <option value="" disabled selected>캐릭터 선택...</option>
-                                    ${otherCharacters.length > 0
-                                        ? otherCharacters.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
-                                        : '<option value="" disabled>프로젝트에 다른 캐릭터가 없습니다</option>'}
                                 </select>
                             </label>
                             <label for="relationship-type">
@@ -152,14 +152,21 @@ export async function showRelationshipPanel(projectId, currentCard) {
                         <button type="button" id="ai-suggest-rel-btn" class="secondary" style="margin-top: 0.5rem; width: 100%;"><i data-lucide="lightbulb"></i>AI로 관계 추천받기</button>
                     </fieldset>
 
-                    <div class="grid">
-                        <button type="submit"><i data-lucide="save"></i>관계 저장</button>
-                        <button type="button" id="clear-form-btn" class="secondary outline" style="width: auto;"><i data-lucide="rotate-ccw"></i>초기화</button>
-                    </div>
-                </form>
+                                            <div class="grid">
+                            <button type="submit"><i data-lucide="save"></i>관계 저장</button>
+                            <button type="button" id="cancel-form-btn" class="secondary outline" style="width: auto;"><i data-lucide="x"></i>취소</button>
+                        </div>
+                    </form>
+                </div>
 
-                <div>
-                    <h4><strong><i data-lucide="list"></i>현재 관계 목록</strong></h4>
+                <!-- 관계 카드 목록 -->
+                <div style="flex: 1; min-height: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4><strong><i data-lucide="list"></i>현재 관계 목록</strong></h4>
+                        <button type="button" id="add-relationship-btn" class="secondary" style="width: auto;">
+                            <i data-lucide="plus"></i>새 관계 추가
+                        </button>
+                    </div>
                     <div id="relationship-list-container"></div>
                 </div>
             </div>
@@ -181,20 +188,6 @@ export async function showRelationshipPanel(projectId, currentCard) {
 
     panel.querySelector('.close').addEventListener('click', (e) => { e.preventDefault(); closePanel(); });
 
-    const tendencySlider = panel.querySelector('#relationship-tendency');
-    const tendencyLabel = panel.querySelector('#tendency-label');
-    const tendencyMap = {
-        '-2': '많이 비우호',
-        '-1': '비우호',
-        '0': '중립',
-        '1': '우호',
-        '2': '많이 우호'
-    };
-    tendencySlider.addEventListener('input', () => {
-        tendencyLabel.textContent = tendencyMap[tendencySlider.value];
-    });
-
-
     const activeRelationships = relationships.filter(r =>
         r.source_character_id === currentCard.id || r.target_character_id === currentCard.id
     );
@@ -205,121 +198,14 @@ export async function showRelationshipPanel(projectId, currentCard) {
         relatedCharacterIds.add(r.target_character_id);
     });
 
-    const nodes = new vis.DataSet(
-        Array.from(relatedCharacterIds).map(charId => {
-            const character = allCharacters.find(c => c.id === charId);
-            // 캐릭터가 없으면 기본 값 사용
-            if (!character) {
-                console.warn(`Character with id ${charId} not found`);
-                return {
-                    id: charId,
-                    label: '알 수 없음',
-                    shape: 'box',
-                    color: '#999999',
-                    font: { color: '#ffffff' },
-                    margin: 10,
-                    shapeProperties: {
-                        borderRadius: 6
-                    }
-                };
-            }
-            return {
-                id: character.id,
-                label: character.name,
-                shape: 'box',
-                color: character.id === currentCard.id ? '#F59E0B' : '#58a6ff',
-                font: { color: '#ffffff' },
-                margin: 10,
-                shapeProperties: {
-                    borderRadius: 6
-                }
-            };
-        })
-    );
 
-    const relationshipPairs = new Map();
-    activeRelationships.forEach(r => {
-        const ids = [r.source_character_id, r.target_character_id].sort();
-        const key = ids.join('-');
-        if (!relationshipPairs.has(key)) {
-            relationshipPairs.set(key, []);
-        }
-        relationshipPairs.get(key).push(r);
-    });
 
-    const edges = new vis.DataSet(activeRelationships.map(r => {
-        const ids = [r.source_character_id, r.target_character_id].sort();
-        const key = ids.join('-');
-        const pair = relationshipPairs.get(key);
 
-        const edgeObject = {
-            id: r.id,
-            from: r.source_character_id,
-            to: r.target_character_id,
-            label: r.type,
-            title: r.description || r.type,
-            arrows: 'to',
-            color: getRelationshipColor(r.type),
-        };
 
-        if (pair && pair.length > 1) {
-            const curveDirection = r.source_character_id === ids[0] ? 'curvedCCW' : 'curvedCW';
-            edgeObject.smooth = {
-                type: curveDirection,
-                roundness: 0.35
-            };
-        }
 
-        return edgeObject;
-    }));
 
-    const container = panel.querySelector('#relationship-graph');
-    const data = { nodes, edges };
-
-    const options = {
-        layout: { hierarchical: false },
-        edges: {
-            color: { inherit: false },
-            smooth: {
-                enabled: true,
-                type: "dynamic"
-            }
-        },
-        physics: {
-            enabled: true,
-            solver: 'barnesHut',
-            barnesHut: {
-                springLength: 200,
-                avoidOverlap: 0.3
-            },
-            stabilization: {
-                iterations: 200
-            }
-        },
-        interaction: {
-            hover: true,
-            dragNodes: true,
-            dragView: true,
-            zoomView: true
-        },
-        nodes: {
-            font: {
-                size: 14,
-                face: 'sans-serif'
-            },
-            borderWidth: 1,
-        }
-    };
-    const network = new vis.Network(container, data, options);
-
-    network.on("stabilized", function (params) {
-        network.setOptions( { physics: false } );
-    });
-
-    const form = panel.querySelector('#relationship-form');
+    const addRelationshipBtn = panel.querySelector('#add-relationship-btn');
     const listContainer = panel.querySelector('#relationship-list-container');
-    const aiSuggestBtn = panel.querySelector('#ai-suggest-rel-btn');
-    const aiFieldset = panel.querySelector('#ai-suggestion-fieldset');
 
     const renderRelationshipList = () => {
         if (activeRelationships.length === 0) {
@@ -348,32 +234,80 @@ export async function showRelationshipPanel(projectId, currentCard) {
         setupPhaseSwitcherEvents();
     };
 
-    const clearForm = () => {
-        form.reset();
-        form.elements.relationship_id.value = '';
-        form.elements.target_character_id.disabled = false;
-        form.elements.phase_order.value = '1';  // [추가] 관계 변화 단계 기본값
-        tendencyLabel.textContent = '중립';
-    };
+    // 폼 토글 함수
+    const toggleRelationshipForm = (show = true, relationshipData = null) => {
+        const formContainer = panel.querySelector('#relationship-form-container');
+        const form = panel.querySelector('#relationship-form');
 
-    const fillFormWithRelationship = (rel) => {
-        if (!rel) return;
-        form.elements.relationship_id.value = rel.id;
+        if (show) {
+            // 아이콘 먼저 렌더링
+            lucide.createIcons();
 
-        const targetId = rel.source_character_id === currentCard.id
-            ? rel.target_character_id
-            : rel.source_character_id;
+            // 약간의 지연 후 애니메이션 시작 (아이콘 렌더링 완료 대기)
+            setTimeout(() => {
+                formContainer.classList.add('active');
+
+                // 폼이 상단에 있으므로 패널 상단으로 스크롤
+                setTimeout(() => {
+                    panel.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 300); // CSS transition 시간과 동일
+            }, 10);
+
+            // 폼 초기화
+            form.reset();
+            form.elements.relationship_id.value = relationshipData ? relationshipData.id : '';
+            form.elements.phase_order.value = '1';
+
+            if (relationshipData) {
+                // 수정 모드
+                const targetId = relationshipData.source_character_id === currentCard.id
+                    ? relationshipData.target_character_id
+                    : relationshipData.source_character_id;
 
         form.elements.target_character_id.value = targetId;
         form.elements.target_character_id.disabled = true;
-        form.elements.type.value = rel.type;
-        form.elements.description.value = rel.description || '';
-        form.elements.phase_order.value = rel.phase_order || 1;  // [추가] 관계 변화 단계
-        form.scrollIntoView({ behavior: 'smooth' });
-    }
+                form.elements.type.value = relationshipData.type || '';
+                form.elements.description.value = relationshipData.description || '';
+                form.elements.phase_order.value = relationshipData.phase_order || 1;
 
-    panel.querySelector('#clear-form-btn').addEventListener('click', clearForm);
+                // 범례 업데이트
+                const legend = form.querySelector('legend');
+                legend.innerHTML = '<strong><i data-lucide="edit-3"></i>관계 수정</strong>';
+            } else {
+                // 추가 모드
+                form.elements.target_character_id.disabled = false;
 
+                // 범례 업데이트
+                const legend = form.querySelector('legend');
+                legend.innerHTML = '<strong><i data-lucide="plus-circle"></i>새 관계 추가</strong>';
+            }
+        } else {
+            // 폼 숨김
+            formContainer.classList.remove('active');
+        }
+    };
+
+    // [+ 새 관계 추가] 버튼 이벤트
+    addRelationshipBtn.addEventListener('click', () => {
+        toggleRelationshipForm(true);
+    });
+
+    // 폼 이벤트 리스너들
+    const form = panel.querySelector('#relationship-form');
+    const cancelBtn = panel.querySelector('#cancel-form-btn');
+    const closeBtn = panel.querySelector('#form-close-btn');
+    const aiSuggestBtn = panel.querySelector('#ai-suggest-rel-btn');
+
+    // 취소 버튼과 X 버튼 이벤트
+    const closeForm = (e) => {
+        e.preventDefault();
+        toggleRelationshipForm(false);
+    };
+
+    cancelBtn.addEventListener('click', closeForm);
+    closeBtn.addEventListener('click', closeForm);
+
+    // AI 추천 버튼 이벤트
     aiSuggestBtn.addEventListener('click', async () => {
         const targetCharacterId = form.elements.target_character_id.value;
         if (!targetCharacterId) {
@@ -382,7 +316,6 @@ export async function showRelationshipPanel(projectId, currentCard) {
         }
 
         aiSuggestBtn.setAttribute('aria-busy', 'true');
-        aiFieldset.disabled = true;
 
         try {
             const tendency = parseInt(form.elements.tendency.value, 10);
@@ -395,14 +328,15 @@ export async function showRelationshipPanel(projectId, currentCard) {
             alert(`AI 추천을 받는 중 오류가 발생했습니다: ${error.message}`);
         } finally {
             aiSuggestBtn.setAttribute('aria-busy', 'false');
-            aiFieldset.disabled = false;
         }
     });
 
+    // 폼 제출 이벤트
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const button = form.querySelector('button[type="submit"]');
-        button.setAttribute('aria-busy', 'true');
+
+        const saveBtn = form.querySelector('button[type="submit"]');
+        saveBtn.setAttribute('aria-busy', 'true');
 
         const relationshipId = form.elements.relationship_id.value;
         const targetId = form.elements.target_character_id.value;
@@ -412,7 +346,7 @@ export async function showRelationshipPanel(projectId, currentCard) {
             target_character_id: targetId,
             type: form.elements.type.value.trim(),
             description: form.elements.description.value.trim(),
-            phase_order: parseInt(form.elements.phase_order.value, 10)  // [추가] 관계 변화 단계
+            phase_order: parseInt(form.elements.phase_order.value, 10)
         };
 
         try {
@@ -420,7 +354,7 @@ export async function showRelationshipPanel(projectId, currentCard) {
                 const updateData = {
                     type: relationshipData.type,
                     description: relationshipData.description,
-                    phase_order: relationshipData.phase_order  // [추가] 관계 변화 단계
+                    phase_order: relationshipData.phase_order
                 };
                 await api.updateRelationship(projectId, relationshipId, updateData);
                 alert('관계가 성공적으로 수정되었습니다.');
@@ -428,17 +362,33 @@ export async function showRelationshipPanel(projectId, currentCard) {
                 await api.createRelationship(projectId, relationshipData);
                 alert('새로운 관계가 생성되었습니다.');
             }
-            clearForm();
-            closePanel();
-            // [수정] stateManager를 통해 상태 갱신 요청
+
+            // 폼 숨기고 목록 갱신
+            toggleRelationshipForm(false);
             await app.stateManager.refreshCurrentProject();
         } catch (error) {
             console.error('관계 저장 실패:', error);
             alert(`오류: ${error.message}`);
         } finally {
-            button.setAttribute('aria-busy', 'false');
+            saveBtn.setAttribute('aria-busy', 'false');
         }
     });
+
+    // 슬라이더 이벤트 설정
+    const tendencySlider = panel.querySelector('#relationship-tendency');
+    const tendencyLabel = panel.querySelector('#tendency-label');
+    const tendencyMap = {
+        '-2': '많이 비우호',
+        '-1': '비우호',
+        '0': '중립',
+        '1': '우호',
+        '2': '많이 우호'
+    };
+    tendencySlider.addEventListener('input', () => {
+        tendencyLabel.textContent = tendencyMap[tendencySlider.value];
+    });
+
+
 
     listContainer.addEventListener('click', async (e) => {
         const target = e.target.closest('button');
@@ -481,21 +431,15 @@ export async function showRelationshipPanel(projectId, currentCard) {
             }
 
             if (relToEdit) {
-                fillFormWithRelationship(relToEdit);
+                toggleRelationshipForm(true, relToEdit);
             }
-        }
-    });
-
-    network.on('click', function(params) {
-        if (params.edges.length > 0) {
-            const clickedEdgeId = params.edges[0];
-            const relationship = relationships.find(r => r.id === clickedEdgeId);
-            fillFormWithRelationship(relationship);
         }
     });
 
     renderRelationshipList();
 }
+
+
 
 /**
  * [Phase 5] 관계들을 캐릭터 쌍별로 그룹화 (관계 방향 고려)

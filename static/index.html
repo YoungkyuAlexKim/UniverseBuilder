@@ -19,9 +19,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
-    
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    
+
     <!-- Lucide 아이콘 라이브러리 추가 -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script type="module" src="/static/js/main.js?v=2.1"></script>
@@ -93,18 +91,18 @@
                     <hgroup><h1 id="project-title-display"></h1></hgroup>
                                             <nav>
                             <ul>
-                            <li><a href="#" class="tab-link active" data-tab="characters"><i data-lucide="users"></i>캐릭터</a></li>
-                            <li><a href="#" class="tab-link" data-tab="worldview"><i data-lucide="globe"></i>세계관</a></li>
+                            <li><a href="#" class="tab-link active" data-tab="worldview"><i data-lucide="globe"></i>세계관</a></li>
+                            <li><a href="#" class="tab-link" data-tab="characters"><i data-lucide="users"></i>캐릭터</a></li>
                             <li><a href="#" class="tab-link" data-tab="scenario"><i data-lucide="book-open"></i>시나리오</a></li>
                             <li><a href="#" class="tab-link" data-tab="manuscript"><i data-lucide="pen-tool"></i>집필</a></li> </ul>
                         </nav>
                 </div>
                 <div class="tabs-container">
-                    <div id="tab-content-characters" class="tab-content active">
-                        <div id="card-list-container"></div> 
+                    <div id="tab-content-characters" class="tab-content">
+                        <div id="card-list-container"></div>
                     </div>
 
-                    <div id="tab-content-worldview" class="tab-content">
+                    <div id="tab-content-worldview" class="tab-content active">
                         <div class="worldview-layout">
                             <!-- 메인 세계관 섹션 -->
                             <div class="worldview-main-section">
@@ -612,6 +610,8 @@
             </footer>
         </article>
     </div>
+
+
 
     <!-- [신규] 전체 플롯 수정 비교 모달 -->
     <div id="plot-points-diff-modal" class="modal-container">
