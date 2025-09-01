@@ -60,6 +60,6 @@ export function addWorldviewRuleInput(value = '', projectId, container) {
     });
 
     wrapper.querySelector('.refine-rule-btn').addEventListener('click', (e) => {
-        app.handleRefineWorldviewRule(e, projectId, inputField);
+        app.call('worldview', 'handleRefineWorldviewRule', e, projectId, inputField);
     });
 }

@@ -57,7 +57,7 @@ export function openAiScenarioDraftModal(projectData, scenarioId) {
 
     newForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        app.handleAiDraftGeneration(e, projectData.id, scenarioId);
+        app.call('scenario', 'handleAiDraftGeneration', e, projectData.id, scenarioId);
     });
 
     const closeButton = modal.querySelector('.close');

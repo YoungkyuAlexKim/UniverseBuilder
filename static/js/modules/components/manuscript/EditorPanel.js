@@ -180,18 +180,13 @@ export class EditorPanel {
             return;
         }
 
-        if (!this.app.manuscriptController || !this.app.manuscriptController.handleSaveManuscriptBlock) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
         const currentProject = this.app.stateManager.getState().currentProject;
         if (!currentProject) {
             alert('프로젝트가 로드되지 않았습니다.');
             return;
         }
 
-        this.app.manuscriptController.handleSaveManuscriptBlock(currentProject.id, this._currentBlockId);
+        this.app.call('manuscript', 'handleSaveManuscriptBlock', currentProject.id, this._currentBlockId);
     }
 
     /**
@@ -199,12 +194,7 @@ export class EditorPanel {
      * @private
      */
     _handleAiEdit() {
-        if (!this.app.manuscriptController || !this.app.manuscriptController.openManuscriptAIModal) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
-        this.app.manuscriptController.openManuscriptAIModal();
+        this.app.call('manuscript', 'openManuscriptAIModal');
     }
 
     /**
@@ -228,12 +218,7 @@ export class EditorPanel {
         const followingText = value.substring(selectionEnd, Math.min(value.length, selectionEnd + 100));
         const surroundingContext = `${precedingText}[...선택 부분...]${followingText}`;
 
-        if (!this.app.manuscriptController || !this.app.manuscriptController.openPartialRefineModal) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
-        this.app.manuscriptController.openPartialRefineModal(selectedText, surroundingContext);
+        this.app.call('manuscript', 'openPartialRefineModal', selectedText, surroundingContext);
     }
 
     /**

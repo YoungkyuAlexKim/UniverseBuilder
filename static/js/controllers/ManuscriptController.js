@@ -19,7 +19,9 @@ export class ManuscriptController {
      * @param {Object} projectData - 프로젝트 데이터
      */
     async onTabActivated(projectData) {
+        console.log('ManuscriptController: onTabActivated called', projectData);
         const container = document.getElementById('tab-content-manuscript');
+        console.log('ManuscriptController: container found:', !!container);
 
         if (!container) {
             console.error('Manuscript tab container not found');
@@ -28,13 +30,19 @@ export class ManuscriptController {
 
         // ManuscriptRenderer 초기화 (최초 한 번만)
         if (!this.renderer) {
+            console.log('ManuscriptController: Creating ManuscriptRenderer');
             // 동적 import로 ManuscriptRenderer 로드
             const { ManuscriptRenderer } = await import('../modules/renderers/ManuscriptRenderer.js');
             this.renderer = new ManuscriptRenderer(container, this.eventManager, this.app);
+            console.log('ManuscriptController: ManuscriptRenderer created');
+        } else {
+            console.log('ManuscriptController: ManuscriptRenderer already exists');
         }
 
         // 렌더링
+        console.log('ManuscriptController: Calling renderer.render');
         await this.renderer.render(projectData);
+        console.log('ManuscriptController: renderer.render completed');
     }
 
     /**

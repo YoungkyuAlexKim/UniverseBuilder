@@ -249,7 +249,7 @@ export function openCardModal(card, projectId) {
     if (deleteBtn) {
         eventManager.addEventListener(deleteBtn, 'click', (e) => {
             closeModal();
-            app.handleDeleteCard(projectId, card.group_id, card.id);
+            app.call('character', 'handleDeleteCard', projectId, card.group_id, card.id);
         });
     }
 
@@ -321,7 +321,7 @@ export function openWorldviewCardModal(card, projectId, groupId) {
     if (deleteBtn) {
         eventManager.addEventListener(deleteBtn, 'click', async (e) => {
             e.preventDefault();
-            await app.handleDeleteWorldviewCard(projectId, card.id);
+            await app.call('worldview', 'handleDeleteWorldviewCard', projectId, card.id);
         });
     }
 
@@ -589,19 +589,19 @@ export function openPlotPointEditModal(plotPoint, projectId, scenarioId) {
     // 이벤트 리스너를 안전하게 다시 연결하기 위해 cloneNode 사용
     const newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
-    newSaveBtn.addEventListener('click', () => app.handleUpdatePlotPoint(form, projectId, scenarioId));
-    
+    newSaveBtn.addEventListener('click', () => app.call('scenario', 'handleUpdatePlotPoint', form, projectId, scenarioId));
+
     const newDeleteBtn = deleteBtn.cloneNode(true);
     deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
-    newDeleteBtn.addEventListener('click', () => app.handleDeletePlotPoint(plotPoint.id, projectId, scenarioId));
+    newDeleteBtn.addEventListener('click', () => app.call('scenario', 'handleDeletePlotPoint', plotPoint.id, projectId, scenarioId));
 
     const newAiSceneBtn = aiSceneBtn.cloneNode(true);
     aiSceneBtn.parentNode.replaceChild(newAiSceneBtn, aiSceneBtn);
-    newAiSceneBtn.addEventListener('click', () => app.handleAiSceneGeneration(plotPoint.id, projectId, scenarioId));
-    
+    newAiSceneBtn.addEventListener('click', () => app.call('scenario', 'handleAiSceneGeneration', plotPoint.id, projectId, scenarioId));
+
     const newAiEditBtn = aiEditBtn.cloneNode(true);
     aiEditBtn.parentNode.replaceChild(newAiEditBtn, aiEditBtn);
-    newAiEditBtn.addEventListener('click', () => app.handleAiSceneEdit(plotPoint.id, projectId, scenarioId));
+    newAiEditBtn.addEventListener('click', () => app.call('scenario', 'handleAiSceneEdit', plotPoint.id, projectId, scenarioId));
     
     // 글자 수 슬라이더 이벤트 리스너 설정
     const wordCountSlider = document.getElementById('word-count-slider');

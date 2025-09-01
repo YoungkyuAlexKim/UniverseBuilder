@@ -19,8 +19,10 @@ export class ManuscriptRenderer {
      * @param {Object} projectData - 프로젝트 데이터
      */
     async render(projectData) {
+        console.log('ManuscriptRenderer: Render called', projectData);
         // 기본 HTML 구조 렌더링 (단 한 번만)
         if (!this._isInitialized) {
+            console.log('ManuscriptRenderer: Initializing components');
             this._renderBasicStructure();
             await this._initializeComponents();
             this._isInitialized = true;
@@ -144,7 +146,7 @@ export class ManuscriptRenderer {
 
             // 컴포넌트 인스턴스 생성
             this.components.toolbar = new ManuscriptToolbar(
-                this.container.querySelector('aside.manuscript-hierarchy-panel header'),
+                this.container.querySelector('aside.manuscript-hierarchy-panel'),
                 this.app
             );
 

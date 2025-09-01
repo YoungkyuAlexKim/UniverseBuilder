@@ -5,6 +5,7 @@
 
 export class ManuscriptToolbar {
     constructor(container, app) {
+        console.log('ManuscriptToolbar: Constructor called', container);
         this.container = container;
         this.app = app;
         this.eventManager = app.eventManager;
@@ -18,6 +19,7 @@ export class ManuscriptToolbar {
      * @param {Object} projectData - 프로젝트 데이터
      */
     render(projectData) {
+        console.log('ManuscriptToolbar: Render called', projectData);
         if (!this._isInitialized) {
             // 기존 HTML 구조를 사용하므로 별도 렌더링 필요 없음
             this._isInitialized = true;
@@ -54,33 +56,46 @@ export class ManuscriptToolbar {
      * @private
      */
     _handleToolbarClick(e) {
+        console.log('ManuscriptToolbar: Click event received', e.target);
         const target = e.target;
         const button = target.closest('button');
 
-        if (!button) return;
+        if (!button) {
+            console.log('ManuscriptToolbar: No button found');
+            return;
+        }
 
         const buttonId = button.id;
+        console.log('ManuscriptToolbar: Button clicked', buttonId);
 
         switch (buttonId) {
             case 'manuscript-import-btn':
+                console.log('ManuscriptToolbar: Import button clicked');
                 this._handleImport();
                 break;
 
             case 'manuscript-export-btn':
+                console.log('ManuscriptToolbar: Export button clicked');
                 this._handleExport();
                 break;
 
             case 'manuscript-clear-btn':
+                console.log('ManuscriptToolbar: Clear button clicked');
                 this._handleClear();
                 break;
 
             case 'manuscript-merge-btn':
+                console.log('ManuscriptToolbar: Merge button clicked');
                 this._handleMerge();
                 break;
 
             case 'manuscript-split-btn':
+                console.log('ManuscriptToolbar: Split button clicked');
                 this._handleSplit();
                 break;
+
+            default:
+                console.log('ManuscriptToolbar: Unknown button', buttonId);
         }
     }
 
@@ -89,11 +104,6 @@ export class ManuscriptToolbar {
      * @private
      */
     _handleImport() {
-        if (!this.app.manuscriptController || !this.app.manuscriptController.handleImportManuscript) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
         const currentProject = this.app.stateManager.getState().currentProject;
         if (!currentProject) {
             alert('프로젝트가 로드되지 않았습니다.');
@@ -101,7 +111,7 @@ export class ManuscriptToolbar {
         }
 
         const mainScenario = currentProject.scenarios && currentProject.scenarios[0];
-        this.app.manuscriptController.handleImportManuscript(currentProject.id, mainScenario?.id);
+        this.app.call('manuscript', 'handleImportManuscript', currentProject.id, mainScenario?.id);
     }
 
     /**
@@ -109,18 +119,13 @@ export class ManuscriptToolbar {
      * @private
      */
     _handleExport() {
-        if (!this.app.manuscriptController || !this.app.manuscriptController.handleExportToScenario) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
         const currentProject = this.app.stateManager.getState().currentProject;
         if (!currentProject) {
             alert('프로젝트가 로드되지 않았습니다.');
             return;
         }
 
-        this.app.manuscriptController.handleExportToScenario(currentProject.id);
+        this.app.call('manuscript', 'handleExportToScenario', currentProject.id);
     }
 
     /**
@@ -128,18 +133,13 @@ export class ManuscriptToolbar {
      * @private
      */
     _handleClear() {
-        if (!this.app.manuscriptController || !this.app.manuscriptController.handleClearManuscript) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
         const currentProject = this.app.stateManager.getState().currentProject;
         if (!currentProject) {
             alert('프로젝트가 로드되지 않았습니다.');
             return;
         }
 
-        this.app.manuscriptController.handleClearManuscript(currentProject.id);
+        this.app.call('manuscript', 'handleClearManuscript', currentProject.id);
     }
 
     /**
@@ -147,11 +147,6 @@ export class ManuscriptToolbar {
      * @private
      */
     _handleMerge() {
-        if (!this.app.manuscriptController || !this.app.manuscriptController.handleMergeManuscriptBlocks) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
         const currentProject = this.app.stateManager.getState().currentProject;
         if (!currentProject) {
             alert('프로젝트가 로드되지 않았습니다.');
@@ -166,7 +161,7 @@ export class ManuscriptToolbar {
             return;
         }
 
-        this.app.manuscriptController.handleMergeManuscriptBlocks(currentProject.id, selectedBlockIds);
+        this.app.call('manuscript', 'handleMergeManuscriptBlocks', currentProject.id, selectedBlockIds);
     }
 
     /**
@@ -174,11 +169,6 @@ export class ManuscriptToolbar {
      * @private
      */
     _handleSplit() {
-        if (!this.app.manuscriptController || !this.app.manuscriptController.handleSplitManuscriptBlock) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
-
         const currentProject = this.app.stateManager.getState().currentProject;
         if (!currentProject) {
             alert('프로젝트가 로드되지 않았습니다.');
@@ -227,7 +217,7 @@ export class ManuscriptToolbar {
         }
 
         if (splitPosition > 0 && splitPosition < value.length) {
-            this.app.manuscriptController.handleSplitManuscriptBlock(currentProject.id, currentBlockId, splitPosition);
+            this.app.call('manuscript', 'handleSplitManuscriptBlock', currentProject.id, currentBlockId, splitPosition);
         } else {
             alert('분할할 수 있는 위치를 찾을 수 없습니다.');
         }

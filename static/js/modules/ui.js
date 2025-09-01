@@ -112,11 +112,15 @@ export function hideProjectLoadingOverlay() {
  * @param {string} tabId - 활성화할 탭의 ID ('characters', 'worldview', 'scenario', 'manuscript')
  */
 export function activateTab(tabId) {
+    console.log('UI: activateTab called with', tabId);
     document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
     const tabLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
     const tabContent = document.getElementById(`tab-content-${tabId}`);
+
+    console.log('UI: tabLink found:', !!tabLink);
+    console.log('UI: tabContent found:', !!tabContent);
 
     if (tabLink) {
         tabLink.classList.add('active');
@@ -133,22 +137,43 @@ export function activateTab(tabId) {
 
     // 탭이 활성화된 후 렌더링 트리거 - 이벤트 기반
     if (tabId === 'manuscript') {
+        console.log('UI: Activating manuscript tab');
+        console.log('UI: window.app exists:', !!window.app);
+        console.log('UI: window.app.stateManager exists:', !!(window.app && window.app.stateManager));
+
         // 프로젝트 렌더링 완료 이벤트를 기다림
-        if (window.app && window.app.stateManager && window.app.manuscriptController) {
+        if (window.app && window.app.stateManager) {
             const currentProject = window.app.stateManager.getState().currentProject;
+            console.log('UI: currentProject exists:', !!currentProject);
+
             if (currentProject) {
+                console.log('UI: Calling manuscript onTabActivated');
                 // async 함수로 분리하여 await 사용
                 (async () => {
-                    await window.app.manuscriptController.onTabActivated(currentProject);
+                    try {
+                        await window.app.call('manuscript', 'onTabActivated', currentProject);
+                        console.log('UI: manuscript onTabActivated completed');
+                    } catch (error) {
+                        console.error('UI: manuscript onTabActivated failed:', error);
+                    }
                 })();
             } else {
+                console.log('UI: Waiting for project to be rendered');
                 // 프로젝트가 아직 로드되지 않은 경우 이벤트를 기다림
                 const handleProjectRendered = async (project) => {
-                    await window.app.manuscriptController.onTabActivated(project);
+                    console.log('UI: Project rendered, calling manuscript onTabActivated');
+                    try {
+                        await window.app.call('manuscript', 'onTabActivated', project);
+                        console.log('UI: manuscript onTabActivated completed after project render');
+                    } catch (error) {
+                        console.error('UI: manuscript onTabActivated failed after project render:', error);
+                    }
                     window.app.stateManager.off('project:rendered', handleProjectRendered);
                 };
                 window.app.stateManager.on('project:rendered', handleProjectRendered);
             }
+        } else {
+            console.error('UI: window.app or stateManager not available');
         }
     }
 }
@@ -166,7 +191,7 @@ function renderCharacterTab(projectData) {
     `, (container) => {
         const generatorBtn = container.querySelector('#show-generator-btn');
         if (generatorBtn) {
-            eventManager.addEventListener(generatorBtn, 'click', () => app.openCharacterGenerationModal(projectData.id));
+            eventManager.addEventListener(generatorBtn, 'click', () => app.call('characterGeneration', 'openCharacterGenerationModal', projectData.id));
         }
     });
 
@@ -211,18 +236,18 @@ function renderCharacterTab(projectData) {
     `;
     
     const addGroupForm = addGroupSection.querySelector('.add-group-form');
-    eventManager.addEventListener(addGroupForm, 'submit', (e) => app.handleCreateGroup(e, projectData.id));
+    eventManager.addEventListener(addGroupForm, 'submit', (e) => app.call('character', 'handleCreateGroup', e, projectData.id));
     container.appendChild(addGroupSection);
 
     // 기존 그룹 삭제 이벤트 등록
     container.querySelectorAll('.delete-group-btn').forEach(button => {
         eventManager.addEventListener(button, 'click', (e) => {
             const { groupId, groupName } = e.currentTarget.dataset;
-            app.handleDeleteGroup(projectData.id, groupId, groupName);
+            app.call('character', 'handleDeleteGroup', projectData.id, groupId, groupName);
         });
     });
 
-    app.setupSortable(container.querySelectorAll('.character-cards-grid'), projectData.id, 'character');
+    app.call('character', 'setupSortable', container.querySelectorAll('.character-cards-grid'), projectData.id, 'character');
 }
 
 
@@ -231,13 +256,17 @@ function renderCharacterTab(projectData) {
 
 function renderWorldviewTab(projectData) {
     const worldview = projectData.worldview || { logline: '', genre: '', rules: [] };
-    
+
     // [수정] 폼 전체를 교체하는 대신, 내용만 업데이트합니다.
     const form = document.getElementById('worldview-form');
     const loglineInput = form.querySelector('#worldview-logline');
     const genreInput = form.querySelector('#worldview-genre');
     const rulesContainer = form.querySelector('#worldview-rules-container');
     const addRuleBtn = form.querySelector('#add-worldview-rule-btn');
+
+    // 기존 이벤트 리스너들을 제거하여 중복 방지
+    eventManager.removeAllEventListeners(form);
+    eventManager.removeAllEventListeners(addRuleBtn);
 
     loglineInput.value = worldview.logline || '';
     genreInput.value = worldview.genre || '';
@@ -257,9 +286,9 @@ function renderWorldviewTab(projectData) {
     // [수정] EventManager를 사용하여 이벤트 리스너를 안전하게 (재)설정합니다.
     eventManager.addEventListener(form, 'submit', (e) => {
         e.preventDefault();
-        app.handleSaveWorldview(projectData.id);
+        app.call('worldview', 'handleSaveWorldview', projectData.id);
     });
-    
+
     eventManager.addEventListener(addRuleBtn, 'click', () => addWorldviewRuleInput('', projectData.id, rulesContainer));
 
     // --- 서브 설정 카드 렌더링 로직 (현대적 그리드 시스템) ---
@@ -308,18 +337,18 @@ function renderWorldviewTab(projectData) {
     `;
     
     const addGroupForm = addGroupSection.querySelector('.add-group-form');
-    eventManager.addEventListener(addGroupForm, 'submit', (e) => app.handleCreateWorldviewGroup(e, projectData.id));
+    eventManager.addEventListener(addGroupForm, 'submit', (e) => app.call('worldview', 'handleCreateWorldviewGroup', e, projectData.id));
     container.appendChild(addGroupSection);
 
     // 이벤트 등록
     container.querySelectorAll('.delete-wv-group-btn').forEach(btn => {
-        eventManager.addEventListener(btn, 'click', (e) => app.handleDeleteWorldviewGroup(e, projectData.id));
+        eventManager.addEventListener(btn, 'click', (e) => app.call('worldview', 'handleDeleteWorldviewGroup', e, projectData.id));
     });
     container.querySelectorAll('.add-wv-card-btn').forEach(btn => {
         eventManager.addEventListener(btn, 'click', (e) => app.modals.openWorldviewCardModal(null, projectData.id, e.currentTarget.dataset.groupId));
     });
     
-    app.setupSortable(container.querySelectorAll('.worldview-cards-grid'), projectData.id, 'worldview');
+    app.call('character', 'setupSortable', container.querySelectorAll('.worldview-cards-grid'), projectData.id, 'worldview');
 }
 
 
@@ -446,12 +475,12 @@ function renderScenarioTab(projectData) {
         newContainer.querySelector('#plot-list').innerHTML = plotPointsHTML;
 
         eventManager.addEventListener(form, 'submit', (e) => {
-            app.handleSaveScenario(e, projectData.id, mainScenario.id);
+            app.call('scenario', 'handleSaveScenario', e, projectData.id, mainScenario.id);
         });
 
         const addPlotForm = newContainer.querySelector('#add-plot-point-form');
         eventManager.addEventListener(addPlotForm, 'submit', (e) => {
-            app.handleCreatePlotPoint(e, projectData.id, mainScenario.id);
+            app.call('scenario', 'handleCreatePlotPoint', e, projectData.id, mainScenario.id);
         });
 
         const setupButtonListener = (selector, handler) => {
@@ -461,12 +490,12 @@ function renderScenarioTab(projectData) {
             }
         };
 
-        setupButtonListener('#refine-concept-btn', () => app.handleRefineConcept());
-        setupButtonListener('#enhance-synopsis-btn', () => app.handleEnhanceSynopsis());
+        setupButtonListener('#refine-concept-btn', () => app.call('scenario', 'handleRefineConcept'));
+        setupButtonListener('#enhance-synopsis-btn', () => app.call('scenario', 'handleEnhanceSynopsis'));
         setupButtonListener('#ai-draft-btn', () => openAiScenarioDraftModal(projectData, mainScenario.id));
-        setupButtonListener('#ai-edit-plots-btn', () => app.handleAiEditPlots());
-        setupButtonListener('#ai-edit-selected-btn', () => app.handleAiEditSelectedPlots());
-        setupButtonListener('#delete-all-plots-btn', () => app.handleDeleteAllPlotPoints(projectData.id, mainScenario.id));
+        setupButtonListener('#ai-edit-plots-btn', () => app.call('scenario', 'handleAiEditPlots'));
+        setupButtonListener('#ai-edit-selected-btn', () => app.call('scenario', 'handleAiEditSelectedPlots'));
+        setupButtonListener('#delete-all-plots-btn', () => app.call('scenario', 'handleDeleteAllPlotPoints', projectData.id, mainScenario.id));
 
         const plotList = newContainer.querySelector('#plot-list');
         eventManager.addEventListener(plotList, 'click', (e) => {
@@ -505,7 +534,7 @@ function openExportModal(projectData) {
 
     // 확인 버튼 이벤트
     const confirmHandler = () => {
-        app.handleExportToScenario(projectData.id);
+        app.call('manuscript', 'handleExportToScenario', projectData.id);
         closeModal();
     };
 
@@ -532,4 +561,17 @@ function openExportModal(projectData) {
     modal.classList.add('active');
     backdrop.classList.add('active');
 }
+
+// --- 필요한 함수들을 명명된 export로 추가 ---
+export { createDynamicInputGroupHTML, addDynamicInputField, addWorldviewRuleInput };
+
+// ui 객체도 함께 export하여 하위 호환성 유지
+const ui = {
+    createDynamicInputGroupHTML,
+    addDynamicInputField,
+    addWorldviewRuleInput
+};
+
+// 기본 export
+export default ui;
 

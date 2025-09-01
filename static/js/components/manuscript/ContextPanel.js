@@ -95,10 +95,7 @@ export class ContextPanel {
             return;
         }
 
-        if (!this.app.manuscriptController || !this.app.manuscriptController.extractCharactersFromBlock) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
+        // 컨트롤러 존재 확인 및 메서드 호출
 
         // EditorPanel에서 콘텐츠 가져오기
         const contentTextarea = document.querySelector('#manuscript-block-content');
@@ -113,7 +110,7 @@ export class ContextPanel {
             return;
         }
 
-        this.app.manuscriptController.extractCharactersFromBlock(this._currentBlockId, textContent);
+        this.app.call('manuscript', 'extractCharactersFromBlock', this._currentBlockId, textContent);
     }
 
     /**
@@ -126,10 +123,7 @@ export class ContextPanel {
             return;
         }
 
-        if (!this.app.manuscriptController || !this.app.manuscriptController.requestExpertFeedback) {
-            console.error('ManuscriptController가 초기화되지 않았습니다.');
-            return;
-        }
+        // 컨트롤러 존재 확인 및 메서드 호출
 
         // EditorPanel에서 콘텐츠 가져오기
         const contentTextarea = document.querySelector('#manuscript-block-content');
@@ -144,7 +138,7 @@ export class ContextPanel {
             return;
         }
 
-        this.app.manuscriptController.requestExpertFeedback(this._currentBlockId, textContent);
+        this.app.call('manuscript', 'requestExpertFeedback', this._currentBlockId, textContent);
     }
 
     /**

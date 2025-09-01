@@ -53,12 +53,14 @@ export class App {
      * 각 기능별 컨트롤러들을 초기화합니다.
      */
     initializeControllers() {
-        this.projectController = new ProjectController(this);
-        this.characterController = new CharacterController(this);
-        this.worldviewController = new WorldviewController(this);
-        this.scenarioController = new ScenarioController(this);
-        this.manuscriptController = new ManuscriptController(this);
-        this.characterGenerationController = new CharacterGenerationController(this);
+        this.controllers = {
+            project: new ProjectController(this),
+            character: new CharacterController(this),
+            worldview: new WorldviewController(this),
+            scenario: new ScenarioController(this),
+            manuscript: new ManuscriptController(this),
+            characterGeneration: new CharacterGenerationController(this)
+        };
     }
 
     /**
@@ -79,17 +81,36 @@ export class App {
         this.stateManager.on('error', (errorMessage) => alert(errorMessage));
         
         // 프로젝트 생성 폼
-        document.getElementById('create-project-form').addEventListener('submit', (e) => 
-            this.projectController.handleCreateProject(e));
-        
+        document.getElementById('create-project-form').addEventListener('submit', (e) =>
+            this.call('project', 'handleCreateProject', e));
+
         // 프로젝트 리스트 이벤트 (위임)
         document.querySelector('.project-list').addEventListener('click', (e) => {
-             if (e.target.matches('.project-name-span')) {
-                this.projectController.handleSelectProject(e.target.dataset.id);
-            } else if (e.target.matches('.update-project-btn')) {
-                this.projectController.handleUpdateProject(e);
-            } else if (e.target.matches('.delete-project-btn')) {
-                this.projectController.handleDeleteProject(e);
+            const target = e.target.closest('button, span');
+            if (!target) return;
+
+            if (target.matches('.project-name-span')) {
+                this.call('project', 'handleSelectProject', target.dataset.id);
+            } else if (target.matches('.update-project-btn')) {
+                // 안전하게 이벤트 객체 생성
+                const eventData = {
+                    stopPropagation: () => e.stopPropagation(),
+                    preventDefault: () => e.preventDefault(),
+                    currentTarget: target,
+                    target: e.target,
+                    type: e.type
+                };
+                this.call('project', 'handleUpdateProject', eventData);
+            } else if (target.matches('.delete-project-btn')) {
+                // 안전하게 이벤트 객체 생성
+                const eventData = {
+                    stopPropagation: () => e.stopPropagation(),
+                    preventDefault: () => e.preventDefault(),
+                    currentTarget: target,
+                    target: e.target,
+                    type: e.type
+                };
+                this.call('project', 'handleDeleteProject', eventData);
             }
         });
 
@@ -117,142 +138,18 @@ export class App {
         }
     }
 
-    // --- 컨트롤러 메소드 위임 ---
-
-    // 캐릭터 관련
-    async handleCreateGroup(event, projectId) {
-        return this.characterController.handleCreateGroup(event, projectId);
-    }
-
-    async handleDeleteGroup(projectId, groupId, groupName) {
-        return this.characterController.handleDeleteGroup(projectId, groupId, groupName);
-    }
-
-    async handleDeleteCard(projectId, groupId, cardId) {
-        return this.characterController.handleDeleteCard(projectId, groupId, cardId);
-    }
-
-    setupSortable(lists, projectId, type) {
-        return this.characterController.setupSortable(lists, projectId, type);
-    }
-
-    // 세계관 관련
-    async handleSaveWorldview(projectId) {
-        return this.worldviewController.handleSaveWorldview(projectId);
-    }
-
-    async handleCreateWorldviewGroup(event, projectId) {
-        return this.worldviewController.handleCreateWorldviewGroup(event, projectId);
-    }
-
-    async handleDeleteWorldviewGroup(event, projectId) {
-        return this.worldviewController.handleDeleteWorldviewGroup(event, projectId);
-    }
-
-    async handleDeleteWorldviewCard(projectId, cardId) {
-        return this.worldviewController.handleDeleteWorldviewCard(projectId, cardId);
-    }
-
-    async handleRefineWorldviewRule(event, projectId, inputField) {
-        return this.worldviewController.handleRefineWorldviewRule(event, projectId, inputField);
-    }
-
-    // 시나리오 관련
-    async handleSaveScenario(event, projectId, scenarioId) {
-        return this.scenarioController.handleSaveScenario(event, projectId, scenarioId);
-    }
-
-    async handleCreatePlotPoint(event, projectId, scenarioId) {
-        return this.scenarioController.handleCreatePlotPoint(event, projectId, scenarioId);
-    }
-
-    async handleAiDraftGeneration(event, projectId, scenarioId) {
-        return this.scenarioController.handleAiDraftGeneration(event, projectId, scenarioId);
-    }
-
-    async handleAiEditPlots() {
-        return this.scenarioController.handleAiEditPlots();
-    }
-
-    async handleUpdatePlotPoint(form, projectId, scenarioId) {
-        return this.scenarioController.handleUpdatePlotPoint(form, projectId, scenarioId);
-    }
-
-    async handleDeletePlotPoint(plotPointId, projectId, scenarioId) {
-        return this.scenarioController.handleDeletePlotPoint(plotPointId, projectId, scenarioId);
-    }
-
-    async handleDeleteAllPlotPoints(projectId, scenarioId) {
-        return this.scenarioController.handleDeleteAllPlotPoints(projectId, scenarioId);
-    }
-
-    async handleAiSceneGeneration(plotPointId, projectId, scenarioId) {
-        return this.scenarioController.handleAiSceneGeneration(plotPointId, projectId, scenarioId);
-    }
-
-    async handleAiSceneEdit(plotPointId, projectId, scenarioId) {
-        return this.scenarioController.handleAiSceneEdit(plotPointId, projectId, scenarioId);
-    }
-
-    async handleAiEditPlotPoint(plotPoint, projectId, scenarioId) {
-        return this.scenarioController.handleAiEditPlotPoint(plotPoint, projectId, scenarioId);
-    }
-
-    async handleRefineConcept() {
-        return this.scenarioController.handleRefineConcept();
-    }
-
-    async handleEnhanceSynopsis() {
-        return this.scenarioController.handleEnhanceSynopsis();
-    }
-
-    // 집필 관련
-    async handleImportManuscript(projectId, scenarioId) {
-        return this.manuscriptController.handleImportManuscript(projectId, scenarioId);
-    }
-
-    async handleClearManuscript(projectId) {
-        return this.manuscriptController.handleClearManuscript(projectId);
-    }
-
-    async handleSaveManuscriptBlock(projectId, blockId) {
-        return this.manuscriptController.handleSaveManuscriptBlock(projectId, blockId);
-    }
-
-    async handleUpdateManuscriptOrder(projectId, blockIds) {
-        return this.manuscriptController.handleUpdateManuscriptOrder(projectId, blockIds);
-    }
-
-    openManuscriptAIModal() {
-        return this.manuscriptController.openManuscriptAIModal();
-    }
-
-    openPartialRefineModal(selectedText, surroundingContext) {
-        return this.manuscriptController.openPartialRefineModal(selectedText, surroundingContext);
-    }
-
-    async handleMergeManuscriptBlocks(projectId, blockIds) {
-        return this.manuscriptController.handleMergeManuscriptBlocks(projectId, blockIds);
-    }
-
-    async handleSplitManuscriptBlock(projectId, blockId, splitPosition) {
-        return this.manuscriptController.handleSplitManuscriptBlock(projectId, blockId, splitPosition);
-    }
-
-    async handleDeleteManuscriptBlock(projectId, blockId) {
-        return this.manuscriptController.handleDeleteManuscriptBlock(projectId, blockId);
-    }
-
-    async handleExportToScenario(projectId, mode) {
-        return this.manuscriptController.handleExportToScenario(projectId, mode);
-    }
-
-    // 캐릭터 생성 관련
-    openCharacterGenerationModal(projectId) {
-        return this.characterGenerationController.openCharacterGenerationModal(projectId);
-    }
-
-    formatCharacterForDisplay(characterData) {
-        return this.characterGenerationController.formatCharacterForDisplay(characterData);
+    /**
+     * 지정된 컨트롤러의 메서드를 동적으로 호출합니다.
+     * @param {string} controllerName - 호출할 컨트롤러의 이름 (예: 'character', 'project')
+     * @param {string} methodName - 호출할 메서드의 이름
+     * @param {...any} args - 메서드에 전달할 인자들
+     */
+    call(controllerName, methodName, ...args) {
+        const controller = this.controllers[controllerName];
+        if (controller && typeof controller[methodName] === 'function') {
+            return controller[methodName](...args);
+        } else {
+            console.error(`${controllerName} 컨트롤러의 ${methodName} 메서드를 찾을 수 없습니다.`);
+        }
     }
 }
