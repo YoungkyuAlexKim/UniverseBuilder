@@ -268,6 +268,9 @@ async function handleGenerate() {
     generateBtn.setAttribute('aria-busy', 'true');
     generateBtn.disabled = true;
 
+    // 필드를 먼저 비웁니다.
+    suggestionElement.textContent = "";
+
     // 아이콘을 표시할 컨테이너를 찾거나 생성합니다.
     let iconContainer = document.getElementById('common-ai-writing-icon-container');
     if (!iconContainer) {
