@@ -850,8 +850,8 @@ export class App {
                 alert('새 비밀번호가 일치하지 않습니다.');
                 confirmInput.focus();
                 confirmInput.select();
-                return;
-            }
+            return;
+        }
 
             if (hasPassword && currentPassword === newPassword) {
                 alert('새 비밀번호가 현재 비밀번호와 같습니다.');
@@ -938,10 +938,10 @@ export class App {
             existingModal.remove();
         }
 
-        // 모달 HTML 생성
+        // 모달 HTML 생성 (비밀번호 입력 필드 추가)
         const modalHTML = `
             <div id="project-delete-confirm-modal" class="modal-container active">
-                <article style="max-width: 400px;">
+                <article style="max-width: 450px;">
                     <header>
                         <a href="#close" aria-label="Close" class="close"></a>
                         <h3><i data-lucide="alert-triangle"></i>프로젝트 삭제 확인</h3>
@@ -954,11 +954,25 @@ export class App {
                                 이 작업은 되돌릴 수 없습니다.
                             </p>
                         </div>
-                        <p>삭제를 진행하려면 아래에 프로젝트 이름을 입력해주세요:</p>
-                        <label for="delete-confirm-input">
-                            프로젝트 이름 입력
-                            <input type="text" id="delete-confirm-input" placeholder="프로젝트 이름을 입력하세요" autocomplete="off">
-                        </label>
+
+                        <p style="margin-bottom: 1rem;">삭제를 진행하려면 아래 정보를 모두 입력해주세요:</p>
+
+                        <div style="display: grid; gap: 1rem;">
+                            <label for="delete-confirm-input">
+                                프로젝트 이름 입력
+                                <input type="text" id="delete-confirm-input" placeholder="프로젝트 이름을 입력하세요" autocomplete="off">
+                            </label>
+
+                            <label for="delete-password-input">
+                                프로젝트 비밀번호 입력
+                                <input type="password" id="delete-password-input" name="password" placeholder="프로젝트 비밀번호를 입력하세요" autocomplete="current-password">
+                            </label>
+                        </div>
+
+                        <div style="margin-top: 1rem; padding: 0.75rem; background: var(--pico-secondary-background); border-radius: 4px; font-size: 0.9rem; color: var(--pico-muted-color);">
+                            <strong>💡 안전을 위해:</strong><br>
+                            • 프로젝트 이름과 비밀번호를 모두 입력해야 삭제가 진행됩니다
+                        </div>
                     </div>
                     <footer>
                         <button type="button" class="secondary close-btn">취소</button>
@@ -973,6 +987,7 @@ export class App {
 
         const modal = document.getElementById('project-delete-confirm-modal');
         const confirmInput = document.getElementById('delete-confirm-input');
+        const passwordInput = document.getElementById('delete-password-input');
         const confirmBtn = document.getElementById('confirm-delete-btn');
         const backdrop = document.getElementById('modal-backdrop');
 
@@ -1004,9 +1019,17 @@ export class App {
         };
         document.addEventListener('keydown', escHandler);
 
-        // 삭제 확인 버튼 이벤트
+                // 삭제 확인 버튼 이벤트
         confirmBtn.addEventListener('click', async () => {
             const inputValue = confirmInput.value.trim();
+            const passwordValue = passwordInput.value.trim();
+
+            // 프로젝트 이름 검증
+            if (!inputValue) {
+                alert('프로젝트 이름을 입력해주세요.');
+                confirmInput.focus();
+                return;
+            }
 
             if (inputValue !== projectName) {
                 alert('프로젝트 이름이 일치하지 않습니다.');
@@ -1015,17 +1038,57 @@ export class App {
                 return;
             }
 
+            // 비밀번호 검증
+            if (!passwordValue) {
+                alert('프로젝트 비밀번호를 입력해주세요.');
+                passwordInput.focus();
+                return;
+            }
+
             try {
+                // 비밀번호 검증 먼저 수행
+                console.log('프로젝트 삭제 전 비밀번호 검증 시작');
+                await api.verifyPassword(projectId, passwordValue);
+                console.log('프로젝트 삭제 전 비밀번호 검증 성공');
+
+                // 비밀번호 검증 성공 후 삭제 진행
                 await this.call('project', 'handleDeleteProject', {
                     currentTarget: { dataset: { projectId, projectName } }
                 });
 
                 closeModal();
 
-        } catch (error) {
+            } catch (error) {
                 console.error('프로젝트 삭제 실패:', error);
-                alert('프로젝트 삭제에 실패했습니다.');
+
+                // 구체적인 에러 메시지 처리
+                let errorMessage = '프로젝트 삭제에 실패했습니다.';
+
+                if (error.message) {
+                    if (error.message.includes('비밀번호') || error.message.includes('password')) {
+                        errorMessage = '비밀번호가 올바르지 않습니다.';
+                        passwordInput.focus();
+                        passwordInput.select();
+                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
+                    } else if (error.message.includes('404')) {
+                        errorMessage = '프로젝트를 찾을 수 없습니다.';
+            } else {
+                        errorMessage = `오류: ${error.message}`;
+                    }
+                }
+
+                alert(errorMessage);
             }
+        });
+
+        // 입력 시 유효성 메시지 제거
+        confirmInput.addEventListener('input', () => {
+            removeValidationMessage(confirmInput);
+        });
+
+        passwordInput.addEventListener('input', () => {
+            removeValidationMessage(passwordInput);
         });
 
         // 모달 표시 후 입력 필드에 포커스
