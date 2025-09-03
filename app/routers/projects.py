@@ -476,6 +476,8 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
     groups_to_create = []
     cards_to_create = []
     plot_points_to_create = []
+    worldview_groups_to_create = []
+    worldview_cards_to_create = []
 
     # 그룹 및 카드 생성
     if "groups" in sample_data:
@@ -492,11 +494,33 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
                         group_id=group_id,
                         name=card_data["name"],
                         description=card_data["description"],
+                        goal=json.dumps(card_data.get("goal", [])),
                         personality=json.dumps(card_data.get("personality", [])),
                         abilities=json.dumps(card_data.get("abilities", [])),
+                        quote=json.dumps(card_data.get("quote", [])),
+                        introduction_story=card_data.get("introduction_story", ""),
                         ordering=card_idx
                     )
                     cards_to_create.append(card)
+
+    # 세계관 그룹 및 카드 생성
+    if "worldview_groups" in sample_data:
+        for wv_group_data in sample_data["worldview_groups"]:
+            wv_group_id = f"wv-group-{timestamp}-{len(worldview_groups_to_create)}"
+            wv_group = WorldviewGroupModel(id=wv_group_id, project_id=new_project_id, name=wv_group_data["name"])
+            worldview_groups_to_create.append(wv_group)
+
+            if "worldview_cards" in wv_group_data:
+                for card_idx, wv_card_data in enumerate(wv_group_data["worldview_cards"]):
+                    wv_card_id = f"wv-card-{timestamp}-{len(worldview_cards_to_create)}"
+                    wv_card = WorldviewCardModel(
+                        id=wv_card_id,
+                        group_id=wv_group_id,
+                        title=wv_card_data["title"],
+                        content=wv_card_data["content"],
+                        ordering=card_idx
+                    )
+                    worldview_cards_to_create.append(wv_card)
 
     # 세계관 생성
     worldview_content = json.dumps(sample_data.get("worldview", {"logline": "", "genre": "", "rules": []}))
@@ -545,6 +569,10 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
         db.add(group)
     for card in cards_to_create:
         db.add(card)
+    for wv_group in worldview_groups_to_create:
+        db.add(wv_group)
+    for wv_card in worldview_cards_to_create:
+        db.add(wv_card)
     for plot_point in plot_points_to_create:
         db.add(plot_point)
 
@@ -555,6 +583,7 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
     created_project_orm = db.query(ProjectModel).options(
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
+        joinedload(ProjectModel.worldview_groups).joinedload(WorldviewGroupModel.worldview_cards),
         joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points)
     ).filter(ProjectModel.id == new_project_id).first()
 
