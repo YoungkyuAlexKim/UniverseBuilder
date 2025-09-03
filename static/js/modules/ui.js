@@ -8,7 +8,7 @@ import { createWorldviewCardElement, createEnhancedWorldviewCardElement, initial
 import { openAiScenarioDraftModal, initializeAiScenarioDraftModal } from '../components/modals/ai-scenario-draft-modal.js';
 import { createDynamicInputGroupHTML, addDynamicInputField } from '../components/forms/dynamic-input.js';
 import { addWorldviewRuleInput, initializeWorldviewRuleInput } from '../components/forms/worldview-rule-input.js';
-import { getShuffledMessages, getMessagesByCategory } from './ai-messages.js';
+import { getShuffledMessages, getMessagesByCategory, welcomeMessages } from './ai-messages.js';
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
 let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
@@ -239,7 +239,7 @@ function renderCharacterTab(projectData) {
 
     eventManager.replaceContentSafely(container, `
         <div class="character-tab-header">
-            <button id="show-generator-btn" class="contrast"><i data-lucide="user-plus"></i>새 인물 AI 생성</button>
+            <button id="show-generator-btn" class="contrast"><i data-lucide="user"></i>새 인물 AI 생성</button>
         </div>
     `, (container) => {
         const generatorBtn = container.querySelector('#show-generator-btn');
@@ -459,9 +459,9 @@ function renderScenarioTab(projectData) {
             <div class="plot-points-header">
                 <h4>플롯 포인트</h4>
                 <div class="plot-buttons-group">
-                    <button type="button" id="ai-draft-btn" class="contrast"><i data-lucide="file-plus-2"></i>AI로 전체 스토리 초안 생성</button>
-                    <button type="button" id="ai-edit-plots-btn" class="secondary"><i data-lucide="pencil-ruler"></i>AI로 전체 플롯 수정</button>
-                    <button type="button" id="ai-edit-selected-btn" class="secondary outline" style="display: none;"><i data-lucide="check-square"></i>선택한 플롯 수정</button>
+                    <button type="button" id="ai-draft-btn" class="contrast"><i data-lucide="file-plus"></i>AI로 전체 스토리 초안 생성</button>
+                    <button type="button" id="ai-edit-plots-btn" class="secondary"><i data-lucide="pencil"></i>AI로 전체 플롯 수정</button>
+                    <button type="button" id="ai-edit-selected-btn" class="secondary outline" style="display: none;"><i data-lucide="check"></i>선택한 플롯 수정</button>
                     <button id="delete-all-plots-btn" class="secondary outline">전체 삭제</button>
                 </div>
             </div>
@@ -694,11 +694,11 @@ export function showAiWritingAnimation(textarea, iconContainer, customMessages =
  * @returns {Function} 애니메이션을 중지하는 함수
  */
 export function showWelcomeTypingAnimation(textElement, iconContainer) {
-    // 환영 메시지 카테고리에서 메시지를 가져옵니다
-    const welcomeMessages = getMessagesByCategory('welcome');
+    // Welcome View 전용 메시지를 랜덤하게 섞어서 사용합니다
+    const shuffledWelcomeMessages = [...welcomeMessages].sort(() => 0.5 - Math.random());
 
-    // 기존 showAiWritingAnimation 함수를 재사용하되 환영 메시지만 사용
-    return showAiWritingAnimation(textElement, iconContainer, welcomeMessages);
+    // 기존 showAiWritingAnimation 함수를 재사용하되 Welcome 메시지만 사용
+    return showAiWritingAnimation(textElement, iconContainer, shuffledWelcomeMessages);
 }
 
 // 기본 export

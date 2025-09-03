@@ -20,8 +20,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
 
-    <!-- Lucide 아이콘 라이브러리 추가 -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide 아이콘 라이브러리 추가 (버전 고정) -->
+    <script src="https://unpkg.com/lucide@0.400.0"></script>
     <script type="module" src="/static/js/main.js?v=2.1"></script>
 </head>
 <body>
@@ -127,7 +127,7 @@
                                         <!-- 오른쪽: 핵심 설정 -->
                                         <div class="worldview-rules-section">
                                             <div class="worldview-rules-header">
-                                                <label><i data-lucide="wand-sparkles"></i>핵심 설정</label>
+                                                <label><i data-lucide="wand"></i>핵심 설정</label>
                                                 <button type="button" id="add-worldview-rule-btn" class="secondary outline">+ 추가</button>
                                             </div>
                                             <div id="worldview-rules-container" class="worldview-rules-list">
@@ -195,8 +195,8 @@
                             <div class="plot-points-header">
                                 <h4>플롯 포인트</h4>
                                 <div class="plot-buttons-group">
-                                    <button type="button" id="ai-draft-btn" class="contrast"><i data-lucide="file-plus-2"></i>AI로 전체 스토리 초안 생성</button>
-                                    <button type="button" id="ai-edit-plots-btn" class="secondary"><i data-lucide="pencil-ruler"></i>AI로 전체 플롯 수정</button>
+                                    <button type="button" id="ai-draft-btn" class="contrast"><i data-lucide="file-plus"></i>AI로 전체 스토리 초안 생성</button>
+                                    <button type="button" id="ai-edit-plots-btn" class="secondary"><i data-lucide="pencil"></i>AI로 전체 플롯 수정</button>
                                     <button id="delete-all-plots-btn" class="secondary outline">전체 삭제</button>
                                 </div>
                             </div>
@@ -237,8 +237,8 @@
                                 <div id="editor-toolbar">
                                     <input type="text" id="manuscript-block-title" placeholder="블록 제목을 입력하세요...">
                                     <button id="manuscript-save-btn">저장</button>
-                                    <button id="manuscript-ai-edit-btn" class="secondary" disabled><i data-lucide="file-signature"></i>AI로 수정</button>
-                                    <button id="manuscript-partial-refine-btn" class="secondary" disabled><i data-lucide="text-quote"></i>부분 다듬기</button>
+                                    <button id="manuscript-ai-edit-btn" class="secondary" disabled><i data-lucide="file-text"></i>AI로 수정</button>
+                                    <button id="manuscript-partial-refine-btn" class="secondary" disabled><i data-lucide="quote"></i>부분 다듬기</button>
                                 </div>
                                 <div id="editor-info-bar" style="padding: 0.5rem 1rem; font-size: 0.8rem; color: var(--pico-muted-color); background: var(--pico-secondary-background); border-bottom: 1px solid var(--pico-border-color);">
                                     <span>글자 수: <strong id="char-count-display">0</strong></span> | 
@@ -322,7 +322,7 @@
         <article style="max-width: 90vw; width: 1200px;">
             <header>
                 <a href="#close" aria-label="Close" class="close"></a>
-                <h3><i data-lucide="git-pull-request-arrow"></i>AI 수정 제안 검토</h3>
+                <h3><i data-lucide="git-pull-request"></i>AI 수정 제안 검토</h3>
             </header>
             <div id="ai-diff-container" class="grid">
                 <article>
@@ -347,7 +347,7 @@
         <article>
             <header>
                 <a href="#close" aria-label="Close" class="close"></a>
-                <h3><i data-lucide="file-plus-2"></i>AI 스토리 초안 생성</h3>
+                <h3><i data-lucide="file-plus"></i>AI 스토리 초안 생성</h3>
             </header>
             <form id="ai-scenario-draft-form">
                 <label for="plot-point-count">생성할 플롯 개수: <strong id="plot-point-count-value">10</strong>개</label>
@@ -617,7 +617,7 @@
         <article style="max-width: 95vw; width: 1400px;">
             <header>
                 <a href="#close" aria-label="Close" class="close"></a>
-                <h3><i data-lucide="pencil-ruler"></i>AI 전체 플롯 수정 제안</h3>
+                <h3><i data-lucide="pencil"></i>AI 전체 플롯 수정 제안</h3>
             </header>
             <div class="grid">
                 <article>
@@ -643,7 +643,7 @@
         <article style="max-width: 90vw; width: 1200px;">
             <header>
                 <a href="#close" aria-label="Close" class="close"></a>
-                <h3><i data-lucide="file-signature"></i>AI 원고 수정</h3>
+                <h3><i data-lucide="file-text"></i>AI 원고 수정</h3>
             </header>
             <div class="grid">
                 <article>
@@ -698,7 +698,7 @@
         <article style="max-width: 90vw; width: 800px;">
             <header>
                 <a href="#close" aria-label="Close" class="close"></a>
-                <h3><i data-lucide="text-quote"></i>AI 문장 다듬기 제안</h3>
+                <h3><i data-lucide="quote"></i>AI 문장 다듬기 제안</h3>
             </header>
             <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
                 <div>
@@ -865,7 +865,7 @@
 
                 <div style="display: grid; gap: 1rem; margin-top: 1rem;">
                     <div style="border: 1px solid var(--pico-border-color); border-radius: 6px; padding: 1rem; cursor: pointer; transition: background-color 0.2s;" id="solution-organize-manuscript">
-                        <h5 style="margin-top: 0;"><i data-lucide="folder-edit"></i>집필 탭에서 정리하기</h5>
+                        <h5 style="margin-top: 0;"><i data-lucide="folder"></i>집필 탭에서 정리하기</h5>
                         <p style="margin-bottom: 0.5rem; font-size: 0.9rem;">
                             집필 탭으로 이동해서 플롯을 그룹화하거나 삭제하여 50개 이하로 만들기
                         </p>

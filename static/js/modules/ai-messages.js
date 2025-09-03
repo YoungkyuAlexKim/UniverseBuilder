@@ -12,7 +12,7 @@ export const aiWritingMessages = [
     { icon: "star", text: "최고급 뉘앙스를 공수하는 중..." },
     { icon: "user-check", text: "캐릭터에게 빙의해보는 중..." },
     { icon: "wrench", text: "플롯의 구멍을 몰래 메우는 중..." },
-    { icon: "brain-circuit", text: "작가님의 필력을 훔...아니, 학습하는 중..." },
+    { icon: "brain", text: "작가님의 필력을 훔...아니, 학습하는 중..." },
     { icon: "blender", text: "영감을 한 스푼, 마감을 두 스푼 넣는 중..." },
     { icon: "users", text: "뇌세포들과 격렬하게 토론 중..." },
     { icon: "tv", text: "막장 드라마 정주행하며 아이디어 찾는 중..." },
@@ -78,7 +78,7 @@ export const aiWritingMessages = [
     { icon: "theater", text: "연극 무대를 꾸미는 중..." },
     { icon: "music", text: "BGM을 상상하며 장면을 연출하는 중..." },
     { icon: "microphone", text: "대사 톤을 맞춰보는 중..." },
-    { icon: "book-heart", text: "감동 포인트를 전략적으로 배치하는 중..." },
+    { icon: "book", text: "감동 포인트를 전략적으로 배치하는 중..." },
     { icon: "heart", text: "독자의 심장을 두근거리게 만드는 중..." },
     { icon: "eye", text: "시각적 묘사를 섬세하게 다듬는 중..." },
     { icon: "sun", text: "빛과 그림자를 계산하는 중..." },
@@ -133,7 +133,7 @@ export const aiWritingMessages = [
 
     // 🧙‍♂️ 판타지/마법 관련 메시지들
     { icon: "wand", text: "마법의 지팡이로 창작하는 중..." },
-    { icon: "magic-wand", text: "요술 방망이로 영감을 불러오는 중..." },
+    { icon: "wand", text: "요술 방망이로 영감을 불러오는 중..." },
     { icon: "ghost", text: "유령 같은 아이디어를 붙잡는 중..." },
     { icon: "alien", text: "외계인 같은 상상력을 발휘하는 중..." },
     { icon: "robot", text: "로봇처럼 정확하게 계산하는 중..." },
@@ -164,7 +164,7 @@ export const aiWritingMessages = [
     { icon: "medal", text: "금메달급 문장을 만드는 중..." },
     { icon: "star", text: "별처럼 빛나는 아이디어를 찾는 중..." },
     { icon: "hand", text: "완벽에 엄지손가락을 치켜세우는 중..." },
-    { icon: "square-check", text: "모든 체크박스를 채우는 중..." },
+    { icon: "check-circle", text: "모든 체크박스를 채우는 중..." },
     { icon: "award", text: "상받을 만한 작품을 만드는 중..." },
     { icon: "party", text: "축하할 만한 순간을 기다리는 중..." },
     { icon: "confetti", text: "완성의 폭죽을 터뜨리는 중..." },
@@ -179,19 +179,104 @@ export const aiWritingMessages = [
     { icon: "handshake", text: "독자와의 감동적인 악수를 준비하는 중..." },
     { icon: "hand-heart", text: "마음을 움직이는 작품을 만드는 중..." },
 
-    // 🎉 환영/인사 메시지들 (Welcome View용)
+    // 🎨 창작 메시지들 (계속...)
+];
+
+/**
+ * Welcome View 전용 환영 메시지들
+ * AI 작업 메시지와 분리하여 순수한 환영과 동기부여 메시지만 포함
+ */
+export const welcomeMessages = [
+    // 🌟 기본 환영 메시지들
     { icon: "sparkles", text: "당신의 새로운 세계를 펼칠 준비가 되었습니다." },
-    { icon: "brain", text: "AI와 함께 창의적인 스토리를 만들어보세요." },
-    { icon: "wand", text: "상상력의 한계를 넘어서는 여행을 시작합니다." },
-    { icon: "star", text: "별처럼 빛나는 아이디어가 탄생할 순간을 기다립니다." },
     { icon: "heart", text: "창작의 즐거움을 함께 나누고 싶습니다." },
     { icon: "lightbulb", text: "영감의 불빛이 당신을 기다리고 있습니다." },
-    { icon: "rocket", text: "스토리의 우주로 함께 여행을 떠나요." },
+    { icon: "star", text: "별처럼 빛나는 아이디어가 탄생할 순간을 기다립니다." },
     { icon: "palette", text: "무한한 가능성의 캔버스가 펼쳐집니다." },
     { icon: "compass", text: "이야기의 나침반이 당신을 안내합니다." },
     { icon: "book-open", text: "새로운 이야기의 첫 장을 열어보세요." },
-    { icon: "magic-wand", text: "마법 같은 창작 경험을 선물합니다." },
-    { icon: "crown", text: "당신의 상상력을 왕관처럼 빛나게 하겠습니다." }
+    { icon: "rocket", text: "스토리의 우주로 함께 여행을 떠나요." },
+    { icon: "wand", text: "상상력의 한계를 넘어서는 여행을 시작합니다." },
+    { icon: "crown", text: "당신의 상상력을 왕관처럼 빛나게 하겠습니다." },
+
+    // ☀️ 자연과 시간 관련 메시지들
+    { icon: "sun", text: "창작의 태양이 당신을 비추고 있습니다." },
+    { icon: "moon", text: "영감의 달빛이 당신을 감싸고 있습니다." },
+    { icon: "cloud", text: "무한한 상상의 구름 위를 날아보세요." },
+    { icon: "mountain", text: "창작의 산을 함께 오르겠습니다." },
+    { icon: "waves", text: "이야기의 파도를 함께 헤쳐나가요." },
+    { icon: "leaf", text: "창작의 싹이 당신의 손에서 피어납니다." },
+    { icon: "tree", text: "상상의 나무가 당신의 이야기를 맺을 것입니다." },
+    { icon: "flower", text: "당신의 아이디어가 아름다운 꽃으로 피어납니다." },
+    { icon: "wind", text: "영감의 바람이 당신을 이끌고 있습니다." },
+    { icon: "rain", text: "창작의 비가 당신의 마음을 적십니다." },
+    { icon: "snow", text: "순수한 영감의 눈송이가 당신을 감싸고 있습니다." },
+    { icon: "sunrise", text: "새로운 창작의 아침이 밝아오고 있습니다." },
+    { icon: "sunset", text: "오늘의 창작이 아름다운 황혼으로 물들입니다." },
+
+    // 🎨 창작과 예술 관련 메시지들
+    { icon: "brush", text: "창작의 붓이 당신의 손을 기다리고 있습니다." },
+    { icon: "music", text: "이야기의 멜로디가 당신의 마음에 울려퍼집니다." },
+    { icon: "camera", text: "당신의 시선이 세상을 새로운 각도로 비춥니다." },
+    { icon: "theater", text: "무대 위의 주인공은 바로 당신입니다." },
+    { icon: "film", text: "당신의 이야기가 스크린에 펼쳐집니다." },
+    { icon: "image", text: "상상의 이미지가 현실로 피어납니다." },
+    { icon: "scissors", text: "필요한 부분만 남기고 아름답게 다듬어보세요." },
+    { icon: "copy", text: "당신의 이야기를 세상과 공유할 시간입니다." },
+    { icon: "rotate-ccw", text: "새로운 관점에서 세상을 바라보세요." },
+    { icon: "zoom-in", text: "세부사항에 집중하며 완벽을 추구하세요." },
+    { icon: "zoom-out", text: "큰 그림을 보며 균형을 맞춰보세요." },
+
+    // 🗺️ 여행과 탐험 관련 메시지들
+    { icon: "map", text: "이야기의 지도를 함께 그려보겠습니다." },
+    { icon: "anchor", text: "당신의 이야기가 세상을 고정시킬 것입니다." },
+    { icon: "sailboat", text: "창작의 바다를 항해할 준비가 되었습니다." },
+    { icon: "plane", text: "상상의 날개를 펴고 하늘을 날아보세요." },
+    { icon: "flag", text: "당신의 창작 목표를 향해 나아가요." },
+    { icon: "crosshair", text: "완벽한 순간을 포착할 준비가 되었습니다." },
+    { icon: "scope", text: "미래의 성공을 내다보며 계획하세요." },
+    { icon: "binoculars", text: "먼 미래의 자신을 상상해보세요." },
+    { icon: "search", text: "숨겨진 보물 같은 아이디어를 찾아보세요." },
+    { icon: "key", text: "이야기의 핵심 열쇠가 당신의 손에 있습니다." },
+
+    // 🏆 성공과 성취 관련 메시지들
+    { icon: "trophy", text: "당신의 창작이 승리의 상을 받을 것입니다." },
+    { icon: "medal", text: "탁월한 작품이 탄생할 것입니다." },
+    { icon: "award", text: "당신의 노력이 인정받을 날이 옵니다." },
+    { icon: "verified", text: "진정한 창작자가 되실 준비가 되었습니다." },
+    { icon: "badge", text: "당신의 작품에 품질의 인증 마크를 새기세요." },
+    { icon: "gem", text: "보석 같은 아이디어가 당신을 기다리고 있습니다." },
+    { icon: "diamond", text: "당신의 창작이 영원히 빛날 것입니다." },
+    { icon: "flame", text: "열정을 불태우며 창작의 길을 나아가세요." },
+
+    // 💝 감정과 마음 관련 메시지들
+    { icon: "smile", text: "웃음과 기쁨이 가득한 창작을 시작합니다." },
+    { icon: "happy", text: "행복한 창작 순간이 당신을 기다리고 있습니다." },
+    { icon: "peace", text: "마음의 평화를 찾아 창작에 몰두하세요." },
+    { icon: "hand-heart", text: "따뜻한 마음으로 세상을 움직이세요." },
+    { icon: "users", text: "사람들과의 연결을 통해 영감을 얻으세요." },
+    { icon: "user-check", text: "당신의 진정한 모습을 찾아보세요." },
+    { icon: "hand", text: "도움의 손길이 당신을 기다리고 있습니다." },
+    { icon: "handshake", text: "함께 만들어가는 아름다운 이야기입니다." },
+
+    // 🚀 미래와 기술 관련 메시지들
+    { icon: "atom", text: "창작의 원자를 분열시키며 새로운 것을 창조하세요." },
+    { icon: "cpu", text: "당신의 뇌가 최고의 프로세서가 됩니다." },
+    { icon: "battery", text: "창작 에너지가 가득 충전되었습니다." },
+    { icon: "satellite", text: "당신의 이야기가 전 세계로 퍼져나갈 것입니다." },
+    { icon: "telescope", text: "미래를 내다보며 큰 그림을 그려보세요." },
+    { icon: "microscope", text: "세부사항에 집중하며 완벽을 추구하세요." },
+    { icon: "settings", text: "창작 엔진을 최적의 상태로 튜닝해보세요." },
+
+    // 🎭 특별한 순간 관련 메시지들
+    { icon: "party", text: "축하할 만한 창작 순간이 찾아올 것입니다." },
+    { icon: "gift", text: "당신의 작품이 독자들에게 선물이 될 것입니다." },
+    { icon: "fireworks", text: "완성의 순간이 불꽃처럼 화려할 것입니다." },
+    { icon: "champagne", text: "성공을 축하하며 샴페인을 터뜨리세요." },
+    { icon: "confetti", text: "완성의 폭죽이 당신을 축하할 것입니다." },
+    { icon: "ribbon", text: "당신의 작품에 아름다운 리본을 달아보세요." },
+    { icon: "square-check", text: "모든 준비가 완료되었습니다. 시작하세요!" },
+    { icon: "check-circle", text: "완벽한 시작을 위한 모든 것이 준비되었습니다." }
 ];
 
 /**
@@ -213,9 +298,9 @@ export function getMessagesByCategory(category) {
         tech: ['zap', 'atom', 'dna', 'cpu', 'hard-drive', 'wifi', 'battery', 'plug', 'microscope', 'telescope', 'server', 'database', 'cloud', 'cloud', 'settings', 'tool', 'wrench', 'cog', 'monitor', 'printer', 'smartphone', 'laptop', 'mouse', 'keyboard', 'headphones'],
         art: ['palette', 'camera', 'theater', 'music', 'microphone', 'book-heart', 'heart', 'eye', 'sun', 'cloud', 'wind', 'film', 'video', 'image', 'brush', 'paintbrush', 'droplets', 'spray-can', 'eraser', 'highlighter', 'underline', 'bold', 'italic', 'align-left', 'align-center', 'align-right', 'columns'],
         strategy: ['compass', 'map', 'sword', 'shield', 'target', 'bullseye', 'puzzle', 'gamepad', 'dice-6', 'clover', 'treasure', 'key', 'lock', 'unlock', 'anchor', 'sailboat', 'mountain', 'flag', 'crosshair', 'scope', 'binoculars', 'search', 'filter', 'funnel', 'bar-chart', 'pie-chart', 'trending-up', 'trending-down'],
-        fantasy: ['wand', 'magic-wand', 'ghost', 'alien', 'robot', 'gem', 'skull', 'skull', 'refresh-ccw', 'droplet', 'star', 'castle', 'dragon', 'fairy', 'star', 'waves', 'leaf', 'hammer', 'user', 'flask', 'file-text', 'door-open'],
-        achievement: ['flame', 'crown', 'gem', 'trophy', 'rocket', 'medal', 'star', 'hand', 'square-check', 'award', 'party', 'confetti', 'fireworks', 'champagne', 'gift', 'ribbon', 'badge', 'verified', 'shield', 'hand', 'handshake', 'hand-heart'],
-        welcome: ['sparkles', 'brain', 'wand', 'star', 'heart', 'lightbulb', 'rocket', 'palette', 'compass', 'book-open', 'magic-wand', 'crown']
+        fantasy: ['wand', 'wand', 'ghost', 'alien', 'robot', 'gem', 'skull', 'skull', 'refresh-ccw', 'droplet', 'star', 'castle', 'dragon', 'fairy', 'star', 'waves', 'leaf', 'hammer', 'user', 'flask', 'file-text', 'door-open'],
+        achievement: ['flame', 'crown', 'gem', 'trophy', 'rocket', 'medal', 'star', 'hand', 'check-circle', 'award', 'party', 'confetti', 'fireworks', 'champagne', 'gift', 'ribbon', 'badge', 'verified', 'shield', 'hand', 'handshake', 'hand-heart'],
+        // welcome: Welcome View는 이제 별도의 welcomeMessages 배열을 사용합니다
     };
 
     const icons = categoryMap[category] || [];

@@ -66,8 +66,8 @@ export class ManuscriptRenderer {
                         <div id="editor-toolbar">
                             <input type="text" id="manuscript-block-title" placeholder="블록 제목을 입력하세요...">
                             <button id="manuscript-save-btn">저장</button>
-                            <button id="manuscript-ai-edit-btn" class="secondary" disabled><i data-lucide="file-signature"></i>AI로 수정</button>
-                            <button id="manuscript-partial-refine-btn" class="secondary" disabled><i data-lucide="text-quote"></i>부분 다듬기</button>
+                            <button id="manuscript-ai-edit-btn" class="secondary" disabled><i data-lucide="file-text"></i>AI로 수정</button>
+                            <button id="manuscript-partial-refine-btn" class="secondary" disabled><i data-lucide="quote"></i>부분 다듬기</button>
                         </div>
                         <div id="editor-info-bar" style="padding: 0.5rem 1rem; font-size: 0.8rem; color: var(--pico-muted-color); background: var(--pico-secondary-background); border-bottom: 1px solid var(--pico-border-color);">
                             <span>글자 수: <strong id="char-count-display">0</strong></span> |
