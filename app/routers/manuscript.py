@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
@@ -372,6 +372,7 @@ def update_manuscript_block(
 async def edit_manuscript_block_with_ai(
     block_id: str,
     request: ManuscriptBlockAIEditRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
     project: ProjectModel = Depends(get_project_if_accessible),
     db: Session = Depends(database.get_db)
 ):
@@ -455,7 +456,8 @@ async def edit_manuscript_block_with_ai(
     edited_content = await call_ai_model(
         prompt=prompt,
         model_name=chosen_model,
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"edited_content": edited_content}
@@ -464,6 +466,7 @@ async def edit_manuscript_block_with_ai(
 async def refine_partial_manuscript_block(
     block_id: str, # block_id는 현재 사용되지 않지만, 향후 특정 블록 컨텍스트를 위해 유지합니다.
     request: ManuscriptBlockPartialRefineRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
     project: ProjectModel = Depends(get_project_if_accessible),
     db: Session = Depends(database.get_db)
 ):
@@ -486,7 +489,8 @@ async def refine_partial_manuscript_block(
         prompt=prompt,
         model_name=chosen_model,
         generation_config=generation_config,
-        response_format="json"
+        response_format="json",
+        user_api_key=user_api_key
     )
 
     return suggestions
@@ -738,6 +742,7 @@ def get_style_guide_content_only(style_guide_id: str):
 async def extract_characters_from_manuscript(
     block_id: str,
     request: ExtractCharactersRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
     project: ProjectModel = Depends(get_project_if_accessible),
     db: Session = Depends(database.get_db)
 ):
@@ -779,7 +784,8 @@ async def extract_characters_from_manuscript(
         prompt=prompt,
         model_name=chosen_model,
         generation_config=generation_config,
-        response_format="json"
+        response_format="json",
+        user_api_key=user_api_key
     )
 
     return CharacterExtractionResult(**result)
@@ -788,6 +794,7 @@ async def extract_characters_from_manuscript(
 async def generate_expert_feedback(
     block_id: str,
     request: GenerateFeedbackRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
     project: ProjectModel = Depends(get_project_if_accessible),
     db: Session = Depends(database.get_db)
 ):
@@ -910,7 +917,8 @@ async def generate_expert_feedback(
         prompt=prompt,
         model_name=chosen_model,
         generation_config=generation_config,
-        response_format="json"
+        response_format="json",
+        user_api_key=user_api_key
     )
 
     return ExpertFeedbackResult(**result)

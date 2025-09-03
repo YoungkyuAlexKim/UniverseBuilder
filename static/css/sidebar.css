@@ -238,6 +238,61 @@
     display: none;
 }
 
+/* 사용자 API 키 섹션 */
+.user-api-key-section {
+    background: var(--gradient-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    margin-top: 2rem;
+}
+
+.user-api-key-input {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+#user-api-key-input {
+    font-size: 0.95rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius-md);
+    color: var(--text-secondary);
+    transition: var(--transition-fast);
+}
+
+#user-api-key-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+    background: var(--bg-tertiary);
+}
+
+/* API 키 유효성 상태 표시 */
+#user-api-key-input.valid {
+    border-color: var(--accent-green);
+    background: rgba(40, 167, 69, 0.05);
+}
+
+#user-api-key-input.invalid {
+    border-color: var(--accent-red);
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.api-key-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.api-key-info small {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
 /* 사이드바 반응형 디자인 */
 @media screen and (max-width: 1024px) {
     :root {

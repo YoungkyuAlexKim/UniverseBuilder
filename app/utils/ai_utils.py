@@ -41,10 +41,10 @@ DEFAULT_SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
 
-# API 키 설정
-api_key = os.getenv("GOOGLE_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
+# API 키 설정은 call_ai_model 함수 내에서 동적으로 수행됨
+
+# 디버깅용: 마지막으로 사용된 API 키 정보 저장
+last_used_api_key_info = None
 
 
 async def call_ai_model(
@@ -56,6 +56,7 @@ async def call_ai_model(
     stream: bool = False,
     max_retries: int = 3,
     retry_delay: float = 1.0,
+    user_api_key: Optional[str] = None,
 ) -> Union[Dict[str, Any], str, AsyncGenerator[str, None]]:
     """
     Google Gemini API를 호출하고 응답을 파싱하는 중앙 유틸리티 함수.
@@ -69,6 +70,7 @@ async def call_ai_model(
         stream: 스트리밍 응답 여부.
         max_retries: 최대 재시도 횟수.
         retry_delay: 재시도 간격 (초).
+        user_api_key: 사용자 제공 API 키 (선택사항).
 
     Returns:
         스트리밍 모드: AsyncGenerator[str, None]
@@ -79,15 +81,77 @@ async def call_ai_model(
     """
     start_time = time.time()
 
+    # 사용할 API 키 결정 (사용자 키 우선, 없으면 서버 기본 키로 폴백)
+    default_api_key = os.getenv("GOOGLE_API_KEY")
+
+    # 사용자 키 검증 및 정리
+    if user_api_key and isinstance(user_api_key, str):
+        user_api_key = user_api_key.strip()
+
+        # 사용자 키의 기본적인 유효성 검증
+        if user_api_key and not user_api_key.startswith('AIza'):
+            logger.warning(f"사용자 제공 API 키 형식이 올바르지 않습니다: {user_api_key[:10]}...")
+            # 형식이 잘못된 키는 무시하고 서버 기본 키 사용
+            user_api_key = None
+
+        # 사용자 키의 길이 검증 (Google AI API 키는 일반적으로 39자 이상)
+        if user_api_key and len(user_api_key) < 39:
+            logger.warning(f"사용자 제공 API 키 길이가 너무 짧습니다: {len(user_api_key)}자")
+            # 길이가 잘못된 키는 무시하고 서버 기본 키 사용
+            user_api_key = None
+
+    # 사용할 API 키 결정
+    api_key_to_use = user_api_key or default_api_key
+
+    # 사용자 키 사용 여부 로깅
+    if user_api_key and api_key_to_use == user_api_key:
+        logger.info("사용자 제공 API 키를 사용합니다.")
+    elif default_api_key:
+        logger.info("서버 기본 API 키를 사용합니다.")
+    else:
+        logger.warning("사용 가능한 API 키가 없습니다.")
+
     # API 키 검증
-    if not api_key:
-        logger.error("GOOGLE_API_KEY가 설정되지 않았습니다.")
+    if not api_key_to_use:
+        logger.error("사용 가능한 AI API 키가 없습니다. 사용자 키와 서버 기본 키 모두 설정되지 않았습니다.")
         error_response = create_error_response(
             error_code=ErrorCodes.AI_API_KEY_MISSING,
-            message="AI API 키가 설정되지 않았습니다.",
-            user_message="AI 기능을 사용할 수 없습니다. 시스템 관리자에게 문의해주세요."
+            message="사용 가능한 AI API 키가 없습니다.",
+            user_message="AI 기능을 사용할 수 없습니다. API 키를 입력하거나 시스템 관리자에게 문의해주세요."
         )
         raise HTTPException(status_code=500, detail=error_response.model_dump())
+
+    # 결정된 API 키로 Gemini 설정
+    try:
+        genai.configure(api_key=api_key_to_use)
+
+        # 디버깅용: 마지막으로 사용된 API 키 정보 로깅
+        key_type = "사용자 키" if (user_api_key and api_key_to_use == user_api_key) else "서버 키"
+        masked_key = api_key_to_use[:10] + "..." + api_key_to_use[-4:] if len(api_key_to_use) > 14 else api_key_to_use
+
+        logger.info(f"🎯 [디버그] AI 호출 - 사용된 키: {key_type} | 키 미리보기: {masked_key} | 키 길이: {len(api_key_to_use)}자")
+        logger.info(f"API 키 설정 완료 - 키 길이: {len(api_key_to_use)}자")
+
+        # 전역 변수에 마지막 사용 키 정보 저장 (디버깅용)
+        global last_used_api_key_info
+        last_used_api_key_info = {
+            "key_type": key_type,
+            "masked_key": masked_key,
+            "full_length": len(api_key_to_use),
+            "timestamp": time.time(),
+            "model": model_name,
+            "has_user_key": bool(user_api_key),
+            "has_server_key": bool(default_api_key)
+        }
+
+    except Exception as e:
+        logger.error(f"API 키 설정 실패: {e}")
+        error_response = create_error_response(
+            error_code=ErrorCodes.AI_API_KEY_MISSING,
+            message="AI API 키 설정에 실패했습니다.",
+            user_message="API 키가 유효하지 않습니다. 키를 확인하고 다시 시도해주세요."
+        )
+        raise HTTPException(status_code=400, detail=error_response.model_dump())
 
     # 안전 설정 적용
     final_safety_settings = safety_settings or DEFAULT_SAFETY_SETTINGS
@@ -257,3 +321,26 @@ def _is_json_response(text: str) -> bool:
 
 # 비동기 함수를 위한 asyncio 임포트 (필요한 경우)
 import asyncio
+
+
+def get_last_used_api_key_info():
+    """
+    디버깅용: 마지막으로 사용된 API 키 정보를 반환합니다.
+    """
+    global last_used_api_key_info
+
+    if last_used_api_key_info is None:
+        return {
+            "message": "아직 AI 호출이 수행되지 않았습니다.",
+            "timestamp": None
+        }
+
+    # 시간 정보 가독성 있게 변환
+    import datetime
+    readable_time = datetime.datetime.fromtimestamp(last_used_api_key_info["timestamp"]).strftime('%Y-%m-%d %H:%M:%S')
+
+    return {
+        **last_used_api_key_info,
+        "readable_timestamp": readable_time,
+        "time_since": f"{time.time() - last_used_api_key_info['timestamp']:.1f}초 전"
+    }

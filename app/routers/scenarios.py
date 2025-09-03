@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import time
@@ -220,7 +220,13 @@ def update_scenario_details(scenario_id: str, scenario_data: ScenarioBase, proje
     return parse_scenario_fields(scenario)
 
 @router.post("/{scenario_id}/generate-draft", response_model=Scenario)
-async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDraftRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+async def generate_scenario_draft_with_ai(
+    scenario_id: str,
+    request: GenerateDraftRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
     scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
@@ -266,7 +272,8 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
             prompt=prompt,
             model_name=chosen_model,
             generation_config=generation_config,
-            response_format="json"
+            response_format="json",
+            user_api_key=user_api_key
         )
 
         if not ai_result.get("plot_points"):
@@ -299,7 +306,13 @@ async def generate_scenario_draft_with_ai(scenario_id: str, request: GenerateDra
         raise HTTPException(status_code=500, detail=f"AI 플롯 생성 중 서버 오류 발생: {e}")
 
 @router.put("/{scenario_id}/edit-plots-with-ai")
-async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+async def edit_all_plot_points_with_ai(
+    scenario_id: str,
+    request: AIEditPlotsRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
     scenario = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id, ScenarioModel.project_id == project.id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="시나리오를 찾을 수 없습니다.")
@@ -363,7 +376,8 @@ async def edit_all_plot_points_with_ai(scenario_id: str, request: AIEditPlotsReq
         prompt=prompt,
         model_name=chosen_model,
         generation_config=generation_config,
-        response_format="json"
+        response_format="json",
+        user_api_key=user_api_key
     )
 
     if "plot_points" not in ai_result or len(ai_result["plot_points"]) != plot_point_count:
@@ -454,7 +468,13 @@ def delete_plot_point(plot_point_id: str, project: ProjectModel = Depends(get_pr
     return {"message": "플롯 포인트가 성공적으로 삭제되었습니다."}
 
 @router.post("/plot_points/{plot_point_id}/generate-scene", response_model=PlotPoint)
-async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSceneRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+async def generate_scene_for_plot_point(
+    plot_point_id: str,
+    request: GenerateSceneRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
     plot_point = db.query(PlotPointModel).join(ScenarioModel).filter(
         PlotPointModel.id == plot_point_id,
         ScenarioModel.project_id == project.id
@@ -568,7 +588,8 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         scene_content = await call_ai_model(
             prompt=prompt,
             model_name=chosen_model,
-            response_format="text"
+            response_format="text",
+            user_api_key=user_api_key
         )
 
         plot_point.scene_draft = scene_content
@@ -582,7 +603,13 @@ async def generate_scene_for_plot_point(plot_point_id: str, request: GenerateSce
         raise HTTPException(status_code=500, detail=f"AI 장면 생성 중 오류 발생: {e}")
 
 @router.put("/plot_points/{plot_point_id}/edit-with-ai", response_model=PlotPoint)
-async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+async def edit_plot_point_with_ai(
+    plot_point_id: str,
+    request: AIEditPlotPointRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
     plot_point_to_edit = db.query(PlotPointModel).join(ScenarioModel).filter(
         PlotPointModel.id == plot_point_id,
         ScenarioModel.project_id == project.id
@@ -619,7 +646,8 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
             prompt=prompt,
             model_name=chosen_model,
             generation_config=generation_config,
-            response_format="json"
+            response_format="json",
+            user_api_key=user_api_key
         )
 
         plot_point_to_edit.title = ai_result.get("title", plot_point_to_edit.title)
@@ -637,7 +665,13 @@ async def edit_plot_point_with_ai(plot_point_id: str, request: AIEditPlotPointRe
 
 
 @router.put("/plot_points/{plot_point_id}/edit-scene", response_model=PlotPoint)
-async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, project: ProjectModel = Depends(get_project_if_accessible), db: Session = Depends(database.get_db)):
+async def edit_scene_with_ai(
+    plot_point_id: str,
+    request: EditSceneRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    project: ProjectModel = Depends(get_project_if_accessible),
+    db: Session = Depends(database.get_db)
+):
     plot_point = db.query(PlotPointModel).join(ScenarioModel).filter(
         PlotPointModel.id == plot_point_id,
         ScenarioModel.project_id == project.id
@@ -757,7 +791,8 @@ async def edit_scene_with_ai(plot_point_id: str, request: EditSceneRequest, proj
         scene_content = await call_ai_model(
             prompt=prompt,
             model_name=chosen_model,
-            response_format="text"
+            response_format="text",
+            user_api_key=user_api_key
         )
 
         plot_point.scene_draft = scene_content

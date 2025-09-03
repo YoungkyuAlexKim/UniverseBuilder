@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,7 @@ from ..database import Project as ProjectModel, Group as GroupModel, Card as Car
 from ..config import ai_models
 
 # --- AI 유틸리티 임포트 ---
-from ..utils.ai_utils import call_ai_model
+from ..utils.ai_utils import call_ai_model, get_last_used_api_key_info
 from google.generativeai.types import GenerationConfig
 
 # --- Pydantic 모델 ---
@@ -117,7 +117,10 @@ def parse_card_fields(card_obj):
 # --- API 엔드포인트 ---
 
 @router.post("/generate/worldview/new")
-async def generate_new_worldview(request: NewWorldviewRequest):
+async def generate_new_worldview(
+    request: NewWorldviewRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key")
+):
     chosen_model = request.model_name or ai_models.available[0]
     prompt = ai_prompts.worldview_new.format(keywords=request.keywords)
 
@@ -125,14 +128,18 @@ async def generate_new_worldview(request: NewWorldviewRequest):
     worldview_text = await call_ai_model(
         prompt=prompt,
         model_name=chosen_model,
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"worldview_text": worldview_text}
 
 
 @router.post("/generate/worldview/edit")
-async def edit_existing_worldview(request: EditWorldviewRequest):
+async def edit_existing_worldview(
+    request: EditWorldviewRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key")
+):
     chosen_model = request.model_name or ai_models.available[0]
     prompt = ai_prompts.worldview_edit.format(
         existing_content=request.existing_content,
@@ -143,14 +150,20 @@ async def edit_existing_worldview(request: EditWorldviewRequest):
     worldview_text = await call_ai_model(
         prompt=prompt,
         model_name=chosen_model,
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"worldview_text": worldview_text}
 
 
 @router.post("/projects/{project_id}/generate/character")
-async def generate_character(project_id: str, request: GenerateRequest, db: Session = Depends(database.get_db)):
+async def generate_character(
+    project_id: str,
+    request: GenerateRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
@@ -213,14 +226,18 @@ async def generate_character(project_id: str, request: GenerateRequest, db: Sess
         prompt=prompt,
         model_name=chosen_model,
         generation_config=generation_config,
-        response_format="json"
+        response_format="json",
+        user_api_key=user_api_key
     )
 
     return character_data
 
 # [신규] 스트리밍 응답을 위한 엔드포인트들
 @router.post("/generate/character/stream")
-async def generate_character_stream(request: GenerateRequest):
+async def generate_character_stream(
+    request: GenerateRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key")
+):
     """스트리밍 방식으로 캐릭터를 생성합니다."""
     chosen_model = request.model_name or ai_models.available[0]
 
@@ -240,7 +257,8 @@ async def generate_character_stream(request: GenerateRequest):
                 prompt=prompt,
                 model_name=chosen_model,
                 generation_config=generation_config,
-                stream=True
+                stream=True,
+                user_api_key=user_api_key
             ):
                 yield chunk
         except Exception:
@@ -302,7 +320,13 @@ def delete_card_from_project(project_id: str, group_id: str, card_id: str, db: S
 
 
 @router.put("/projects/{project_id}/cards/{card_id}/edit-with-ai")
-async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditRequest, db: Session = Depends(database.get_db)):
+async def edit_card_with_ai(
+    project_id: str,
+    card_id: str,
+    request: AIEditRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
@@ -400,7 +424,13 @@ async def edit_card_with_ai(project_id: str, card_id: str, request: AIEditReques
     return ai_result
 
 @router.put("/projects/{project_id}/worldview_cards/{card_id}/edit-with-ai")
-async def edit_worldview_card_with_ai(project_id: str, card_id: str, request: AIEditWorldviewRequest, db: Session = Depends(database.get_db)):
+async def edit_worldview_card_with_ai(
+    project_id: str,
+    card_id: str,
+    request: AIEditWorldviewRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     # 프로젝트 존재 확인
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
@@ -522,7 +552,13 @@ def update_card_order(project_id: str, group_id: str, request: UpdateCardOrderRe
     return {"message": "카드 순서가 성공적으로 업데이트되었습니다."}
 
 @router.post("/projects/{project_id}/cards/{card_id}/highlight-names")
-async def highlight_names_in_text(project_id: str, card_id: str, request: HighlightNamesRequest, db: Session = Depends(database.get_db)):
+async def highlight_names_in_text(
+    project_id: str,
+    card_id: str,
+    request: HighlightNamesRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     protagonist_card = db.query(CardModel).filter(CardModel.id == card_id).first()
     if not protagonist_card:
         raise HTTPException(status_code=404, detail="주인공 카드를 찾을 수 없습니다.")
@@ -555,14 +591,20 @@ async def highlight_names_in_text(project_id: str, card_id: str, request: Highli
     highlighted_text = await call_ai_model(
         prompt=prompt,
         model_name=ai_models.available[0],
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"highlighted_text": highlighted_text}
 
 
 @router.post("/projects/{project_id}/relationships/suggest")
-async def suggest_relationship(project_id: str, request: SuggestRelationshipRequest, db: Session = Depends(database.get_db)):
+async def suggest_relationship(
+    project_id: str,
+    request: SuggestRelationshipRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     char_a = db.query(CardModel).filter(CardModel.id == request.source_character_id).first()
     char_b = db.query(CardModel).filter(CardModel.id == request.target_character_id).first()
 
@@ -631,13 +673,18 @@ async def suggest_relationship(project_id: str, request: SuggestRelationshipRequ
         prompt=prompt,
         model_name=ai_models.available[0],
         generation_config=generation_config,
-        response_format="json"
+        response_format="json",
+        user_api_key=user_api_key
     )
 
     return suggestion
 
 @router.post("/generate/scenario-concept")
-async def refine_scenario_concept(request: RefineConceptRequest, db: Session = Depends(database.get_db)):
+async def refine_scenario_concept(
+    request: RefineConceptRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     worldview = db.query(WorldviewModel).filter(WorldviewModel.project_id == request.project_id).first()
     worldview_context = ""
     if worldview and worldview.content and worldview.content.strip():
@@ -679,14 +726,19 @@ async def refine_scenario_concept(request: RefineConceptRequest, db: Session = D
     refined_concept = await call_ai_model(
         prompt=prompt,
         model_name=chosen_model,
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"refined_concept": refined_concept}
 
 # [신규] 세계관 핵심 설정 다듬기 API 엔드포인트
 @router.post("/generate/worldview-rule")
-async def refine_worldview_rule(request: RefineWorldviewRuleRequest, db: Session = Depends(database.get_db)):
+async def refine_worldview_rule(
+    request: RefineWorldviewRuleRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     project = db.query(ProjectModel).filter(ProjectModel.id == request.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
@@ -733,14 +785,19 @@ async def refine_worldview_rule(request: RefineWorldviewRuleRequest, db: Session
     refined_rule = await call_ai_model(
         prompt=prompt,
         model_name=chosen_model,
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"refined_rule": refined_rule}
 
 # [신규] 시놉시스 구체화 API 엔드포인트
 @router.post("/generate/synopsis-enhance")
-async def enhance_synopsis_with_ai(request: EnhanceSynopsisRequest, db: Session = Depends(database.get_db)):
+async def enhance_synopsis_with_ai(
+    request: EnhanceSynopsisRequest,
+    user_api_key: Optional[str] = Header(None, alias="X-User-API-Key"),
+    db: Session = Depends(database.get_db)
+):
     project = db.query(ProjectModel).filter(ProjectModel.id == request.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
@@ -807,7 +864,18 @@ async def enhance_synopsis_with_ai(request: EnhanceSynopsisRequest, db: Session 
     enhanced_synopsis = await call_ai_model(
         prompt=prompt,
         model_name=chosen_model,
-        response_format="text"
+        response_format="text",
+        user_api_key=user_api_key
     )
 
     return {"enhanced_synopsis": enhanced_synopsis}
+
+
+# [디버깅용] 마지막으로 사용된 API 키 정보 조회
+@router.get("/debug/last-api-key")
+async def get_last_api_key_debug_info():
+    """
+    디버깅용 엔드포인트: 마지막으로 사용된 API 키 정보를 반환합니다.
+    개발 단계에서만 사용하세요.
+    """
+    return get_last_used_api_key_info()

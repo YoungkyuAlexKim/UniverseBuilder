@@ -35,6 +35,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 스타일 가이드 선택 요소 초기화
     initializeStyleGuides();
+
+    // 사용자 API 키 관리 초기화
+    initializeUserApiKey();
+
+    // 디버깅 함수들을 전역 객체에 추가 (개발자 콘솔에서 쉽게 접근 가능)
+    window.debugApiKey = {
+        lastUsed: debugLastApiKeyInfo,
+        currentUser: debugCurrentUserApiKey,
+        validateFormat: isValidApiKeyFormat
+    };
+
+    // 개발자용 힌트 출력
+    console.log('🔧 [디버그] API 키 디버깅 함수들:');
+    console.log('  - debugApiKey.lastUsed(): 마지막으로 사용된 API 키 정보');
+    console.log('  - debugApiKey.currentUser(): 현재 저장된 사용자 키 상태');
+    console.log('  - debugApiKey.validateFormat(key): 키 형식 검증');
 });
 
 /**
@@ -335,6 +351,123 @@ function updateStyleGuideInfo(styleGuideId, infoElementId) {
             console.error('스타일 가이드 정보 로드 실패:', error);
             infoElement.style.display = 'none';
         });
+}
+
+/**
+ * Google AI API 키 형식을 검증하는 함수
+ */
+function isValidApiKeyFormat(apiKey) {
+    // Google AI API 키는 일반적으로 "AIza"로 시작하며, 길이가 적절해야 함
+    const googleApiKeyPattern = /^AIza[0-9A-Za-z_-]{35,}$/;
+    return googleApiKeyPattern.test(apiKey);
+}
+
+/**
+ * 디버깅용: 마지막으로 사용된 API 키 정보를 확인하는 함수
+ */
+async function debugLastApiKeyInfo() {
+    try {
+        const response = await fetch('/api/v1/generate/debug/last-api-key');
+        const data = await response.json();
+
+        console.group('🎯 [디버그] 마지막 API 키 사용 정보');
+        console.log('📊 상태:', data.message || '정보 있음');
+        console.log('🔑 키 타입:', data.key_type || 'N/A');
+        console.log('👁️ 키 미리보기:', data.masked_key || 'N/A');
+        console.log('📏 키 길이:', data.full_length || 'N/A', '자');
+        console.log('🤖 모델:', data.model || 'N/A');
+        console.log('👤 사용자 키 있음:', data.has_user_key ? '✅' : '❌');
+        console.log('🖥️ 서버 키 있음:', data.has_server_key ? '✅' : '❌');
+        console.log('⏰ 마지막 사용:', data.readable_timestamp || 'N/A');
+        console.log('⏳ 경과 시간:', data.time_since || 'N/A');
+        console.groupEnd();
+
+        return data;
+    } catch (error) {
+        console.error('❌ 디버그 정보 조회 실패:', error);
+        return null;
+    }
+}
+
+/**
+ * 디버깅용: 현재 저장된 사용자 API 키 상태 확인
+ */
+function debugCurrentUserApiKey() {
+    const savedKey = localStorage.getItem('userApiKey');
+    const isValidFormat = savedKey ? isValidApiKeyFormat(savedKey) : false;
+
+    console.group('🔍 [디버그] 현재 사용자 API 키 상태');
+    console.log('💾 저장된 키:', savedKey ? `${savedKey.substring(0, 10)}...${savedKey.substring(savedKey.length - 4)}` : '없음');
+    console.log('✅ 형식 유효성:', isValidFormat ? '유효' : '무효');
+    console.log('📏 키 길이:', savedKey ? savedKey.length + '자' : 'N/A');
+    console.groupEnd();
+
+    return { savedKey, isValidFormat };
+}
+
+/**
+ * 사용자 API 키 관리를 초기화합니다.
+ */
+function initializeUserApiKey() {
+    const apiKeyInput = document.getElementById('user-api-key-input');
+    if (!apiKeyInput) {
+        console.warn('사용자 API 키 입력 필드를 찾을 수 없습니다.');
+        return;
+    }
+
+    // 페이지 로드 시 localStorage에서 API 키 불러오기
+    const savedApiKey = localStorage.getItem('userApiKey');
+    if (savedApiKey) {
+        apiKeyInput.value = savedApiKey;
+        // 저장된 키의 유효성 확인 및 UI 업데이트
+        if (isValidApiKeyFormat(savedApiKey)) {
+            apiKeyInput.classList.add('valid');
+        } else {
+            apiKeyInput.classList.add('invalid');
+            console.warn('저장된 API 키 형식이 올바르지 않습니다.');
+        }
+    }
+
+    // 입력 이벤트 리스너 추가 (디바운스 적용)
+    let debounceTimer;
+    apiKeyInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const apiKey = e.target.value.trim();
+
+            // 기본적인 유효성 검증 및 UI 업데이트
+            if (apiKey) {
+                const isValid = isValidApiKeyFormat(apiKey);
+                if (isValid) {
+                    apiKeyInput.classList.remove('invalid');
+                    apiKeyInput.classList.add('valid');
+                    // 유효한 키 저장
+                    localStorage.setItem('userApiKey', apiKey);
+                    console.log('사용자 API 키가 저장되었습니다.');
+                } else {
+                    apiKeyInput.classList.remove('valid');
+                    apiKeyInput.classList.add('invalid');
+                    console.warn('API 키 형식이 올바르지 않습니다. Google AI API 키는 AIza로 시작해야 합니다.');
+                    // 유효하지 않은 키는 저장하지 않음
+                    return;
+                }
+            } else {
+                // 빈 값일 경우 상태 초기화 및 저장된 키 삭제
+                apiKeyInput.classList.remove('valid', 'invalid');
+                localStorage.removeItem('userApiKey');
+                console.log('사용자 API 키가 삭제되었습니다.');
+            }
+        }, 500); // 500ms 디바운스
+    });
+
+    // 입력 필드에 포커스/블러 이벤트로 사용자 피드백 제공
+    apiKeyInput.addEventListener('focus', () => {
+        apiKeyInput.placeholder = 'Google AI API 키를 입력하세요 (예: AIza...)';
+    });
+
+    apiKeyInput.addEventListener('blur', () => {
+        apiKeyInput.placeholder = 'Google AI API 키를 입력하세요...';
+    });
 }
 
 // 리팩토링 완료: 모든 비즈니스 로직은 App.js와 StateManager로 이동됨

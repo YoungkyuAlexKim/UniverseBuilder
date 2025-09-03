@@ -34,10 +34,26 @@ async function handleResponse(response) {
 // API 요청 시 인증 헤더를 생성하는 헬퍼 함수
 export function getAuthHeaders(projectId) {
     const headers = { 'Content-Type': 'application/json' };
+
+    // 프로젝트 비밀번호 헤더 추가
     const password = sessionStorage.getItem(`project-password-${projectId}`);
     if (password) {
         headers['X-Project-Password'] = password;
     }
+
+    // 사용자 API 키 헤더 추가 (localStorage에서 가져옴)
+    const userApiKey = localStorage.getItem('userApiKey');
+    if (userApiKey && userApiKey.trim()) {
+        headers['X-User-API-Key'] = userApiKey.trim();
+
+        // 디버깅용: 사용자 키 사용 시 콘솔에 로깅
+        const maskedKey = userApiKey.length > 14 ? userApiKey.substring(0, 10) + '...' + userApiKey.substring(userApiKey.length - 4) : userApiKey;
+        console.log(`🔑 [디버그] API 요청 - 사용자 키 사용: ${maskedKey} (${userApiKey.length}자)`);
+    } else {
+        // 서버 키 폴백 시 로깅
+        console.log(`🖥️ [디버그] API 요청 - 서버 키 사용 (사용자 키 없음)`);
+    }
+
     return headers;
 }
 
