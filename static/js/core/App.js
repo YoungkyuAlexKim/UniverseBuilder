@@ -931,14 +931,39 @@ export class App {
      * @param {string} projectId - 프로젝트 ID
      * @param {string} projectName - 프로젝트 이름
      */
-    showProjectDeleteConfirmModal(projectId, projectName) {
+    async showProjectDeleteConfirmModal(projectId, projectName) {
         // 기존 모달이 있다면 제거
         const existingModal = document.getElementById('project-delete-confirm-modal');
         if (existingModal) {
             existingModal.remove();
         }
 
-        // 모달 HTML 생성 (비밀번호 입력 필드 추가)
+        let hasPassword = false;
+        try {
+            const status = await api.checkPasswordStatus(projectId);
+            hasPassword = status.requires_password;
+        } catch (error) {
+            console.error('비밀번호 상태 확인 실패:', error);
+            ui.showToast('프로젝트 상태를 확인하는 데 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+            return;
+        }
+
+        const passwordInputHTML = hasPassword ? `
+            <label for="delete-password-input">
+                프로젝트 비밀번호 입력
+                <input type="password" id="delete-password-input" name="password" placeholder="프로젝트 비밀번호를 입력하세요" autocomplete="current-password">
+            </label>
+        ` : `
+            <input type="hidden" id="delete-password-input" value="">
+            <p style="font-size: 0.9rem; color: var(--pico-muted-color);">
+                이 프로젝트에는 비밀번호가 설정되어 있지 않습니다.
+            </p>
+        `;
+
+        const instructionText = hasPassword
+            ? '삭제를 진행하려면 아래 정보를 모두 입력해주세요:'
+            : '삭제를 진행하려면 아래에 프로젝트 이름을 정확히 입력해주세요.';
+
         const modalHTML = `
             <div id="project-delete-confirm-modal" class="modal-container active">
                 <article style="max-width: 450px;">
@@ -954,24 +979,17 @@ export class App {
                                 이 작업은 되돌릴 수 없습니다.
                             </p>
                         </div>
-
-                        <p style="margin-bottom: 1rem;">삭제를 진행하려면 아래 정보를 모두 입력해주세요:</p>
-
+                        <p style="margin-bottom: 1rem;">${instructionText}</p>
                         <div style="display: grid; gap: 1rem;">
                             <label for="delete-confirm-input">
                                 프로젝트 이름 입력
                                 <input type="text" id="delete-confirm-input" placeholder="프로젝트 이름을 입력하세요" autocomplete="off">
                             </label>
-
-                            <label for="delete-password-input">
-                                프로젝트 비밀번호 입력
-                                <input type="password" id="delete-password-input" name="password" placeholder="프로젝트 비밀번호를 입력하세요" autocomplete="current-password">
-                            </label>
+                            ${passwordInputHTML}
                         </div>
-
                         <div style="margin-top: 1rem; padding: 0.75rem; background: var(--pico-secondary-background); border-radius: 4px; font-size: 0.9rem; color: var(--pico-muted-color);">
                             <strong>💡 안전을 위해:</strong><br>
-                            • 프로젝트 이름과 비밀번호를 모두 입력해야 삭제가 진행됩니다
+                            • 프로젝트 이름${hasPassword ? '과 비밀번호를 모두' : '을'} 입력해야 삭제가 진행됩니다
                         </div>
                     </div>
                     <footer>
@@ -982,7 +1000,6 @@ export class App {
             </div>
         `;
 
-        // 모달을 body에 추가
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
         const modal = document.getElementById('project-delete-confirm-modal');
@@ -991,27 +1008,15 @@ export class App {
         const confirmBtn = document.getElementById('confirm-delete-btn');
         const backdrop = document.getElementById('modal-backdrop');
 
-        // 모달 닫기 함수
         const closeModal = () => {
             modal.classList.remove('active');
             if (backdrop) backdrop.classList.remove('active');
             setTimeout(() => modal.remove(), 300);
         };
 
-        // 이벤트 리스너 설정
-        modal.querySelectorAll('.close, .close-btn').forEach(btn => {
-            btn.addEventListener('click', closeModal);
-        });
-
-        // 모달 외부 클릭 시 닫기
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-
-        // ESC 키로 닫기
-        const escHandler = (e) => {
+        modal.querySelectorAll('.close, .close-btn').forEach(btn => btn.addEventListener('click', closeModal));
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+        const escHandler = e => {
             if (e.key === 'Escape') {
                 closeModal();
                 document.removeEventListener('keydown', escHandler);
@@ -1019,39 +1024,29 @@ export class App {
         };
         document.addEventListener('keydown', escHandler);
 
-                // 삭제 확인 버튼 이벤트
+        // --- 수정 시작: 삭제 확인 버튼 로직 완성 ---
         confirmBtn.addEventListener('click', async () => {
             const inputValue = confirmInput.value.trim();
             const passwordValue = passwordInput.value.trim();
 
-            // 프로젝트 이름 검증
-            if (!inputValue) {
-                alert('프로젝트 이름을 입력해주세요.');
-                confirmInput.focus();
-                return;
-            }
-
             if (inputValue !== projectName) {
                 alert('프로젝트 이름이 일치하지 않습니다.');
                 confirmInput.focus();
-                confirmInput.select();
-                return;
-            }
-
-            // 비밀번호 검증
-            if (!passwordValue) {
-                alert('프로젝트 비밀번호를 입력해주세요.');
-                passwordInput.focus();
                 return;
             }
 
             try {
-                // 비밀번호 검증 먼저 수행
-                console.log('프로젝트 삭제 전 비밀번호 검증 시작');
-                await api.verifyPassword(projectId, passwordValue);
-                console.log('프로젝트 삭제 전 비밀번호 검증 성공');
+                // 비밀번호가 설정된 경우에만 비밀번호 검증
+                if (hasPassword) {
+                    if (!passwordValue) {
+                        alert('프로젝트 비밀번호를 입력해주세요.');
+                        passwordInput.focus();
+                        return;
+                    }
+                    await api.verifyPassword(projectId, passwordValue);
+                }
 
-                // 비밀번호 검증 성공 후 삭제 진행
+                // 모든 검증 통과 후 삭제 컨트롤러 호출
                 await this.call('project', 'handleDeleteProject', {
                     currentTarget: { dataset: { projectId, projectName } }
                 });
@@ -1060,43 +1055,18 @@ export class App {
 
             } catch (error) {
                 console.error('프로젝트 삭제 실패:', error);
-
-                // 구체적인 에러 메시지 처리
                 let errorMessage = '프로젝트 삭제에 실패했습니다.';
-
-                if (error.message) {
-                    if (error.message.includes('비밀번호') || error.message.includes('password')) {
-                        errorMessage = '비밀번호가 올바르지 않습니다.';
-                        passwordInput.focus();
-                        passwordInput.select();
-                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
-                        errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
-                    } else if (error.message.includes('404')) {
-                        errorMessage = '프로젝트를 찾을 수 없습니다.';
-            } else {
-                        errorMessage = `오류: ${error.message}`;
-                    }
+                if (error.message && error.message.includes('비밀번호')) {
+                    errorMessage = '비밀번호가 올바르지 않습니다.';
+                    if (passwordInput) passwordInput.focus();
                 }
-
                 alert(errorMessage);
             }
         });
+        // --- 수정 끝 ---
 
-        // 입력 시 유효성 메시지 제거
-        confirmInput.addEventListener('input', () => {
-            removeValidationMessage(confirmInput);
-        });
+        setTimeout(() => { confirmInput.focus(); }, 100);
 
-        passwordInput.addEventListener('input', () => {
-            removeValidationMessage(passwordInput);
-        });
-
-        // 모달 표시 후 입력 필드에 포커스
-        setTimeout(() => {
-            confirmInput.focus();
-        }, 100);
-
-        // Lucide 아이콘 생성
         if (window.lucide) {
             window.lucide.createIcons();
         }
