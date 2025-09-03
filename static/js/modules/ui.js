@@ -45,8 +45,7 @@ export function renderProjectList(projects) {
             li.innerHTML = `
                 <span class="project-name-span" data-id="${project.id}" title="${project.name}">${project.name}</span>
                 <div>
-                    <button class="secondary outline update-project-btn icon-only" data-project-id="${project.id}" data-current-name="${project.name}" title="이름 수정"><i data-lucide="pencil"></i></button>
-                    <button class="secondary outline delete-project-btn icon-only" data-project-id="${project.id}" data-project-name="${project.name}" title="프로젝트 삭제"><i data-lucide="trash-2"></i></button>
+                    <button class="secondary outline settings-project-btn icon-only" data-project-id="${project.id}" data-project-name="${project.name}" data-created-at="${project.created_at || ''}" title="프로젝트 설정"><i data-lucide="settings"></i></button>
                 </div>
             `;
             projectList.appendChild(li);

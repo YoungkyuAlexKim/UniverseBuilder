@@ -113,6 +113,19 @@ export class ProjectController {
         try {
             // newName이 제공되면 바로 업데이트 진행
             if (newName && newName.trim() && newName.trim() !== currentName) {
+                // 프로젝트 비밀번호 상태 확인
+                const passwordStatus = await api.checkPasswordStatus(projectId);
+                const storedPassword = sessionStorage.getItem(`project-password-${projectId}`);
+
+                if (passwordStatus.requires_password && !storedPassword) {
+                    // 비밀번호가 필요한데 세션에 없으면 입력 요청
+                    const password = await this.showPasswordInputForUpdate(projectId);
+                    if (!password) {
+                        // 사용자가 취소했으면 중단
+                        return;
+                    }
+                }
+
                 await this.stateManager.updateProject(projectId, newName.trim());
 
                 if (window.location.hostname === 'localhost') {
@@ -133,6 +146,123 @@ export class ProjectController {
     }
 
     /**
+     * 프로젝트 이름 변경을 위한 비밀번호 입력 모달을 표시합니다.
+     * @param {number} projectId - 프로젝트 ID
+     * @returns {Promise<string|null>} 비밀번호 또는 null (취소 시)
+     */
+    showPasswordInputForUpdate(projectId) {
+        return new Promise((resolve) => {
+            // 기존 모달이 있다면 제거
+            const existingModal = document.getElementById('password-input-for-update-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // 모달 HTML 생성
+            const modalHTML = `
+                <div id="password-input-for-update-modal" class="modal-container active">
+                    <article style="max-width: 400px;">
+                        <header>
+                            <h3>🔒 프로젝트 이름 변경을 위해 비밀번호를 입력해주세요</h3>
+                            <button class="close" aria-label="닫기">×</button>
+                        </header>
+                        <form id="password-input-for-update-form">
+                            <p style="margin-bottom: 1.5rem; color: var(--text-muted);">
+                                프로젝트 이름을 변경하려면 비밀번호를 입력해주세요.
+                            </p>
+                            <label for="update-password-input">
+                                비밀번호
+                                <input type="password" id="update-password-input" name="password" required
+                                       placeholder="비밀번호를 입력하세요" autocomplete="current-password"
+                                       style="width: 100%;">
+                            </label>
+                            <footer style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-primary);">
+                                <button type="button" class="secondary close-btn">취소</button>
+                                <button type="submit" class="contrast">확인</button>
+                            </footer>
+                        </form>
+                    </article>
+                </div>
+            `;
+
+            // 모달을 body에 추가
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            const modal = document.getElementById('password-input-for-update-modal');
+            const form = document.getElementById('password-input-for-update-form');
+            const passwordInput = document.getElementById('update-password-input');
+
+            // 모달 닫기 함수
+            const closeModal = (result = null) => {
+                modal.classList.remove('active');
+                setTimeout(() => {
+                    modal.remove();
+                    resolve(result);
+                }, 300);
+            };
+
+            // 이벤트 리스너 설정
+            modal.querySelectorAll('.close, .close-btn').forEach(btn => {
+                btn.addEventListener('click', () => closeModal(null));
+            });
+
+            // 모달 외부 클릭 시 닫기
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal(null);
+                }
+            });
+
+            // ESC 키로 닫기
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    closeModal(null);
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+
+            // 폼 제출 처리
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const password = passwordInput.value.trim();
+
+                if (!password) {
+                    showFieldValidation(passwordInput, '비밀번호를 입력해주세요.', false);
+                    passwordInput.focus();
+                    return;
+                }
+
+                try {
+                    // 비밀번호 검증
+                    await api.verifyPassword(projectId, password);
+
+                    // 성공 시 세션에 저장
+                    sessionStorage.setItem(`project-password-${projectId}`, password);
+
+                    closeModal(password);
+
+                } catch (error) {
+                    showFieldValidation(passwordInput, '비밀번호가 올바르지 않습니다.', false);
+                    passwordInput.focus();
+                    passwordInput.select();
+                }
+            });
+
+            // 입력 시 유효성 메시지 제거
+            passwordInput.addEventListener('input', () => {
+                removeValidationMessage(passwordInput);
+            });
+
+            // 모달 표시 후 입력 필드에 포커스
+            setTimeout(() => {
+                passwordInput.focus();
+            }, 100);
+        });
+    }
+
+    /**
      * 프로젝트를 삭제합니다.
      */
     async handleDeleteProject(eventData) {
@@ -141,6 +271,19 @@ export class ProjectController {
         try {
             if (window.location.hostname === 'localhost') {
                 console.log('🗑️ ProjectController: Deleting project:', projectId, projectName);
+            }
+
+            // 프로젝트 비밀번호 상태 확인
+            const passwordStatus = await api.checkPasswordStatus(projectId);
+            const storedPassword = sessionStorage.getItem(`project-password-${projectId}`);
+
+            if (passwordStatus.requires_password && !storedPassword) {
+                // 비밀번호가 필요한데 세션에 없으면 입력 요청
+                const password = await this.showPasswordInputForDelete(projectId);
+                if (!password) {
+                    // 사용자가 취소했으면 중단
+                    return;
+                }
             }
 
             await this.stateManager.deleteProject(projectId);
@@ -165,6 +308,123 @@ export class ProjectController {
 
             throw error; // 상위에서 에러 처리할 수 있도록 재throw
         }
+    }
+
+    /**
+     * 프로젝트 삭제를 위한 비밀번호 입력 모달을 표시합니다.
+     * @param {number} projectId - 프로젝트 ID
+     * @returns {Promise<string|null>} 비밀번호 또는 null (취소 시)
+     */
+    showPasswordInputForDelete(projectId) {
+        return new Promise((resolve) => {
+            // 기존 모달이 있다면 제거
+            const existingModal = document.getElementById('password-input-for-delete-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // 모달 HTML 생성
+            const modalHTML = `
+                <div id="password-input-for-delete-modal" class="modal-container active">
+                    <article style="max-width: 400px;">
+                        <header>
+                            <h3>🔒 프로젝트 삭제를 위해 비밀번호를 입력해주세요</h3>
+                            <button class="close" aria-label="닫기">×</button>
+                        </header>
+                        <form id="password-input-for-delete-form">
+                            <p style="margin-bottom: 1.5rem; color: var(--text-muted);">
+                                프로젝트를 삭제하려면 비밀번호를 입력해주세요.
+                            </p>
+                            <label for="delete-password-input">
+                                비밀번호
+                                <input type="password" id="delete-password-input" name="password" required
+                                       placeholder="비밀번호를 입력하세요" autocomplete="current-password"
+                                       style="width: 100%;">
+                            </label>
+                            <footer style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-primary);">
+                                <button type="button" class="secondary close-btn">취소</button>
+                                <button type="submit" class="contrast">확인</button>
+                            </footer>
+                        </form>
+                    </article>
+                </div>
+            `;
+
+            // 모달을 body에 추가
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            const modal = document.getElementById('password-input-for-delete-modal');
+            const form = document.getElementById('password-input-for-delete-form');
+            const passwordInput = document.getElementById('delete-password-input');
+
+            // 모달 닫기 함수
+            const closeModal = (result = null) => {
+                modal.classList.remove('active');
+                setTimeout(() => {
+                    modal.remove();
+                    resolve(result);
+                }, 300);
+            };
+
+            // 이벤트 리스너 설정
+            modal.querySelectorAll('.close, .close-btn').forEach(btn => {
+                btn.addEventListener('click', () => closeModal(null));
+            });
+
+            // 모달 외부 클릭 시 닫기
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal(null);
+                }
+            });
+
+            // ESC 키로 닫기
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    closeModal(null);
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+
+            // 폼 제출 처리
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const password = passwordInput.value.trim();
+
+                if (!password) {
+                    showFieldValidation(passwordInput, '비밀번호를 입력해주세요.', false);
+                    passwordInput.focus();
+                    return;
+                }
+
+                try {
+                    // 비밀번호 검증
+                    await api.verifyPassword(projectId, password);
+
+                    // 성공 시 세션에 저장
+                    sessionStorage.setItem(`project-password-${projectId}`, password);
+
+                    closeModal(password);
+
+                } catch (error) {
+                    showFieldValidation(passwordInput, '비밀번호가 올바르지 않습니다.', false);
+                    passwordInput.focus();
+                    passwordInput.select();
+                }
+            });
+
+            // 입력 시 유효성 메시지 제거
+            passwordInput.addEventListener('input', () => {
+                removeValidationMessage(passwordInput);
+            });
+
+            // 모달 표시 후 입력 필드에 포커스
+            setTimeout(() => {
+                passwordInput.focus();
+            }, 100);
+        });
     }
 
     /**

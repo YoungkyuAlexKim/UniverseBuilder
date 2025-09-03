@@ -3,6 +3,7 @@ import { EventListenerManager } from './EventListenerManager.js';
 import * as ui from '../modules/ui.js';
 import * as modals from '../modules/modals.js';
 import * as panels from '../modules/panels.js';
+import * as api from '../modules/api.js';
 
 // 개별 패널 모듈들을 import
 import { showCharacterGeneratorUI } from '../modules/panels/character-generator.js';
@@ -165,32 +166,20 @@ export class App {
             }
         });
 
-        // 프로젝트 수정 버튼 이벤트 (mousedown + click)
-        const updateButtons = document.querySelectorAll('.update-project-btn:not([data-event-registered])');
-        updateButtons.forEach(btn => {
-            btn.addEventListener('mousedown', this.handleProjectUpdateMouseDown.bind(this), { passive: false });
-            btn.addEventListener('click', this.handleProjectUpdateClick.bind(this), { passive: false });
+        // 프로젝트 설정 버튼 이벤트 (mousedown + click)
+        const settingsButtons = document.querySelectorAll('.settings-project-btn:not([data-event-registered])');
+        settingsButtons.forEach(btn => {
+            btn.addEventListener('mousedown', this.handleProjectSettingsMouseDown.bind(this), { passive: false });
+            btn.addEventListener('click', this.handleProjectSettingsClick.bind(this), { passive: false });
             btn.setAttribute('data-event-registered', 'true');
 
             if (window.location.hostname === 'localhost') {
-                console.log('✏️ Registered unified listeners for update button:', btn.dataset.projectId);
-            }
-        });
-
-        // 프로젝트 삭제 버튼 이벤트 (mousedown + click)
-        const deleteButtons = document.querySelectorAll('.delete-project-btn:not([data-event-registered])');
-        deleteButtons.forEach(btn => {
-            btn.addEventListener('mousedown', this.handleProjectDeleteMouseDown.bind(this), { passive: false });
-            btn.addEventListener('click', this.handleProjectDeleteClick.bind(this), { passive: false });
-            btn.setAttribute('data-event-registered', 'true');
-
-            if (window.location.hostname === 'localhost') {
-                console.log('🗑️ Registered unified listeners for delete button:', btn.dataset.projectId);
+                console.log('⚙️ Registered unified listeners for settings button:', btn.dataset.projectId);
             }
         });
 
             if (window.location.hostname === 'localhost') {
-                console.log(`🎯 Total event listeners registered: ${projectNameSpans.length + updateButtons.length + deleteButtons.length}`);
+                console.log(`🎯 Total event listeners registered: ${projectNameSpans.length + settingsButtons.length}`);
             }
         } finally {
             this.eventProcessingFlags.settingUpListeners = false;
@@ -209,17 +198,10 @@ export class App {
             span.removeAttribute('data-event-registered');
         });
 
-        const updateButtons = document.querySelectorAll('.update-project-btn[data-event-registered]');
-        updateButtons.forEach(btn => {
-            btn.removeEventListener('mousedown', this.handleProjectUpdateMouseDown);
-            btn.removeEventListener('click', this.handleProjectUpdateClick);
-            btn.removeAttribute('data-event-registered');
-        });
-
-        const deleteButtons = document.querySelectorAll('.delete-project-btn[data-event-registered]');
-        deleteButtons.forEach(btn => {
-            btn.removeEventListener('mousedown', this.handleProjectDeleteMouseDown);
-            btn.removeEventListener('click', this.handleProjectDeleteClick);
+        const settingsButtons = document.querySelectorAll('.settings-project-btn[data-event-registered]');
+        settingsButtons.forEach(btn => {
+            btn.removeEventListener('mousedown', this.handleProjectSettingsMouseDown);
+            btn.removeEventListener('click', this.handleProjectSettingsClick);
             btn.removeAttribute('data-event-registered');
         });
 
@@ -317,75 +299,49 @@ export class App {
     }
 
     /**
-     * 프로젝트 수정 버튼 통합 핸들러 (mousedown + click)
+     * 프로젝트 설정 버튼 통합 핸들러 (mousedown + click)
      */
-    handleProjectUpdateMouseDown(e) {
+    handleProjectSettingsMouseDown(e) {
         e.stopPropagation();
         e.preventDefault();
 
         const target = e.currentTarget;
 
         if (window.location.hostname === 'localhost') {
-            console.log('👆 Update button mousedown - starting update');
+            console.log('👆 Settings button mousedown - opening settings modal');
         }
 
-        // 이미 처리 중이면 무시
-        if (this.eventProcessingFlags.projectUpdate) {
-            if (window.location.hostname === 'localhost') {
-                console.log('⚠️ Project update already in progress, ignoring');
-            }
-            return;
-        }
-
-        this.handleProjectUpdate(target);
+        this.handleProjectSettings(target);
     }
 
     /**
-     * 프로젝트 수정 버튼 통합 핸들러 (mousedown + click)
+     * 프로젝트 설정 버튼 통합 핸들러 (mousedown + click)
      */
-    handleProjectUpdateClick(e) {
+    handleProjectSettingsClick(e) {
         e.stopPropagation();
         e.preventDefault();
 
         const target = e.currentTarget;
 
         if (window.location.hostname === 'localhost') {
-            console.log('✏️ Update button click - starting update');
+            console.log('⚙️ Settings button click - opening settings modal');
         }
 
-        // 이미 처리 중이면 무시
-        if (this.eventProcessingFlags.projectUpdate) {
-            if (window.location.hostname === 'localhost') {
-                console.log('⚠️ Project update already in progress, ignoring');
-            }
-            return;
-        }
-
-        this.handleProjectUpdate(target);
+        this.handleProjectSettings(target);
     }
 
     /**
-     * 프로젝트 수정 처리 (공통 로직) - 커스텀 모달 사용
+     * 프로젝트 설정 처리 (공통 로직) - 설정 모달 표시
      */
-    async handleProjectUpdate(target) {
+    async handleProjectSettings(target) {
         const projectId = target.dataset.projectId;
-        const currentName = target.dataset.currentName;
+        const projectName = target.dataset.projectName;
+        const createdAt = target.dataset.createdAt;
 
-        if (!projectId || !currentName) {
-            console.error('Missing project data for update:', { projectId, currentName });
+        if (!projectId || !projectName) {
+            console.error('Missing project data for settings:', { projectId, projectName });
             return;
         }
-
-        // 이미 처리 중이면 즉시 리턴 (더 강력한 보호)
-        if (this.eventProcessingFlags.projectUpdate) {
-            if (window.location.hostname === 'localhost') {
-                console.log('⚠️ Project update already in progress, returning early');
-            }
-            return;
-        }
-
-        // 플래그를 즉시 설정하여 다른 이벤트 차단
-        this.eventProcessingFlags.projectUpdate = true;
 
         try {
             // 즉각적인 시각적 피드백
@@ -395,35 +351,15 @@ export class App {
             target.style.pointerEvents = 'none';
 
             if (window.location.hostname === 'localhost') {
-                console.log('🔄 Starting project update for:', currentName);
+                console.log('🔄 Opening settings modal for:', projectName);
             }
 
-            // 커스텀 모달로 사용자 입력 받기
-            const newName = await this.showCustomNameModal(currentName);
-
-            if (newName && newName.trim() && newName.trim() !== currentName) {
-                if (window.location.hostname === 'localhost') {
-                    console.log('✅ User provided new name:', newName.trim());
-                }
-
-                await this.call('project', 'handleUpdateProject', {
-                    currentTarget: { dataset: { projectId, currentName } },
-                    newName: newName.trim()
-                });
-
-                if (window.location.hostname === 'localhost') {
-                    console.log('✅ Project update completed successfully');
-                }
-            } else {
-                if (window.location.hostname === 'localhost') {
-                    console.log('❌ User cancelled or provided same name');
-                }
-            }
+            // 프로젝트 설정 모달 표시
+            this.showProjectSettingsModal(projectId, projectName, createdAt);
 
         } catch (error) {
-            console.error('Project update failed:', error);
+            console.error('Project settings failed:', error);
         } finally {
-            this.eventProcessingFlags.projectUpdate = false;
             // 시각적 피드백 복원
             target.style.transform = '';
             target.style.backgroundColor = '';
@@ -542,116 +478,564 @@ export class App {
     }
 
     /**
-     * 프로젝트 삭제 버튼 통합 핸들러 (mousedown + click)
+     * 프로젝트 설정 모달을 표시합니다.
+     * @param {string} projectId - 프로젝트 ID
+     * @param {string} projectName - 프로젝트 이름
+     * @param {string} createdAt - 생성일 (선택사항)
      */
-    handleProjectDeleteMouseDown(e) {
-        e.stopPropagation();
-        e.preventDefault();
-
-        const target = e.currentTarget;
-
-        if (window.location.hostname === 'localhost') {
-            console.log('👆 Delete button mousedown - starting delete process');
+    showProjectSettingsModal(projectId, projectName, createdAt = '') {
+        // 기존 모달이 있다면 제거
+        const existingModal = document.getElementById('project-settings-modal');
+        if (existingModal) {
+            existingModal.remove();
         }
 
-        // 이미 처리 중이면 무시
-        if (this.eventProcessingFlags.projectDelete) {
-            if (window.location.hostname === 'localhost') {
-                console.log('⚠️ Project delete already in progress, ignoring');
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div id="project-settings-modal" class="modal-container active">
+                <article style="max-width: 500px;">
+                    <header>
+                        <a href="#close" aria-label="Close" class="close"></a>
+                        <h3><i data-lucide="settings"></i>프로젝트 설정</h3>
+                    </header>
+                    <div class="project-settings-content">
+                        <div class="project-info-section">
+                            <h4>프로젝트 정보</h4>
+                            <div class="project-info-display">
+                                <p><strong>이름:</strong> <span id="settings-project-name">${projectName}</span></p>
+                                <p><strong>생성일:</strong> <span id="settings-project-created">${createdAt ? new Date(createdAt).toLocaleDateString('ko-KR') : '정보 없음'}</span></p>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="settings-actions">
+                            <button id="settings-rename-btn" class="secondary outline full-width" data-project-id="${projectId}" data-current-name="${projectName}">
+                                <i data-lucide="edit-3"></i>
+                                프로젝트 이름 변경
+                            </button>
+
+                            <button id="settings-password-btn" class="secondary outline full-width" data-project-id="${projectId}">
+                                <i data-lucide="lock"></i>
+                                비밀번호 설정/변경
+                            </button>
+
+                            <button id="settings-delete-btn" class="secondary outline full-width danger" data-project-id="${projectId}" data-project-name="${projectName}">
+                                <i data-lucide="trash-2"></i>
+                                프로젝트 삭제
+                            </button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        `;
+
+        // 모달을 body에 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = document.getElementById('project-settings-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        // 모달 닫기 함수
+        const closeModal = () => {
+            modal.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        // 이벤트 리스너 설정
+        modal.querySelectorAll('.close').forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
             }
-            return;
-        }
+        });
 
-        this.handleProjectDelete(target);
+        // ESC 키로 닫기
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        // 설정 버튼들 이벤트 리스너
+        document.getElementById('settings-rename-btn').addEventListener('click', (e) => {
+            closeModal();
+            this.showProjectRenameModal(projectId, projectName);
+        });
+
+        document.getElementById('settings-password-btn').addEventListener('click', (e) => {
+            closeModal();
+            this.showProjectPasswordModal(projectId);
+        });
+
+        document.getElementById('settings-delete-btn').addEventListener('click', (e) => {
+            closeModal();
+            this.showProjectDeleteConfirmModal(projectId, projectName);
+        });
+
+        // 모달 표시
+        if (backdrop) backdrop.classList.add('active');
+
+        // Lucide 아이콘 생성
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
     }
 
     /**
-     * 프로젝트 삭제 버튼 통합 핸들러 (mousedown + click)
+     * 프로젝트 이름 변경 모달을 표시합니다.
+     * @param {string} projectId - 프로젝트 ID
+     * @param {string} currentName - 현재 프로젝트 이름
      */
-    handleProjectDeleteClick(e) {
-        e.stopPropagation();
-        e.preventDefault();
-
-        const target = e.currentTarget;
-
-        if (window.location.hostname === 'localhost') {
-            console.log('🗑️ Delete button click - starting delete process');
+    showProjectRenameModal(projectId, currentName) {
+        // 기존 모달이 있다면 제거
+        const existingModal = document.getElementById('project-rename-modal');
+        if (existingModal) {
+            existingModal.remove();
         }
 
-        // 이미 처리 중이면 무시
-        if (this.eventProcessingFlags.projectDelete) {
-            if (window.location.hostname === 'localhost') {
-                console.log('⚠️ Project delete already in progress, ignoring');
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div id="project-rename-modal" class="modal-container active">
+                <article style="max-width: 400px;">
+                    <header>
+                        <a href="#close" aria-label="Close" class="close"></a>
+                        <h3><i data-lucide="edit-3"></i>프로젝트 이름 변경</h3>
+                    </header>
+                    <form id="project-rename-form">
+                        <label for="rename-project-name">
+                            새 프로젝트 이름
+                            <input type="text" id="rename-project-name" name="name" required
+                                   value="${currentName}" autocomplete="off">
+                        </label>
+                        <footer>
+                            <button type="button" class="secondary close-btn">취소</button>
+                            <button type="submit" class="primary">이름 변경</button>
+                        </footer>
+                    </form>
+                </article>
+            </div>
+        `;
+
+        // 모달을 body에 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = document.getElementById('project-rename-modal');
+        const form = document.getElementById('project-rename-form');
+        const input = document.getElementById('rename-project-name');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        // 모달 닫기 함수
+        const closeModal = () => {
+            modal.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        // 이벤트 리스너 설정
+        modal.querySelectorAll('.close, .close-btn').forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
             }
+        });
+
+        // ESC 키로 닫기
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        // 폼 제출 처리
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const newName = input.value.trim();
+
+            if (!newName) {
+                alert('프로젝트 이름을 입력해주세요.');
+                input.focus();
             return;
         }
 
-        this.handleProjectDelete(target);
+            if (newName === currentName) {
+                alert('새 이름이 현재 이름과 같습니다.');
+                input.focus();
+            return;
+        }
+
+            try {
+                await this.call('project', 'handleUpdateProject', {
+                    currentTarget: { dataset: { projectId, currentName } },
+                    newName: newName
+                });
+
+                closeModal();
+
+            } catch (error) {
+                console.error('이름 변경 실패:', error);
+                alert('프로젝트 이름 변경에 실패했습니다.');
+            }
+        });
+
+        // 모달 표시 후 입력 필드에 포커스
+        setTimeout(() => {
+            input.focus();
+            input.select(); // 기존 텍스트 선택
+        }, 100);
+
+        // Lucide 아이콘 생성
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
     }
 
     /**
-     * 프로젝트 삭제 처리 (공통 로직)
+     * 프로젝트 비밀번호 설정 모달을 표시합니다.
+     * @param {string} projectId - 프로젝트 ID
      */
-    async handleProjectDelete(target) {
-        const projectId = target.dataset.projectId;
-        const projectName = target.dataset.projectName;
-
-        if (!projectId || !projectName) {
-            console.error('Missing project data:', { projectId, projectName });
-            return;
+    async showProjectPasswordModal(projectId) {
+        // 기존 모달이 있다면 제거
+        const existingModal = document.getElementById('project-password-modal');
+        if (existingModal) {
+            existingModal.remove();
         }
 
-        this.eventProcessingFlags.projectDelete = true;
+        // 현재 비밀번호 상태 확인
+        let hasPassword = false;
+        let passwordCheckError = false;
 
         try {
-            // 즉각적인 시각적 피드백
-            target.style.transform = 'scale(0.9)';
-            target.style.backgroundColor = 'var(--accent-red)';
-            target.style.opacity = '0.6';
-            target.style.pointerEvents = 'none';
+            const status = await api.checkPasswordStatus(projectId);
+            hasPassword = status.requires_password;
+            console.log('비밀번호 상태 확인 성공:', hasPassword);
+        } catch (error) {
+            console.warn('비밀번호 상태 확인 실패:', error);
+            passwordCheckError = true;
 
-            if (window.location.hostname === 'localhost') {
-                console.log('🔄 Starting delete confirmation for:', projectName);
+            // 세션에 비밀번호가 저장되어 있다면 비밀번호가 설정되어 있다고 가정
+            const storedPassword = sessionStorage.getItem(`project-password-${projectId}`);
+            if (storedPassword) {
+                hasPassword = true;
+                console.log('세션에 비밀번호가 있어 설정된 것으로 간주');
+            }
+        }
+
+        // 모달 HTML 생성 (동적으로 이전 비밀번호 필드 포함 여부 결정)
+        const currentPasswordField = hasPassword ? `
+        <label for="project-current-password">
+            현재 비밀번호
+            <input type="password" id="project-current-password" name="currentPassword" required
+                   placeholder="현재 비밀번호를 입력하세요" autocomplete="current-password">
+        </label>` : '';
+
+        const modalTitle = hasPassword ? '프로젝트 비밀번호 변경' : '프로젝트 비밀번호 설정';
+        const submitButtonText = hasPassword ? '비밀번호 변경' : '비밀번호 설정';
+        const description = hasPassword
+            ? '비밀번호를 변경하려면 현재 비밀번호를 입력한 후 새 비밀번호를 설정해주세요.'
+            : '프로젝트에 비밀번호를 설정하면 다른 사람이 접근할 수 없게 됩니다.';
+
+        console.log('비밀번호 모달 설정:', {
+            hasPassword,
+            passwordCheckError,
+            modalTitle,
+            currentPasswordField: !!currentPasswordField.trim()
+        });
+
+        const modalHTML = `
+            <div id="project-password-modal" class="modal-container active">
+                <article style="max-width: 400px;">
+                    <header>
+                        <a href="#close" aria-label="Close" class="close"></a>
+                        <h3><i data-lucide="lock"></i>${modalTitle}</h3>
+                    </header>
+                    <form id="project-password-form">
+                        <p style="margin-bottom: 1rem; color: var(--pico-muted-color);">
+                            ${description}
+                        </p>
+                        ${currentPasswordField}
+                        <label for="project-new-password">
+                            새 비밀번호
+                            <input type="password" id="project-new-password" name="password" required
+                                   placeholder="새 비밀번호를 입력하세요" autocomplete="new-password">
+                        </label>
+                        <label for="project-confirm-password">
+                            비밀번호 확인
+                            <input type="password" id="project-confirm-password" name="confirmPassword" required
+                                   placeholder="비밀번호를 다시 입력하세요" autocomplete="new-password">
+                        </label>
+                        <footer>
+                            <button type="button" class="secondary close-btn">취소</button>
+                            <button type="submit" class="primary">${submitButtonText}</button>
+                        </footer>
+                    </form>
+                </article>
+            </div>
+        `;
+
+        // 모달을 body에 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = document.getElementById('project-password-modal');
+        const form = document.getElementById('project-password-form');
+        const currentPasswordInput = document.getElementById('project-current-password');
+        const passwordInput = document.getElementById('project-new-password');
+        const confirmInput = document.getElementById('project-confirm-password');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        // 모달 닫기 함수
+        const closeModal = () => {
+            modal.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        // 이벤트 리스너 설정
+        modal.querySelectorAll('.close, .close-btn').forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // ESC 키로 닫기
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        // 폼 제출 처리
+        form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+            const currentPassword = currentPasswordInput ? currentPasswordInput.value.trim() : null;
+            const newPassword = passwordInput.value.trim();
+            const confirmPassword = confirmInput.value.trim();
+
+            // 유효성 검사
+            if (hasPassword && !currentPassword) {
+                alert('현재 비밀번호를 입력해주세요.');
+                if (currentPasswordInput) currentPasswordInput.focus();
+            return;
+        }
+
+            if (!newPassword) {
+                alert('새 비밀번호를 입력해주세요.');
+                passwordInput.focus();
+                return;
             }
 
-            // 삭제 확인 대화상자 (동기적으로 처리)
-            const confirmed = confirm(`정말로 '${projectName}' 프로젝트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+            if (newPassword !== confirmPassword) {
+                alert('새 비밀번호가 일치하지 않습니다.');
+                confirmInput.focus();
+                confirmInput.select();
+                return;
+            }
 
-            if (confirmed) {
-                if (window.location.hostname === 'localhost') {
-                    console.log('✅ User confirmed deletion, proceeding...');
+            if (hasPassword && currentPassword === newPassword) {
+                alert('새 비밀번호가 현재 비밀번호와 같습니다.');
+                passwordInput.focus();
+                passwordInput.select();
+            return;
+        }
+
+            try {
+                // 현재 비밀번호가 있는 경우 먼저 검증
+                if (hasPassword) {
+                    console.log('현재 비밀번호 검증 시작');
+                    await api.verifyPassword(projectId, currentPassword);
+                    console.log('현재 비밀번호 검증 성공');
                 }
 
+                // 비밀번호 설정/변경 API 호출
+                console.log('비밀번호 설정/변경 API 호출 시작:', { projectId, hasPassword });
+                await api.setPassword(projectId, newPassword);
+                console.log('비밀번호 설정/변경 API 호출 성공');
+
+                // 세션에 새 비밀번호 저장
+                sessionStorage.setItem(`project-password-${projectId}`, newPassword);
+                console.log('새 비밀번호 세션에 저장됨');
+
+                const successMessage = hasPassword ? '비밀번호가 성공적으로 변경되었습니다.' : '비밀번호가 성공적으로 설정되었습니다.';
+                alert(successMessage);
+                closeModal();
+
+            } catch (error) {
+                console.error('비밀번호 설정/변경 실패:', error);
+
+                // 더 자세한 에러 메시지 처리
+                let errorMessage = '비밀번호 설정/변경에 실패했습니다.';
+
+                if (error.message) {
+                    if (error.message.includes('비밀번호') || error.message.includes('password')) {
+                        errorMessage = '현재 비밀번호가 올바르지 않습니다.';
+                        if (currentPasswordInput) currentPasswordInput.focus();
+                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
+                    } else if (error.message.includes('500') || error.message.includes('server')) {
+                        errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+                    } else {
+                        errorMessage = `오류: ${error.message}`;
+                    }
+                }
+
+                alert(errorMessage);
+            }
+        });
+
+        // 모달 표시 후 첫 입력 필드에 포커스
+        setTimeout(() => {
+            console.log('모달 표시 후 DOM 요소 확인:');
+            console.log('currentPasswordInput:', currentPasswordInput);
+            console.log('passwordInput:', passwordInput);
+            console.log('confirmInput:', confirmInput);
+
+            if (currentPasswordInput && hasPassword) {
+                console.log('현재 비밀번호 필드에 포커스');
+                currentPasswordInput.focus();
+            } else {
+                console.log('새 비밀번호 필드에 포커스');
+                passwordInput.focus();
+            }
+        }, 100);
+
+        // Lucide 아이콘 생성
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    /**
+     * 프로젝트 삭제 확인 모달을 표시합니다.
+     * @param {string} projectId - 프로젝트 ID
+     * @param {string} projectName - 프로젝트 이름
+     */
+    showProjectDeleteConfirmModal(projectId, projectName) {
+        // 기존 모달이 있다면 제거
+        const existingModal = document.getElementById('project-delete-confirm-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div id="project-delete-confirm-modal" class="modal-container active">
+                <article style="max-width: 400px;">
+                    <header>
+                        <a href="#close" aria-label="Close" class="close"></a>
+                        <h3><i data-lucide="alert-triangle"></i>프로젝트 삭제 확인</h3>
+                    </header>
+                    <div style="padding: 1rem;">
+                        <div style="background: var(--pico-warning-background-color); border: 1px solid var(--pico-warning-border-color); border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                            <h4 style="color: var(--pico-warning-text-color); margin-top: 0;"><i data-lucide="alert-triangle"></i>주의</h4>
+                            <p style="margin-bottom: 0; color: var(--pico-warning-text-color);">
+                                <strong>"${projectName}"</strong> 프로젝트를 삭제하시겠습니까?<br>
+                                이 작업은 되돌릴 수 없습니다.
+                            </p>
+                        </div>
+                        <p>삭제를 진행하려면 아래에 프로젝트 이름을 입력해주세요:</p>
+                        <label for="delete-confirm-input">
+                            프로젝트 이름 입력
+                            <input type="text" id="delete-confirm-input" placeholder="프로젝트 이름을 입력하세요" autocomplete="off">
+                        </label>
+                    </div>
+                    <footer>
+                        <button type="button" class="secondary close-btn">취소</button>
+                        <button type="button" id="confirm-delete-btn" class="danger">삭제하기</button>
+                    </footer>
+                </article>
+            </div>
+        `;
+
+        // 모달을 body에 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = document.getElementById('project-delete-confirm-modal');
+        const confirmInput = document.getElementById('delete-confirm-input');
+        const confirmBtn = document.getElementById('confirm-delete-btn');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        // 모달 닫기 함수
+        const closeModal = () => {
+            modal.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        };
+
+        // 이벤트 리스너 설정
+        modal.querySelectorAll('.close, .close-btn').forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        // 모달 외부 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // ESC 키로 닫기
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        // 삭제 확인 버튼 이벤트
+        confirmBtn.addEventListener('click', async () => {
+            const inputValue = confirmInput.value.trim();
+
+            if (inputValue !== projectName) {
+                alert('프로젝트 이름이 일치하지 않습니다.');
+                confirmInput.focus();
+                confirmInput.select();
+                return;
+            }
+
+            try {
                 await this.call('project', 'handleDeleteProject', {
                     currentTarget: { dataset: { projectId, projectName } }
                 });
 
-                // 삭제 성공 시 리스트 즉시 갱신
-                if (window.location.hostname === 'localhost') {
-                    console.log('✅ Project deleted successfully, refreshing list');
-                }
-                await this.stateManager.loadProjects();
-
-            } else {
-                if (window.location.hostname === 'localhost') {
-                    console.log('❌ User cancelled deletion');
-                }
-                // 취소 시 버튼 상태 즉시 복원
-                target.style.transform = '';
-                target.style.backgroundColor = '';
-                target.style.opacity = '1';
-                target.style.pointerEvents = 'auto';
-            }
+                closeModal();
 
         } catch (error) {
-            console.error('Project delete failed:', error);
-            // 실패 시 버튼 상태 복원
-            target.style.transform = '';
-            target.style.backgroundColor = '';
-            target.style.opacity = '1';
-            target.style.pointerEvents = 'auto';
-        } finally {
-            this.eventProcessingFlags.projectDelete = false;
+                console.error('프로젝트 삭제 실패:', error);
+                alert('프로젝트 삭제에 실패했습니다.');
+            }
+        });
+
+        // 모달 표시 후 입력 필드에 포커스
+        setTimeout(() => {
+            confirmInput.focus();
+        }, 100);
+
+        // Lucide 아이콘 생성
+        if (window.lucide) {
+            window.lucide.createIcons();
         }
     }
 

@@ -925,6 +925,122 @@
         </article>
     </div>
 
+    <!-- 프로젝트 설정 모달 -->
+    <div id="project-settings-modal" class="modal-container">
+        <article style="max-width: 500px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3><i data-lucide="settings"></i>프로젝트 설정</h3>
+            </header>
+            <div class="project-settings-content">
+                <div class="project-info-section">
+                    <h4>프로젝트 정보</h4>
+                    <div class="project-info-display">
+                        <p><strong>이름:</strong> <span id="settings-project-name"></span></p>
+                        <p><strong>생성일:</strong> <span id="settings-project-created"></span></p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="settings-actions">
+                    <button id="settings-rename-btn" class="secondary outline full-width">
+                        <i data-lucide="edit-3"></i>
+                        프로젝트 이름 변경
+                    </button>
+
+                    <button id="settings-password-btn" class="secondary outline full-width">
+                        <i data-lucide="lock"></i>
+                        비밀번호 설정/변경
+                    </button>
+
+                    <button id="settings-delete-btn" class="secondary outline full-width danger">
+                        <i data-lucide="trash-2"></i>
+                        프로젝트 삭제
+                    </button>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <!-- 프로젝트 이름 변경 모달 -->
+    <div id="project-rename-modal" class="modal-container">
+        <article style="max-width: 400px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3><i data-lucide="edit-3"></i>프로젝트 이름 변경</h3>
+            </header>
+            <form id="project-rename-form">
+                <label for="rename-project-name">
+                    새 프로젝트 이름
+                    <input type="text" id="rename-project-name" name="name" required
+                           placeholder="새 프로젝트 이름을 입력하세요" autocomplete="off">
+                </label>
+                <footer>
+                    <button type="button" class="secondary close-btn">취소</button>
+                    <button type="submit" class="primary">이름 변경</button>
+                </footer>
+            </form>
+        </article>
+    </div>
+
+    <!-- 프로젝트 비밀번호 설정 모달 -->
+    <div id="project-password-modal" class="modal-container">
+        <article style="max-width: 400px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3><i data-lucide="lock"></i>프로젝트 비밀번호 설정</h3>
+            </header>
+            <form id="project-password-form">
+                <p style="margin-bottom: 1rem; color: var(--pico-muted-color);">
+                    프로젝트에 비밀번호를 설정하면 다른 사람이 접근할 수 없게 됩니다.
+                </p>
+                <label for="project-new-password">
+                    새 비밀번호
+                    <input type="password" id="project-new-password" name="password" required
+                           placeholder="비밀번호를 입력하세요" autocomplete="new-password">
+                </label>
+                <label for="project-confirm-password">
+                    비밀번호 확인
+                    <input type="password" id="project-confirm-password" name="confirmPassword" required
+                           placeholder="비밀번호를 다시 입력하세요" autocomplete="new-password">
+                </label>
+                <footer>
+                    <button type="button" class="secondary close-btn">취소</button>
+                    <button type="submit" class="primary">비밀번호 설정</button>
+                </footer>
+            </form>
+        </article>
+    </div>
+
+    <!-- 프로젝트 삭제 확인 모달 -->
+    <div id="project-delete-confirm-modal" class="modal-container">
+        <article style="max-width: 400px;">
+            <header>
+                <a href="#close" aria-label="Close" class="close"></a>
+                <h3><i data-lucide="alert-triangle"></i>프로젝트 삭제 확인</h3>
+            </header>
+            <div style="padding: 1rem;">
+                <div style="background: var(--pico-warning-background-color); border: 1px solid var(--pico-warning-border-color); border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="color: var(--pico-warning-text-color); margin-top: 0;"><i data-lucide="alert-triangle"></i>주의</h4>
+                    <p style="margin-bottom: 0; color: var(--pico-warning-text-color);">
+                        <strong>"<span id="delete-project-name-confirm"></span>"</strong> 프로젝트를 삭제하시겠습니까?<br>
+                        이 작업은 되돌릴 수 없습니다.
+                    </p>
+                </div>
+                <p>삭제를 진행하려면 아래에 프로젝트 이름을 입력해주세요:</p>
+                <label for="delete-confirm-input">
+                    프로젝트 이름 입력
+                    <input type="text" id="delete-confirm-input" placeholder="프로젝트 이름을 입력하세요" autocomplete="off">
+                </label>
+            </div>
+            <footer>
+                <button type="button" class="secondary close-btn">취소</button>
+                <button type="button" id="confirm-delete-btn" class="danger">삭제하기</button>
+            </footer>
+        </article>
+    </div>
+
     <!-- 아이콘 렌더링 스크립트 -->
     <script>
       lucide.createIcons();
