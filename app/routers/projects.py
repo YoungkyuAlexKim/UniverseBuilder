@@ -35,7 +35,7 @@ class PlotPoint(BaseModel):
     title: str
     content: Optional[str] = None
     ordering: int
-    scene_draft: Optional[str] = None 
+    scene_draft: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -130,7 +130,7 @@ class Project(BaseModel):
     worldview_groups: List[WorldviewGroup] = []
     relationships: List[Relationship] = []
     scenarios: List[Scenario] = []
-    manuscript_blocks: List[ManuscriptBlock] = [] 
+    manuscript_blocks: List[ManuscriptBlock] = []
     class Config:
         from_attributes = True
 
@@ -248,7 +248,7 @@ def convert_project_orm_to_pydantic(project_orm: ProjectModel) -> Project:
                 block_dict['char_count'] = len(mb.content)
             if mb.word_count is None:
                 block_dict['word_count'] = len(mb.content.split()) if mb.content else 0
-        else:
+        else: # content가 없는 경우 0으로 처리
             if mb.char_count is None:
                 block_dict['char_count'] = 0
             if mb.word_count is None:
@@ -475,9 +475,12 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
 
     groups_to_create = []
     cards_to_create = []
+    # [수정] 관계도, 플롯 포인트, 세계관 그룹/카드 리스트 초기화
+    relationships_to_create = []
     plot_points_to_create = []
     worldview_groups_to_create = []
     worldview_cards_to_create = []
+    card_id_map = {} # 샘플 ID를 실제 DB ID로 매핑
 
     # 그룹 및 카드 생성
     if "groups" in sample_data:
@@ -488,9 +491,11 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
 
             if "cards" in group_data:
                 for card_idx, card_data in enumerate(group_data["cards"]):
-                    card_id = f"card-{timestamp}-{len(cards_to_create)}"
+                    original_card_id = card_data.get("id", card_data["name"]) # 샘플 데이터에 id가 없으면 이름으로 대체
+                    new_card_id = f"card-{timestamp}-{len(cards_to_create)}"
+                    card_id_map[original_card_id] = new_card_id # ID 매핑 정보 저장
                     card = CardModel(
-                        id=card_id,
+                        id=new_card_id,
                         group_id=group_id,
                         name=card_data["name"],
                         description=card_data["description"],
@@ -502,6 +507,24 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
                         ordering=card_idx
                     )
                     cards_to_create.append(card)
+
+    # [수정] 관계도 생성
+    if "relationships" in sample_data:
+        for rel_data in sample_data["relationships"]:
+            source_id = card_id_map.get(rel_data["source_character_id"])
+            target_id = card_id_map.get(rel_data["target_character_id"])
+
+            if source_id and target_id: # ID가 모두 매핑된 경우에만 관계 생성
+                relationship = RelationshipModel(
+                    id=f"rel-{timestamp}-{len(relationships_to_create)}",
+                    project_id=new_project_id,
+                    source_character_id=source_id,
+                    target_character_id=target_id,
+                    type=rel_data["type"],
+                    description=rel_data.get("description", ""),
+                    phase_order=rel_data.get("phase_order", 1)
+                )
+                relationships_to_create.append(relationship)
 
     # 세계관 그룹 및 카드 생성
     if "worldview_groups" in sample_data:
@@ -569,6 +592,9 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
         db.add(group)
     for card in cards_to_create:
         db.add(card)
+    # [수정] 관계도, 세계관 그룹/카드, 플롯 포인트 추가
+    for rel in relationships_to_create:
+        db.add(rel)
     for wv_group in worldview_groups_to_create:
         db.add(wv_group)
     for wv_card in worldview_cards_to_create:
@@ -584,7 +610,8 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
         joinedload(ProjectModel.worldview_groups).joinedload(WorldviewGroupModel.worldview_cards),
-        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points)
+        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points),
+        joinedload(ProjectModel.relationships) # [수정] 관계도 정보도 함께 로드
     ).filter(ProjectModel.id == new_project_id).first()
 
     return convert_project_orm_to_pydantic(created_project_orm)

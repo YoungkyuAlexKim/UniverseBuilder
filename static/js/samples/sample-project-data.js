@@ -26,6 +26,7 @@ export const cyberpunkSample = {
             name: "주요 인물",
             cards: [
                 {
+                    id: "카이",
                     name: "카이",
                     description: "전설적인 해커였으나, 과거의 실패로 은둔 중인 인물. '마더' 시스템의 유일한 약점을 알고 있다.",
                     personality: ["냉소적", "천재적", "정의로움"],
@@ -34,6 +35,7 @@ export const cyberpunkSample = {
                     introduction_story: "비가 내리는 네온사인 아래, 카이는 낡은 데이터칩을 손에 쥐고 과거의 악몽을 곱씹었다. 다시 돌아갈 생각은 없었다. 적어도 이브가 그를 찾아내기 전까지는."
                 },
                 {
+                    id: "이브",
                     name: "이브",
                     description: "'마더'를 신봉하는 엘리트 요원. 시스템의 완벽함을 믿지만, 카이를 추적하며 진실에 다가선다.",
                     personality: ["원칙주의자", "엘리트", "내적 갈등"],
@@ -47,6 +49,7 @@ export const cyberpunkSample = {
             name: "조연 및 단역",
             cards: [
                 {
+                    id: "렉스",
                     name: "렉스",
                     description: "카이의 오랜 친구이자 정보 브로커. 과거 함께 해킹을 했지만 이제는 안전한 삶을 선택했다. '섀도우 브라더후드'의 중간 등급 멤버다.",
                     personality: ["현실적", "겁쟁이", "충성심 강함"],
@@ -55,6 +58,7 @@ export const cyberpunkSample = {
                     introduction_story: "렉스는 오래된 데이터 바에서 카이와 재회했다. 그는 여전히 카이의 재능을 존경했지만, 그를 따라 미친 짓을 할 생각은 없었다. 대신 그는 '메모리 코인' 거래로 안정적인 수입을 얻고 있었다."
                 },
                 {
+                    id: "마더 AI",
                     name: "마더 AI",
                     description: "도시 전체를 통제하는 중앙 인공지능. 인간의 자유를 위협하지만, 그 자체로는 악의가 없다.",
                     personality: ["논리적", "완벽주의", "냉정함"],
@@ -63,6 +67,36 @@ export const cyberpunkSample = {
                     introduction_story: "마더는 도시의 심장부에 위치한 서버실에서 태어났다. 인간이 만든 AI였지만, 이제 인간보다 더 인간적인 결정을 내리기 시작했다."
                 }
             ]
+        }
+    ],
+    relationships: [
+        {
+            source_character_id: "카이",
+            target_character_id: "이브",
+            type: "적대적 공생",
+            description: "카이는 이브를 자신을 가두려는 시스템의 부속품으로 여기지만, 그녀의 신념 이면에 있는 순수함을 꿰뚫어 보고 있다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "이브",
+            target_character_id: "카이",
+            type: "쫓는 자와 쫓기는 자",
+            description: "이브는 카이를 시스템을 위협하는 위험한 버그로 간주하고 추적하지만, 그의 행동 이면에 있는 정의감을 느끼며 내적 갈등을 겪는다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "카이",
+            target_character_id: "렉스",
+            type: "오랜 친구이자 애증의 관계",
+            description: "과거를 함께한 유일한 친구지만, 현실에 안주하려는 렉스의 모습에 실망감을 느끼기도 한다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "렉스",
+            target_character_id: "카이",
+            type: "선망과 두려움",
+            description: "렉스는 카이의 천재적인 재능을 동경하지만, 그가 가져올 위험을 두려워하며 안전한 거리를 유지하려 한다.",
+            phase_order: 1
         }
     ],
     worldview_groups: [
@@ -241,6 +275,7 @@ export const fantasySample = {
             name: "주요 인물",
             cards: [
                 {
+                    id: "엘리안",
                     name: "엘리안",
                     description: "젊은 마법사로, '실버문' 마법 아카데미 출신이다. 잊혀진 탑에서 깨어난 고대 마법서를 발견한다. 자신의 운명을 찾아 모험을 떠난다.",
                     personality: ["호기심 많음", "용감함", "학구적"],
@@ -249,6 +284,7 @@ export const fantasySample = {
                     introduction_story: "엘리안은 먼지 쌓인 서재에서 빛나는 고대 책을 발견했다. 그 순간 그의 삶은 완전히 바뀌었다. 이제 그는 그 책이 가져올 운명을 받아들여야 했다. 그의 로브에는 실버문 아카데미의 마법 룬이 새겨져 있었다."
                 },
                 {
+                    id: "세리아",
                     name: "세리아",
                     description: "엘프 궁수로, 탑의 수호자로 태어났다. 인간 마법사를 경계하지만 결국 동맹을 맺는다.",
                     personality: ["신중함", "자연 친화", "충성심 강함"],
@@ -262,6 +298,7 @@ export const fantasySample = {
             name: "악역 및 적대자",
             cards: [
                 {
+                    id: "다크로스",
                     name: "다크로스",
                     description: "어둠의 마법사로, 고대 마법서를 이용해 세계를 지배하려 한다. 과거 엘리안의 스승이었다.",
                     personality: ["야심차", "교활함", "냉혹함"],
@@ -270,6 +307,7 @@ export const fantasySample = {
                     introduction_story: "다크로스는 한때 가장 위대한 마법사였다. 하지만 야심이 그를 어둠의 길로 이끌었다. 이제 그는 잃어버린 제자를 찾아 파멸의 길을 걷고 있었다."
                 },
                 {
+                    id: "아룬드래곤",
                     name: "아룬드래곤",
                     description: "고대 드래곤으로, 탑의 진정한 수호자. 인간들의 욕심을 경계한다.",
                     personality: ["현명함", "보호적", "고독함"],
@@ -278,6 +316,36 @@ export const fantasySample = {
                     introduction_story: "아룬드래곤은 수백 년 동안 탑을 지켜왔다. 인간들은 그를 두려워했지만, 그는 단지 균형을 유지할 뿐이었다. 이제 위기가 찾아와 그는 다시 깨어나야 했다."
                 }
             ]
+        }
+    ],
+    relationships: [
+        {
+            source_character_id: "엘리안",
+            target_character_id: "세리아",
+            type: "불신에서 시작된 동맹",
+            description: "엘리안은 세리아의 숲에 대한 지식을 존중하지만, 그녀의 배타적인 태도를 경계한다. 세리아는 엘리안의 순수한 열정을 인정하면서도 인간의 욕심을 불신한다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "엘리안",
+            target_character_id: "다크로스",
+            type: "옛 스승이자 숙적",
+            description: "엘리안은 자신을 가르쳤던 스승이 타락한 것에 큰 슬픔과 분노를 느낀다. 다크로스는 엘리안을 자신의 야망을 완성할 최고의 도구로 여긴다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "세리아",
+            target_character_id: "다크로스",
+            type: "자연의 적",
+            description: "세리아는 숲의 균형을 파괴하는 다크로스의 어둠의 마법을 혐오하며, 그를 제거하는 것을 자신의 사명으로 생각한다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "엘리안",
+            target_character_id: "아룬드래곤",
+            type: "시험받는 자",
+            description: "엘리안은 고대의 지혜를 가진 아룬드래곤에게 존경심을 표하며 그의 인정을 받으려 노력한다. 아룬드래곤은 엘리안이 마법서의 힘을 감당할 자격이 있는지 시험한다.",
+            phase_order: 1
         }
     ],
     worldview_groups: [
@@ -460,6 +528,7 @@ export const romanceSample = {
             name: "주요 인물",
             cards: [
                 {
+                    id: "리아",
                     name: "리아",
                     description: "현대의 시간 여행 연구원. 시간 여행 연구소 소속으로 등록된 여행자다. 잊혀진 첫사랑을 찾기 위해 과거로 돌아간다.",
                     personality: ["낭만적", "고집스러움", "지적"],
@@ -468,6 +537,7 @@ export const romanceSample = {
                     introduction_story: "리아는 연구실에서 깨어났다. 머릿속에 희미한 기억이 스쳤다. '누구였더라... 그 사람은...' 그녀는 크로노스 장치를 작동시켰다. 시간 여행 연구소의 허가를 받지 않은 비공식 여행이었다."
                 },
                 {
+                    id: "제이크",
                     name: "제이크",
                     description: "과거의 젊은 예술가. 리아의 첫사랑이었지만 기억이 지워졌다.",
                     personality: ["예술적", "열정적", "상처받기 쉬움"],
@@ -481,6 +551,7 @@ export const romanceSample = {
             name: "시간 여행 연구팀",
             cards: [
                 {
+                    id: "박사 김",
                     name: "박사 김",
                     description: "리아의 멘토이자 시간 여행 프로젝트의 책임자. 리아의 결정을 걱정한다.",
                     personality: ["현실적", "걱정 많음", "지혜로움"],
@@ -489,6 +560,7 @@ export const romanceSample = {
                     introduction_story: "박사 김은 모니터를 바라보며 한숨을 쉬었다. 리아가 사라진 후 연구실은 적막에 휩싸였다. '리아야, 제발... 시간의 규칙을 어기지 마라.'"
                 },
                 {
+                    id: "시간의 수호자",
                     name: "시간의 수호자",
                     description: "시간의 균형을 유지하는 신비로운 존재. 인간의 시간 여행을 감독한다.",
                     personality: ["신비로움", "공정함", "냉정함"],
@@ -497,6 +569,29 @@ export const romanceSample = {
                     introduction_story: "시간의 수호자는 모래시계 속에 앉아 있었다. 그의 눈은 시간을 관통했고, 그의 손은 시간의 흐름을 조율했다. '또 한 명의 방랑자가 시간을 어지럽히는군.'"
                 }
             ]
+        }
+    ],
+    relationships: [
+        {
+            source_character_id: "리아",
+            target_character_id: "제이크",
+            type: "시간을 초월한 첫사랑",
+            description: "리아에게 제이크는 잊을 수 없는 운명의 상대다. 제이크는 리아를 처음 보지만 설명할 수 없는 강한 끌림을 느낀다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "리아",
+            target_character_id: "박사 김",
+            type: "걱정스러운 멘토와 제자",
+            description: "박사 김은 리아를 아끼지만, 그녀가 시간의 규칙을 어기는 것을 극도로 경계하고 막으려 한다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "리아",
+            target_character_id: "시간의 수호자",
+            type: "감시자와 피감시자",
+            description: "시간의 수호자는 리아의 행동이 시간 전체에 미칠 영향을 주시하며, 필요하다면 개입할 준비가 되어 있다.",
+            phase_order: 1
         }
     ],
     worldview_groups: [
@@ -679,6 +774,7 @@ export const mysterySample = {
             name: "상속자들",
             cards: [
                 {
+                    id: "엘레나",
                     name: "엘레나",
                     description: "억만장자 아버지의 죽음 후 유산을 상속받은 장녀. 과거 사립탐정 경험이 있는 그녀는 가족의 비밀을 파헤치기 시작한다.",
                     personality: ["호기심 많음", "의심 많음", "결단력 있음"],
@@ -687,6 +783,7 @@ export const mysterySample = {
                     introduction_story: "엘레나는 아버지의 장례식장에서 유언장을 읽었다. '모든 재산을 너에게 남긴다.' 하지만 그 눈빛에는 의문이 스쳤다. 아버지의 죽음이 정말 사고였을까? 그녀의 과거 사립탐정 경험상 뭔가 이상했다."
                 },
                 {
+                    id: "마커스",
                     name: "마커스",
                     description: "엘레나의 남동생으로, 재산보다 가족의 진실을 원한다. 언니를 도와 비밀을 파헤친다.",
                     personality: ["충성심 강함", "냉정함", "분석적"],
@@ -700,6 +797,7 @@ export const mysterySample = {
             name: "저택의 사람들",
             cards: [
                 {
+                    id: "헨리 집사",
                     name: "헨리 집사",
                     description: "30년간 가족을 섬긴 충성스러운 집사. 저택의 비밀을 가장 많이 알고 있다.",
                     personality: ["충성심", "신중함", "비밀스러움"],
@@ -708,6 +806,7 @@ export const mysterySample = {
                     introduction_story: "헨리 집사는 먼지 쌓인 서재에서 조용히 먼지를 털었다. 30년간의 기억이 그의 눈빛에 어려 있었다. '이 저택은 너무 많은 비밀을 간직하고 있다.'"
                 },
                 {
+                    id: "빅터 변호사",
                     name: "빅터 변호사",
                     description: "가족의 유언장을 관리하는 변호사. 겉으로는 공정하지만 숨겨진 의도가 있다.",
                     personality: ["교활함", "야심차", "외교적"],
@@ -716,6 +815,36 @@ export const mysterySample = {
                     introduction_story: "빅터 변호사는 유언장 봉투를 꺼내며 미소 지었다. '이 상속은 순탄치 않을 것입니다.' 그의 눈빛에는 계산적인 빛이 어려 있었다."
                 }
             ]
+        }
+    ],
+    relationships: [
+        {
+            source_character_id: "엘레나",
+            target_character_id: "마커스",
+            type: "신뢰하는 남매",
+            description: "엘레나와 마커스는 서로를 깊이 신뢰하며, 가족의 비밀을 파헤치기 위해 협력하는 유일한 동맹이다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "엘레나",
+            target_character_id: "헨리 집사",
+            type: "의심과 연민",
+            description: "엘레나는 헨리가 무언가 숨기고 있다고 확신하지만, 오랫동안 가족을 위해 헌신한 그에게 연민을 느낀다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "마커스",
+            target_character_id: "빅터 변호사",
+            type: "경계와 불신",
+            description: "마커스는 빅터 변호사의 모든 행동을 의심하며, 그가 유산을 가로채려는 숨은 의도가 있다고 믿는다.",
+            phase_order: 1
+        },
+        {
+            source_character_id: "헨리 집사",
+            target_character_id: "빅터 변호사",
+            type: "비밀을 공유한 공모자",
+            description: "헨리와 빅터는 과거의 사건에 대한 비밀을 공유하고 있으며, 진실이 드러나지 않도록 서로를 감시하고 견제한다.",
+            phase_order: 1
         }
     ],
     worldview_groups: [
