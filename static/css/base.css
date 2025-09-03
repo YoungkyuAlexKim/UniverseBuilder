@@ -48,8 +48,13 @@
     --border-radius-xl: 16px;
     
     /* 전환 효과 */
-    --transition-fast: all 0.2s ease;
-    --transition-smooth: all 0.3s ease-in-out;
+    --transition-fast: all 0.15s ease;
+    --transition-normal: all 0.25s ease;
+    --transition-slow: all 0.35s ease-in-out;
+
+    /* 버튼 피드백 */
+    --button-feedback-scale: 0.95;
+    --button-feedback-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 /* 기본 스타일 */

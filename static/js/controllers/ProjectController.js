@@ -102,52 +102,68 @@ export class ProjectController {
     /**
      * 프로젝트 이름을 수정합니다.
      */
-    async handleUpdateProject(event) {
-        event.stopPropagation();
-        const { projectId, currentName } = event.currentTarget.dataset;
+    async handleUpdateProject(eventData) {
+        const { projectId, currentName } = eventData.currentTarget.dataset;
+        const newName = eventData.newName; // App.js에서 전달받은 새 이름
 
-        // TODO: 커스텀 이름 입력 모달로 교체
-        showToast('프로젝트 이름 수정 기능은 현재 개선 중입니다.', 'info');
+        if (window.location.hostname === 'localhost') {
+            console.log('🗑️ ProjectController: Updating project:', projectId, 'from:', currentName, 'to:', newName);
+        }
 
-        // 임시로 간단한 구현
-        const newName = prompt("새로운 프로젝트 이름을 입력하세요:", currentName);
-
-        if (newName && newName.trim() && newName.trim() !== currentName) {
-            event.currentTarget.setAttribute('aria-busy', 'true');
-            event.currentTarget.disabled = true;
-
-            try {
+        try {
+            // newName이 제공되면 바로 업데이트 진행
+            if (newName && newName.trim() && newName.trim() !== currentName) {
                 await this.stateManager.updateProject(projectId, newName.trim());
+
+                if (window.location.hostname === 'localhost') {
+                    console.log('✅ ProjectController: Project name updated successfully');
+                }
+
                 showToast('프로젝트 이름이 수정되었습니다.', 'success');
-            } catch (error) {
-                ErrorHandlers.showError(error, '프로젝트 이름 수정 실패');
-            } finally {
-                event.currentTarget.setAttribute('aria-busy', 'false');
-                event.currentTarget.disabled = false;
+            } else {
+                if (window.location.hostname === 'localhost') {
+                    console.log('❌ ProjectController: No valid new name provided');
+                }
             }
+        } catch (error) {
+            console.error('ProjectController: Update failed:', error);
+            ErrorHandlers.showError(error, '프로젝트 이름 수정 실패');
+            throw error; // 상위에서 에러 처리할 수 있도록 재throw
         }
     }
 
     /**
      * 프로젝트를 삭제합니다.
      */
-    async handleDeleteProject(event) {
-        event.stopPropagation();
-        const { projectId, projectName } = event.currentTarget.dataset;
+    async handleDeleteProject(eventData) {
+        const { projectId, projectName } = eventData.currentTarget.dataset;
 
-        // TODO: 커스텀 확인 모달로 교체
-        if (confirm(`정말로 '${projectName}' 프로젝트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
-            event.currentTarget.setAttribute('aria-busy', 'true');
-            event.currentTarget.disabled = true;
-
-            try {
-                await this.stateManager.deleteProject(projectId);
-                showToast('프로젝트가 삭제되었습니다.', 'success');
-            } catch (error) {
-                ErrorHandlers.showError(error, '프로젝트 삭제 실패');
-                event.currentTarget.setAttribute('aria-busy', 'false');
-                event.currentTarget.disabled = false;
+        try {
+            if (window.location.hostname === 'localhost') {
+                console.log('🗑️ ProjectController: Deleting project:', projectId, projectName);
             }
+
+            await this.stateManager.deleteProject(projectId);
+
+            if (window.location.hostname === 'localhost') {
+                console.log('✅ ProjectController: Project deleted successfully');
+            }
+
+            showToast('프로젝트가 삭제되었습니다.', 'success');
+
+        } catch (error) {
+            console.error('ProjectController: Delete failed:', error);
+
+            // 404 에러인 경우 이미 삭제된 것으로 간주
+            if (error.response && error.response.status === 404) {
+                showToast('프로젝트가 이미 삭제되었습니다.', 'info');
+                // 리스트 갱신
+                await this.app.stateManager.loadProjects();
+            } else {
+                ErrorHandlers.showError(error, '프로젝트 삭제 실패');
+            }
+
+            throw error; // 상위에서 에러 처리할 수 있도록 재throw
         }
     }
 

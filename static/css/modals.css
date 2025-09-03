@@ -957,5 +957,64 @@ article .protagonist {
     
     .modal-container.shifted > article {
         transform: translateX(-100%);
+}
+
+/* 커스텀 이름 입력 모달 스타일 */
+#custom-name-modal .modal-container article {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
     }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+#custom-name-modal input[type="text"] {
+    padding: 0.75rem;
+    border: 2px solid var(--border-primary);
+    border-radius: var(--border-radius-md);
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+#custom-name-modal input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+#custom-name-modal footer button {
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius-md);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#custom-name-modal footer button.primary {
+    background: var(--accent-blue);
+    border: none;
+    color: white;
+}
+
+#custom-name-modal footer button.primary:hover {
+    background: var(--accent-blue-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+#custom-name-modal footer button.secondary {
+    background: transparent;
+    border: 2px solid var(--border-primary);
+    color: var(--text-primary);
+}
+
+#custom-name-modal footer button.secondary:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-secondary);
 }
