@@ -177,7 +177,21 @@ export const aiWritingMessages = [
     { icon: "shield", text: "완벽한 방어력을 갖춘 작품을 만드는 중..." },
     { icon: "hand", text: "모든 사람이 박수를 보낼 작품을 만드는 중..." },
     { icon: "handshake", text: "독자와의 감동적인 악수를 준비하는 중..." },
-    { icon: "hand-heart", text: "마음을 움직이는 작품을 만드는 중..." }
+    { icon: "hand-heart", text: "마음을 움직이는 작품을 만드는 중..." },
+
+    // 🎉 환영/인사 메시지들 (Welcome View용)
+    { icon: "sparkles", text: "당신의 새로운 세계를 펼칠 준비가 되었습니다." },
+    { icon: "brain", text: "AI와 함께 창의적인 스토리를 만들어보세요." },
+    { icon: "wand", text: "상상력의 한계를 넘어서는 여행을 시작합니다." },
+    { icon: "star", text: "별처럼 빛나는 아이디어가 탄생할 순간을 기다립니다." },
+    { icon: "heart", text: "창작의 즐거움을 함께 나누고 싶습니다." },
+    { icon: "lightbulb", text: "영감의 불빛이 당신을 기다리고 있습니다." },
+    { icon: "rocket", text: "스토리의 우주로 함께 여행을 떠나요." },
+    { icon: "palette", text: "무한한 가능성의 캔버스가 펼쳐집니다." },
+    { icon: "compass", text: "이야기의 나침반이 당신을 안내합니다." },
+    { icon: "book-open", text: "새로운 이야기의 첫 장을 열어보세요." },
+    { icon: "magic-wand", text: "마법 같은 창작 경험을 선물합니다." },
+    { icon: "crown", text: "당신의 상상력을 왕관처럼 빛나게 하겠습니다." }
 ];
 
 /**
@@ -200,7 +214,8 @@ export function getMessagesByCategory(category) {
         art: ['palette', 'camera', 'theater', 'music', 'microphone', 'book-heart', 'heart', 'eye', 'sun', 'cloud', 'wind', 'film', 'video', 'image', 'brush', 'paintbrush', 'droplets', 'spray-can', 'eraser', 'highlighter', 'underline', 'bold', 'italic', 'align-left', 'align-center', 'align-right', 'columns'],
         strategy: ['compass', 'map', 'sword', 'shield', 'target', 'bullseye', 'puzzle', 'gamepad', 'dice-6', 'clover', 'treasure', 'key', 'lock', 'unlock', 'anchor', 'sailboat', 'mountain', 'flag', 'crosshair', 'scope', 'binoculars', 'search', 'filter', 'funnel', 'bar-chart', 'pie-chart', 'trending-up', 'trending-down'],
         fantasy: ['wand', 'magic-wand', 'ghost', 'alien', 'robot', 'gem', 'skull', 'skull', 'refresh-ccw', 'droplet', 'star', 'castle', 'dragon', 'fairy', 'star', 'waves', 'leaf', 'hammer', 'user', 'flask', 'file-text', 'door-open'],
-        achievement: ['flame', 'crown', 'gem', 'trophy', 'rocket', 'medal', 'star', 'hand', 'square-check', 'award', 'party', 'confetti', 'fireworks', 'champagne', 'gift', 'ribbon', 'badge', 'verified', 'shield', 'hand', 'handshake', 'hand-heart']
+        achievement: ['flame', 'crown', 'gem', 'trophy', 'rocket', 'medal', 'star', 'hand', 'square-check', 'award', 'party', 'confetti', 'fireworks', 'champagne', 'gift', 'ribbon', 'badge', 'verified', 'shield', 'hand', 'handshake', 'hand-heart'],
+        welcome: ['sparkles', 'brain', 'wand', 'star', 'heart', 'lightbulb', 'rocket', 'palette', 'compass', 'book-open', 'magic-wand', 'crown']
     };
 
     const icons = categoryMap[category] || [];

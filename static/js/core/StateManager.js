@@ -212,11 +212,46 @@ export class StateManager extends EventEmitter {
      * @param {string} name - 새 프로젝트의 이름
      * @param {string|null} password - 새 프로젝트의 비밀번호
      */
-    async createProject(name, password) {
+    async createProject(name, password, additionalData = {}) {
         this.setLoadingState('projectCreating', true);
         try {
-            await api.createProject(name, password);
-            await this.loadProjects(); // 목록을 다시 로드하여 갱신
+            console.log('🔄 StateManager: 프로젝트 생성 시작 -', name);
+            // 프로젝트 생성
+            const newProject = await api.createProject(name, password);
+            console.log('✅ StateManager: API 호출 성공 -', newProject);
+
+            // 프로젝트 목록에 새 프로젝트 추가 (임시로 추가)
+            const currentProjects = [...this.state.projects];
+            const newProjectItem = {
+                id: newProject.id,
+                name: newProject.name,
+                has_password: !!password,
+                groups_count: 1, // 기본 그룹이 하나 있음
+                scenarios_count: 1, // 기본 시나리오가 하나 있음
+                isDetailLoaded: false,
+                groups: [],
+                worldview: null,
+                worldview_groups: [],
+                relationships: [],
+                scenarios: [],
+                manuscript_blocks: []
+            };
+
+            // 목록 앞에 새 프로젝트 추가
+            this._setState({
+                projects: [newProjectItem, ...currentProjects]
+            });
+
+            // 프로젝트 목록 로드 완료 이벤트 발생
+            this.emit('projects:loaded', [newProjectItem, ...currentProjects]);
+
+            // 백그라운드에서 전체 목록 다시 로드 (안전하게)
+            setTimeout(() => {
+                this.loadProjects().catch(err => {
+                    console.warn('프로젝트 목록 재로드 실패:', err);
+                });
+            }, 1000);
+
         } catch (error) {
             console.error('Error creating project:', error);
             this.emit('error', '프로젝트 생성에 실패했습니다.');

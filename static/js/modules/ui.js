@@ -8,7 +8,7 @@ import { createWorldviewCardElement, createEnhancedWorldviewCardElement, initial
 import { openAiScenarioDraftModal, initializeAiScenarioDraftModal } from '../components/modals/ai-scenario-draft-modal.js';
 import { createDynamicInputGroupHTML, addDynamicInputField } from '../components/forms/dynamic-input.js';
 import { addWorldviewRuleInput, initializeWorldviewRuleInput } from '../components/forms/worldview-rule-input.js';
-import { getShuffledMessages } from './ai-messages.js';
+import { getShuffledMessages, getMessagesByCategory } from './ai-messages.js';
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
 let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
@@ -82,10 +82,63 @@ export function renderProjectDetail(projectData) {
 
 /**
  * 시작 화면(웰컴 뷰)을 표시합니다.
+ * 동적으로 Welcome View 콘텐츠를 생성하고 타이핑 애니메이션을 적용합니다.
  */
 export function showWelcomeView() {
     document.querySelectorAll('.content-view').forEach(v => v.classList.remove('active'));
-    document.getElementById('welcome-view').classList.add('active');
+    const welcomeView = document.getElementById('welcome-view');
+
+    // Welcome View 콘텐츠를 동적으로 생성
+    welcomeView.innerHTML = `
+        <div class="welcome-container">
+            <hgroup>
+                <h1>Scenario Universe Builder</h1>
+                <h2 id="welcome-subtitle">당신의 새로운 세계를 펼칠 준비가 되었습니다.</h2>
+                <div id="welcome-icon-container" class="welcome-icon-container"></div>
+            </hgroup>
+            <div class="welcome-actions">
+                <button id="welcome-new-project-btn" class="contrast">
+                    <i data-lucide="folder-plus"></i>
+                    새 프로젝트 시작하기
+                </button>
+                <button id="welcome-sample-project-btn">
+                    <i data-lucide="sparkles"></i>
+                    샘플 프로젝트 둘러보기
+                </button>
+            </div>
+            <div class="welcome-recent-projects" id="welcome-recent-projects">
+                <!-- 최근 프로젝트 목록은 추후 구현 -->
+            </div>
+        </div>
+    `;
+
+    // Lucide 아이콘 생성
+    lucide.createIcons();
+
+    // 타이핑 애니메이션 적용
+    const subtitleElement = welcomeView.querySelector('#welcome-subtitle');
+    const iconContainer = welcomeView.querySelector('#welcome-icon-container');
+    if (subtitleElement && iconContainer) {
+        showWelcomeTypingAnimation(subtitleElement, iconContainer);
+    }
+
+    // 버튼 이벤트 리스너 연결
+    const newProjectBtn = welcomeView.querySelector('#welcome-new-project-btn');
+    const sampleProjectBtn = welcomeView.querySelector('#welcome-sample-project-btn');
+
+    if (newProjectBtn) {
+        eventManager.addEventListener(newProjectBtn, 'click', () => {
+            app.call('project', 'showCreateProjectModal');
+        });
+    }
+
+    if (sampleProjectBtn) {
+        eventManager.addEventListener(sampleProjectBtn, 'click', () => {
+            app.call('project', 'handleLoadSampleProject');
+        });
+    }
+
+    welcomeView.classList.add('active');
 }
 
 /**
@@ -582,10 +635,11 @@ const ui = {
  * 텍스트 필드에 AI 타이핑 애니메이션과 Lucide 아이콘을 표시합니다.
  * @param {HTMLTextAreaElement} textarea - 애니메이션을 표시할 텍스트 영역
  * @param {HTMLElement} iconContainer - Lucide 아이콘을 표시할 컨테이너
+ * @param {Array} customMessages - 사용자 정의 메시지 배열 (선택사항)
  * @returns {Function} 애니메이션을 중지하는 함수
  */
-export function showAiWritingAnimation(textarea, iconContainer) {
-    const shuffledMessages = getShuffledMessages();
+export function showAiWritingAnimation(textarea, iconContainer, customMessages = null) {
+    const shuffledMessages = customMessages || getShuffledMessages();
     let messageIndex = 0;
     let charIndex = 0;
     let isDeleting = false;
@@ -632,6 +686,20 @@ export function showAiWritingAnimation(textarea, iconContainer) {
     return () => {
         clearTimeout(timeoutId);
     };
+}
+
+/**
+ * Welcome View용 환영 메시지 타이핑 애니메이션을 표시합니다.
+ * @param {HTMLElement} textElement - 애니메이션을 표시할 텍스트 요소
+ * @param {HTMLElement} iconContainer - Lucide 아이콘을 표시할 컨테이너
+ * @returns {Function} 애니메이션을 중지하는 함수
+ */
+export function showWelcomeTypingAnimation(textElement, iconContainer) {
+    // 환영 메시지 카테고리에서 메시지를 가져옵니다
+    const welcomeMessages = getMessagesByCategory('welcome');
+
+    // 기존 showAiWritingAnimation 함수를 재사용하되 환영 메시지만 사용
+    return showAiWritingAnimation(textElement, iconContainer, welcomeMessages);
 }
 
 // 기본 export

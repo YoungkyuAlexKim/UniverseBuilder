@@ -30,6 +30,7 @@ export class App {
     constructor() {
         this.stateManager = new StateManager();
         this.eventManager = new EventListenerManager();
+        this.ui = ui; // ui 모듈을 App 인스턴스의 속성으로 설정
         this.panels = {
             showCharacterGeneratorUI,
             showRelationshipPanel,

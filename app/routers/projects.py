@@ -153,6 +153,11 @@ class CreateProjectRequest(BaseModel):
     name: str
     password: Optional[str] = None
 
+class CreateSampleProjectRequest(BaseModel):
+    sample_id: str
+    custom_name: Optional[str] = None
+    sample_data: Optional[dict] = None  # 프론트엔드에서 샘플 데이터를 직접 보낼 수 있도록
+
 class UpdateProjectRequest(BaseModel):
     name: str
 
@@ -415,38 +420,144 @@ def get_project_details(project: ProjectModel = Depends(get_project_if_accessibl
 def create_project(project_request: CreateProjectRequest, db: Session = Depends(database.get_db)):
     timestamp = int(time.time() * 1000)
     new_project_id = f"project-{timestamp}"
-    
+
     hashed_password = None
     if project_request.password:
         hashed_password = pwd_context.hash(project_request.password)
-        
+
     new_project = ProjectModel(id=new_project_id, name=project_request.name, hashed_password=hashed_password)
-    
+
     uncategorized_group = GroupModel(id=f"group-uncategorized-{timestamp}", project_id=new_project_id, name='미분류')
-    
+
     default_worldview_content = json.dumps({"logline": "", "genre": "", "rules": []})
     default_worldview = WorldviewModel(project_id=new_project_id, content=default_worldview_content)
-    
+
     default_scenario = ScenarioModel(
     id=f"scen-{timestamp}",
     project_id=new_project_id,
     title="메인 시나리오",
     synopsis="" # 'prologue'를 'synopsis'로 변경
 )
-    
+
     db.add(new_project)
     db.add(uncategorized_group)
     db.add(default_worldview)
     db.add(default_scenario)
     db.commit()
     db.refresh(new_project)
-    
+
     created_project_orm = db.query(ProjectModel).options(
         joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
         joinedload(ProjectModel.worldview),
         joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points)
     ).filter(ProjectModel.id == new_project_id).first()
-    
+
+    return convert_project_orm_to_pydantic(created_project_orm)
+
+@router.post("/create-from-sample", response_model=Project)
+def create_sample_project(sample_request: CreateSampleProjectRequest, db: Session = Depends(database.get_db)):
+    """
+    샘플 데이터를 기반으로 프로젝트를 생성합니다.
+    프론트엔드에서 샘플 데이터를 받아서 처리합니다.
+    """
+    timestamp = int(time.time() * 1000)
+    new_project_id = f"project-sample-{timestamp}"
+
+    # 샘플 프로젝트 이름 설정
+    project_name = sample_request.custom_name or "샘플 프로젝트"
+
+    new_project = ProjectModel(id=new_project_id, name=project_name)
+
+    # 프론트엔드에서 보낸 샘플 데이터 사용
+    sample_data = sample_request.sample_data
+    if not sample_data:
+        raise HTTPException(status_code=400, detail="샘플 데이터가 제공되지 않았습니다.")
+
+    groups_to_create = []
+    cards_to_create = []
+    plot_points_to_create = []
+
+    # 그룹 및 카드 생성
+    if "groups" in sample_data:
+        for group_data in sample_data["groups"]:
+            group_id = f"group-{timestamp}-{len(groups_to_create)}"
+            group = GroupModel(id=group_id, project_id=new_project_id, name=group_data["name"])
+            groups_to_create.append(group)
+
+            if "cards" in group_data:
+                for card_idx, card_data in enumerate(group_data["cards"]):
+                    card_id = f"card-{timestamp}-{len(cards_to_create)}"
+                    card = CardModel(
+                        id=card_id,
+                        group_id=group_id,
+                        name=card_data["name"],
+                        description=card_data["description"],
+                        personality=json.dumps(card_data.get("personality", [])),
+                        abilities=json.dumps(card_data.get("abilities", [])),
+                        ordering=card_idx
+                    )
+                    cards_to_create.append(card)
+
+    # 세계관 생성
+    worldview_content = json.dumps(sample_data.get("worldview", {"logline": "", "genre": "", "rules": []}))
+    worldview = WorldviewModel(project_id=new_project_id, content=worldview_content)
+
+    # 시나리오 생성 (첫 번째 시나리오만 사용)
+    scenarios_data = sample_data.get("scenarios", [])
+    if scenarios_data:
+        scenario_data = scenarios_data[0]
+        scenario = ScenarioModel(
+            id=f"scen-{timestamp}",
+            project_id=new_project_id,
+            title=scenario_data.get("title", "메인 스토리"),
+            summary=scenario_data.get("summary", ""),
+            synopsis=scenario_data.get("synopsis", "")
+        )
+
+        # 플롯 포인트 생성
+        if "plot_points" in scenario_data:
+            for plot_data in scenario_data["plot_points"]:
+                plot_id = f"plot-{timestamp}-{plot_data['ordering']}"
+                plot_point = PlotPointModel(
+                    id=plot_id,
+                    scenario_id=scenario.id,
+                    title=plot_data["title"],
+                    content=plot_data["content"],
+                    ordering=plot_data["ordering"]
+                )
+                plot_points_to_create.append(plot_point)
+    else:
+        # 기본 시나리오 생성
+        scenario = ScenarioModel(
+            id=f"scen-{timestamp}",
+            project_id=new_project_id,
+            title="메인 스토리",
+            summary="샘플 프로젝트의 메인 스토리",
+            synopsis=""
+        )
+
+    # DB에 모든 데이터 추가
+    db.add(new_project)
+    db.add(worldview)
+    db.add(scenario)
+
+    for group in groups_to_create:
+        db.add(group)
+    for card in cards_to_create:
+        db.add(card)
+    for plot_point in plot_points_to_create:
+        db.add(plot_point)
+
+    db.commit()
+    db.refresh(new_project)
+
+    # 생성된 프로젝트 조회 및 반환
+    created_project_orm = db.query(ProjectModel).options(
+        joinedload(ProjectModel.groups).joinedload(GroupModel.cards),
+        joinedload(ProjectModel.worldview),
+        joinedload(ProjectModel.scenarios).joinedload(ScenarioModel.plot_points)
+    ).filter(ProjectModel.id == new_project_id).first()
+
     return convert_project_orm_to_pydantic(created_project_orm)
 
 @router.delete("/{project_id}")

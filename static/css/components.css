@@ -693,3 +693,260 @@
         background: linear-gradient(135deg, rgba(52, 152, 219, 0.98) 0%, rgba(41, 128, 185, 0.98) 100%);
     }
 }
+
+/* Welcome View 스타일 */
+.welcome-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.welcome-container hgroup {
+    margin-bottom: 3rem;
+}
+
+.welcome-container h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--pico-primary), var(--pico-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.welcome-container h2 {
+    font-size: 1.25rem;
+    font-weight: 400;
+    color: var(--pico-muted-color);
+    margin: 0;
+    min-height: 1.5rem;
+}
+
+.welcome-icon-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    min-height: 32px;
+}
+
+.welcome-icon-container i {
+    width: 32px;
+    height: 32px;
+    color: var(--pico-primary);
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.welcome-icon-container i:hover {
+    opacity: 1;
+}
+
+.welcome-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.welcome-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--pico-border-radius);
+    transition: all 0.2s ease;
+    min-width: 200px;
+    justify-content: center;
+}
+
+.welcome-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.welcome-actions button i {
+    width: 20px;
+    height: 20px;
+}
+
+.welcome-recent-projects {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--pico-muted-border-color);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .welcome-container {
+        padding: 1rem 0.5rem;
+    }
+
+    .welcome-container h1 {
+        font-size: 2rem;
+    }
+
+    .welcome-container h2 {
+        font-size: 1.1rem;
+    }
+
+    .welcome-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .welcome-actions button {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+/* 샘플 프로젝트 모달 스타일 */
+.sample-project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.sample-project-card {
+    background: var(--gradient-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.sample-project-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--accent-blue);
+}
+
+.sample-project-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent 0%, currentColor 50%, transparent 100%);
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+.sample-project-card:hover::before {
+    opacity: 1;
+}
+
+.sample-project-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sample-project-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.sample-project-icon i {
+    width: 24px;
+    height: 24px;
+}
+
+.sample-project-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sample-project-genre {
+    display: inline-block;
+    background: var(--gradient-primary);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.sample-project-description {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.sample-project-select-btn {
+    width: 100%;
+    background: var(--gradient-accent);
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-md);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.sample-project-select-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    filter: brightness(1.1);
+}
+
+.sample-project-select-btn i {
+    width: 18px;
+    height: 18px;
+}
+
+/* 샘플 프로젝트 모달 모바일 반응형 */
+@media (max-width: 768px) {
+    .sample-project-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .sample-project-card {
+        padding: 1rem;
+    }
+
+    .sample-project-header {
+        gap: 0.75rem;
+    }
+
+    .sample-project-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .sample-project-icon i {
+        width: 20px;
+        height: 20px;
+    }
+
+    .sample-project-info h4 {
+        font-size: 1rem;
+    }
+}
