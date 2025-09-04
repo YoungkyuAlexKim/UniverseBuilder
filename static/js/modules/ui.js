@@ -11,7 +11,7 @@ import { addWorldviewRuleInput, initializeWorldviewRuleInput } from '../componen
 import { getShuffledMessages, getMessagesByCategory, welcomeMessages } from './ai-messages.js';
 
 // 이 함수들은 main.js에서 필요한 함수들을 파라미터로 받아와 사용합니다.
-let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept, handleRefineWorldviewRule;
+let showCharacterGeneratorUI, handleCreateGroup, handleDeleteGroup, setupSortable, openCardModal, openPlotPointEditModal, handleSaveWorldview, handleCreateWorldviewGroup, handleDeleteWorldviewGroup, openWorldviewCardModal, handleSaveScenario, handleCreatePlotPoint, handleAiDraftGeneration, handleRefineConcept;
 let app; // App 인스턴스를 저장할 변수
 let eventManager; // EventListenerManager 인스턴스
 

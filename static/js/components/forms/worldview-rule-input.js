@@ -24,6 +24,10 @@ export function initializeWorldviewRuleInput(appInstance, eventManagerInstance) 
  * @param {HTMLElement} container - 입력 필드를 추가할 컨테이너
  */
 export function addWorldviewRuleInput(value = '', projectId, container) {
+    console.log('🔧 [디버그] addWorldviewRuleInput 함수 호출됨');
+    console.log('🔧 [디버그] value:', value);
+    console.log('🔧 [디버그] projectId:', projectId);
+    console.log('🔧 [디버그] container:', container);
     const wrapper = document.createElement('div');
     wrapper.className = 'dynamic-input-wrapper';
     wrapper.innerHTML = `
@@ -55,11 +59,124 @@ export function addWorldviewRuleInput(value = '', projectId, container) {
     inputField.addEventListener('input', adjustHeight);
     inputField.addEventListener('change', adjustHeight);
 
-    wrapper.querySelector('.remove-dynamic-input-btn').addEventListener('click', () => {
-        wrapper.remove();
+    // 삭제 버튼에도 강화된 이벤트 리스너 적용
+    const removeBtn = wrapper.querySelector('.remove-dynamic-input-btn');
+    console.log('🔧 [디버그] remove-dynamic-input-btn 요소:', removeBtn);
+
+    if (!removeBtn) {
+        console.error('❌ [디버그] remove-dynamic-input-btn 요소를 찾을 수 없습니다!');
+        return wrapper;
+    }
+
+    // 여러 이벤트 타입으로 리스너 등록 (삭제 버튼용)
+    ['click', 'mousedown', 'mouseup', 'pointerdown'].forEach(eventType => {
+        removeBtn.addEventListener(eventType, (e) => {
+            console.log(`🔧 [디버그] 삭제 버튼 ${eventType} 이벤트 발생!`);
+
+            // 기본 동작 방지
+            e.preventDefault();
+            e.stopPropagation();
+
+            console.log('🔧 [디버그] 삭제 이벤트 객체:', e);
+            console.log('🔧 [디버그] 삭제 이벤트 타겟:', e.target);
+            console.log('🔧 [디버그] 삭제 이벤트 현재 타겟:', e.currentTarget);
+
+            // 버튼 상태 확인
+            console.log('🔧 [디버그] 삭제 버튼 disabled:', removeBtn.disabled);
+            console.log('🔧 [디버그] 삭제 버튼 pointer-events:', window.getComputedStyle(removeBtn).pointerEvents);
+            console.log('🔧 [디버그] 삭제 버튼 display:', window.getComputedStyle(removeBtn).display);
+            console.log('🔧 [디버그] 삭제 버튼 visibility:', window.getComputedStyle(removeBtn).visibility);
+
+            if (removeBtn.disabled) {
+                console.log('⚠️ [디버그] 삭제 버튼이 disabled 상태입니다.');
+                return;
+            }
+
+            // 요소 삭제 실행
+            console.log('🗑️ [디버그] 요소 삭제 실행');
+            wrapper.remove();
+            console.log('✅ [디버그] 요소 삭제 완료');
+
+        }, { passive: false });
     });
 
-    wrapper.querySelector('.refine-rule-btn').addEventListener('click', (e) => {
-        app.call('worldview', 'handleRefineWorldviewRule', e, projectId, inputField);
+    // 버튼 요소를 찾고 이벤트 리스너를 여러 방식으로 등록
+    const refineBtn = wrapper.querySelector('.refine-rule-btn');
+    console.log('🔧 [디버그] refine-rule-btn 요소:', refineBtn);
+
+    if (!refineBtn) {
+        console.error('❌ [디버그] refine-rule-btn 요소를 찾을 수 없습니다!');
+        return wrapper;
+    }
+
+    // 여러 이벤트 타입으로 리스너 등록 (클릭 이벤트 강화)
+    ['click', 'mousedown', 'mouseup', 'pointerdown'].forEach(eventType => {
+        refineBtn.addEventListener(eventType, async (e) => {
+            console.log(`🔧 [디버그] ${eventType} 이벤트 발생!`);
+
+            // 기본 동작 방지
+            e.preventDefault();
+            e.stopPropagation();
+
+            console.log('🔧 [디버그] 이벤트 객체:', e);
+            console.log('🔧 [디버그] 이벤트 타겟:', e.target);
+            console.log('🔧 [디버그] 이벤트 현재 타겟:', e.currentTarget);
+            console.log('🔧 [디버그] app 객체:', window.app);
+            console.log('🔧 [디버그] projectId:', projectId);
+            console.log('🔧 [디버그] inputField:', inputField);
+            console.log('🔧 [디버그] inputField.value:', inputField?.value);
+
+            // 버튼 상태 확인
+            console.log('🔧 [디버그] 버튼 disabled:', refineBtn.disabled);
+            console.log('🔧 [디버그] 버튼 pointer-events:', window.getComputedStyle(refineBtn).pointerEvents);
+            console.log('🔧 [디버그] 버튼 display:', window.getComputedStyle(refineBtn).display);
+            console.log('🔧 [디버그] 버튼 visibility:', window.getComputedStyle(refineBtn).visibility);
+
+            if (!window.app) {
+                console.error('❌ [디버그] app 객체가 존재하지 않습니다.');
+                alert('앱이 아직 초기화되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+
+            if (refineBtn.disabled) {
+                console.log('⚠️ [디버그] 버튼이 disabled 상태입니다.');
+                return;
+            }
+
+            // 컨트롤러 직접 호출
+            try {
+                const controller = window.app.controllers?.worldview;
+                if (controller && typeof controller.handleRefineWorldviewRule === 'function') {
+                    console.log('✅ [디버그] 컨트롤러 메소드 발견, 호출 시도');
+
+                    // 버튼을 임시로 비활성화하여 중복 클릭 방지
+                    refineBtn.disabled = true;
+                    refineBtn.style.opacity = '0.6';
+
+                    await controller.handleRefineWorldviewRule(e, projectId, inputField);
+                    console.log('✅ [디버그] 컨트롤러 메소드 호출 완료');
+
+                    // 버튼 다시 활성화
+                    setTimeout(() => {
+                        refineBtn.disabled = false;
+                        refineBtn.style.opacity = '1';
+                    }, 1000);
+
+                } else {
+                    console.error('❌ [디버그] worldview 컨트롤러 또는 handleRefineWorldviewRule 메소드를 찾을 수 없습니다.');
+                    console.log('❌ [디버그] controller:', controller);
+                    console.log('❌ [디버그] controller.handleRefineWorldviewRule:', controller?.handleRefineWorldviewRule);
+                    alert('세계관 컨트롤러를 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+                }
+            } catch (error) {
+                console.error('❌ [디버그] 컨트롤러 호출 중 오류:', error);
+
+                // 에러 발생 시에도 버튼 다시 활성화
+                refineBtn.disabled = false;
+                refineBtn.style.opacity = '1';
+
+                alert(`세계관 규칙 수정 중 오류가 발생했습니다: ${error.message}`);
+            }
+        }, { passive: false });
     });
 }

@@ -50,7 +50,7 @@ export function createEnhancedWorldviewCardElement(card, projectId, groupId) {
     cardEl.innerHTML = `
         <div class="worldview-card-header">
             <h4 class="worldview-card-title">${card.title || '제목 없는 설정'}</h4>
-            <div class="worldview-card-actions">
+            <div class="worldview-card-actions" style="display: none;">
                 <button class="secondary outline worldview-edit-btn icon-only" title="편집"><i data-lucide="pencil"></i></button>
             </div>
         </div>
@@ -59,17 +59,8 @@ export function createEnhancedWorldviewCardElement(card, projectId, groupId) {
         </div>
     `;
 
-    cardEl.addEventListener('click', (e) => {
-        // 편집 버튼 클릭이 아닐 때만 모달 열기
-        if (!e.target.closest('.worldview-edit-btn')) {
-            app.modals.openWorldviewCardModal(card, projectId, groupId);
-        }
-    });
-
-    // 편집 버튼 이벤트
-    const editBtn = cardEl.querySelector('.worldview-edit-btn');
-    editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    // 카드 클릭 시 모달 열기 (편집 버튼 제거로 간소화)
+    cardEl.addEventListener('click', () => {
         app.modals.openWorldviewCardModal(card, projectId, groupId);
     });
 

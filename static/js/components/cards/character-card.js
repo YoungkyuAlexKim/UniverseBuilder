@@ -66,7 +66,7 @@ export function createEnhancedCardElement(card, projectId, groupId) {
     cardEl.innerHTML = `
         <div class="character-card-header">
             <h4 class="character-card-name">${card.name || '이름 없는 캐릭터'}</h4>
-            <div class="character-card-actions">
+            <div class="character-card-actions" style="display: none;">
                 <button class="secondary outline character-edit-btn icon-only" title="편집"><i data-lucide="pencil"></i></button>
             </div>
         </div>
@@ -76,18 +76,8 @@ export function createEnhancedCardElement(card, projectId, groupId) {
         </div>
     `;
 
-    cardEl.addEventListener('click', (e) => {
-        // 편집 버튼 클릭이 아닐 때만 모달 열기
-        if (!e.target.closest('.character-edit-btn')) {
-            const cardData = { ...card, group_id: groupId };
-            app.modals.openCardModal(cardData, projectId);
-        }
-    });
-
-    // 편집 버튼 이벤트
-    const editBtn = cardEl.querySelector('.character-edit-btn');
-    editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    // 카드 클릭 시 모달 열기 (편집 버튼 제거로 간소화)
+    cardEl.addEventListener('click', () => {
         const cardData = { ...card, group_id: groupId };
         app.modals.openCardModal(cardData, projectId);
     });
