@@ -92,6 +92,14 @@ export function addWorldviewRuleInput(value = '', projectId, container) {
                 return;
             }
 
+            // 삭제 확인 대화상자 표시
+            const confirmDelete = confirm('이 설정을 정말 삭제하시겠습니까?\n\n삭제된 설정은 복구할 수 없습니다.');
+
+            if (!confirmDelete) {
+                console.log('⚠️ [디버그] 사용자가 삭제를 취소했습니다.');
+                return;
+            }
+
             // 요소 삭제 실행
             console.log('🗑️ [디버그] 요소 삭제 실행');
             wrapper.remove();
