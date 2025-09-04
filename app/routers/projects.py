@@ -464,12 +464,9 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
         timestamp = int(time.time() * 1000)
         new_project_id = f"project-sample-{timestamp}"
 
-        # 샘플 프로젝트 이름 설정
         project_name = sample_request.custom_name or "샘플 프로젝트"
-
         new_project = ProjectModel(id=new_project_id, name=project_name)
 
-        # 프론트엔드에서 보낸 샘플 데이터 사용
         sample_data = sample_request.sample_data
         if not sample_data:
             raise HTTPException(status_code=400, detail="샘플 데이터가 제공되지 않았습니다.")
@@ -482,7 +479,6 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
         worldview_cards_to_create = []
         card_id_map = {}
 
-        # 그룹 및 카드 생성
         if "groups" in sample_data:
             for group_data in sample_data["groups"]:
                 group_id = f"group-{timestamp}-{len(groups_to_create)}"
@@ -495,38 +491,26 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
                         new_card_id = f"card-{timestamp}-{len(cards_to_create)}"
                         card_id_map[original_card_id] = new_card_id
                         card = CardModel(
-                            id=new_card_id,
-                            group_id=group_id,
-                            name=card_data["name"],
-                            description=card_data["description"],
-                            goal=card_data.get("goal", []),
-                            personality=card_data.get("personality", []),
-                            abilities=card_data.get("abilities", []),
-                            quote=card_data.get("quote", []),
-                            introduction_story=card_data.get("introduction_story", ""),
+                            id=new_card_id, group_id=group_id, name=card_data["name"],
+                            description=card_data["description"], goal=card_data.get("goal", []),
+                            personality=card_data.get("personality", []), abilities=card_data.get("abilities", []),
+                            quote=card_data.get("quote", []), introduction_story=card_data.get("introduction_story", ""),
                             ordering=card_idx
                         )
                         cards_to_create.append(card)
 
-        # 관계도 생성
         if "relationships" in sample_data:
             for rel_data in sample_data["relationships"]:
                 source_id = card_id_map.get(rel_data["source_character_id"])
                 target_id = card_id_map.get(rel_data["target_character_id"])
-
                 if source_id and target_id:
                     relationship = RelationshipModel(
-                        id=f"rel-{timestamp}-{len(relationships_to_create)}",
-                        project_id=new_project_id,
-                        source_character_id=source_id,
-                        target_character_id=target_id,
-                        type=rel_data["type"],
-                        description=rel_data.get("description", ""),
-                        phase_order=rel_data.get("phase_order", 1)
+                        id=f"rel-{timestamp}-{len(relationships_to_create)}", project_id=new_project_id,
+                        source_character_id=source_id, target_character_id=target_id, type=rel_data["type"],
+                        description=rel_data.get("description", ""), phase_order=rel_data.get("phase_order", 1)
                     )
                     relationships_to_create.append(relationship)
 
-        # 세계관 그룹 및 카드 생성
         if "worldview_groups" in sample_data:
             for wv_group_data in sample_data["worldview_groups"]:
                 wv_group_id = f"wv-group-{timestamp}-{len(worldview_groups_to_create)}"
@@ -537,62 +521,51 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
                     for card_idx, wv_card_data in enumerate(wv_group_data["worldview_cards"]):
                         wv_card_id = f"wv-card-{timestamp}-{len(worldview_cards_to_create)}"
                         wv_card = WorldviewCardModel(
-                            id=wv_card_id,
-                            group_id=wv_group_id,
-                            title=wv_card_data["title"],
-                            content=wv_card_data["content"],
-                            ordering=card_idx
+                            id=wv_card_id, group_id=wv_group_id, title=wv_card_data["title"],
+                            content=wv_card_data["content"], ordering=card_idx
                         )
                         worldview_cards_to_create.append(wv_card)
 
-        # 세계관 생성
         worldview_content = json.dumps(sample_data.get("worldview", {"logline": "", "genre": "", "rules": []}))
         worldview = WorldviewModel(project_id=new_project_id, content=worldview_content)
 
-        # 시나리오 생성
         scenarios_data = sample_data.get("scenarios", [])
         if scenarios_data:
             scenario_data = scenarios_data[0]
             scenario = ScenarioModel(
-                id=f"scen-{timestamp}",
-                project_id=new_project_id,
-                title=scenario_data.get("title", "메인 스토리"),
-                summary=scenario_data.get("summary", ""),
-                synopsis=scenario_data.get("synopsis", ""),
+                id=f"scen-{timestamp}", project_id=new_project_id, title=scenario_data.get("title", "메인 스토리"),
+                summary=scenario_data.get("summary", ""), synopsis=scenario_data.get("synopsis", ""),
                 themes=json.dumps(scenario_data.get("themes", []), ensure_ascii=False)
             )
 
             if "plot_points" in scenario_data:
                 for plot_data in scenario_data["plot_points"]:
                     plot_point = PlotPointModel(
-                        id=f"plot-{timestamp}-{plot_data['ordering']}",
-                        scenario_id=scenario.id,
-                        title=plot_data["title"],
-                        content=plot_data["content"],
-                        ordering=plot_data["ordering"],
-                        scene_draft=plot_data.get("scene_draft") # [수정] 누락되었던 scene_draft 필드 추가
+                        id=f"plot-{timestamp}-{plot_data['ordering']}", scenario_id=scenario.id,
+                        title=plot_data["title"], content=plot_data["content"],
+                        ordering=plot_data["ordering"], scene_draft=plot_data.get("scene_draft")
                     )
                     plot_points_to_create.append(plot_point)
         else:
             scenario = ScenarioModel(
-                id=f"scen-{timestamp}",
-                project_id=new_project_id,
-                title="메인 스토리",
-                summary="샘플 프로젝트의 메인 스토리",
-                synopsis="",
-                themes=json.dumps([], ensure_ascii=False)
+                id=f"scen-{timestamp}", project_id=new_project_id, title="메인 스토리",
+                summary="샘플 프로젝트의 메인 스토리", synopsis="", themes=json.dumps([], ensure_ascii=False)
             )
 
-        # DB에 모든 데이터 추가
+        # DB에 데이터 추가 (순서 중요)
         db.add(new_project)
         db.add(worldview)
         db.add(scenario)
         db.add_all(groups_to_create)
-        db.add_all(cards_to_create)
-        db.add_all(relationships_to_create)
         db.add_all(worldview_groups_to_create)
+        db.add_all(cards_to_create)
         db.add_all(worldview_cards_to_create)
         db.add_all(plot_points_to_create)
+
+        # [수정] 관계(Relationship)를 추가하기 전에, 카드(Card) 데이터가 DB에 먼저 반영되도록 flush합니다.
+        db.flush()
+
+        db.add_all(relationships_to_create)
 
         db.commit()
         db.refresh(new_project)
@@ -608,12 +581,11 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
         return convert_project_orm_to_pydantic(created_project_orm)
 
     except Exception as e:
-        # [추가] 오류 진단 로직
         import traceback
         error_details = traceback.format_exc()
         print(f"샘플 프로젝트 생성 중 오류 발생: {e}")
         print(error_details)
-        db.rollback() # 오류 발생 시 롤백
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"샘플 프로젝트 생성 중 서버 내부 오류가 발생했습니다. 원인: {str(e)}"
