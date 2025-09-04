@@ -494,15 +494,17 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
                     original_card_id = card_data.get("id", card_data["name"]) # 샘플 데이터에 id가 없으면 이름으로 대체
                     new_card_id = f"card-{timestamp}-{len(cards_to_create)}"
                     card_id_map[original_card_id] = new_card_id # ID 매핑 정보 저장
+
+                    # [수정] CardModel 생성 시 json.dumps 제거
                     card = CardModel(
                         id=new_card_id,
                         group_id=group_id,
                         name=card_data["name"],
                         description=card_data["description"],
-                        goal=json.dumps(card_data.get("goal", [])),
-                        personality=json.dumps(card_data.get("personality", [])),
-                        abilities=json.dumps(card_data.get("abilities", [])),
-                        quote=json.dumps(card_data.get("quote", [])),
+                        goal=card_data.get("goal", []),
+                        personality=card_data.get("personality", []),
+                        abilities=card_data.get("abilities", []),
+                        quote=card_data.get("quote", []),
                         introduction_story=card_data.get("introduction_story", ""),
                         ordering=card_idx
                     )
@@ -553,12 +555,15 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
     scenarios_data = sample_data.get("scenarios", [])
     if scenarios_data:
         scenario_data = scenarios_data[0]
+
+        # [수정] themes 필드 추가
         scenario = ScenarioModel(
             id=f"scen-{timestamp}",
             project_id=new_project_id,
             title=scenario_data.get("title", "메인 스토리"),
             summary=scenario_data.get("summary", ""),
-            synopsis=scenario_data.get("synopsis", "")
+            synopsis=scenario_data.get("synopsis", ""),
+            themes=json.dumps(scenario_data.get("themes", []), ensure_ascii=False)
         )
 
         # 플롯 포인트 생성
@@ -580,7 +585,8 @@ def create_sample_project(sample_request: CreateSampleProjectRequest, db: Sessio
             project_id=new_project_id,
             title="메인 스토리",
             summary="샘플 프로젝트의 메인 스토리",
-            synopsis=""
+            synopsis="",
+            themes=json.dumps([], ensure_ascii=False) # [수정] themes 필드 추가
         )
 
     # DB에 모든 데이터 추가
