@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
 
@@ -20,6 +21,15 @@ from app.routers import projects, generators, scenarios, manuscript
 from app.routers.manuscript import style_guide_router
 
 app = FastAPI()
+
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 오리진 허용 (개발용)
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
+)
 
 @app.middleware("http")
 async def add_no_cache_header(request, call_next):
