@@ -468,6 +468,26 @@ function initializeUserApiKey() {
     apiKeyInput.addEventListener('blur', () => {
         apiKeyInput.placeholder = 'Google AI API 키를 입력하세요...';
     });
+
+    // [추가] API 키가 유효하지 않다는 이벤트를 수신하여 처리합니다.
+    document.addEventListener('invalidApiKeyDetected', () => {
+        console.warn("잘못된 API 키가 감지되어 자동으로 삭제합니다.");
+        const apiKeyInput = document.getElementById('user-api-key-input');
+        if (apiKeyInput) {
+            apiKeyInput.value = ''; // 입력 필드 비우기
+            apiKeyInput.classList.remove('valid', 'invalid');
+        }
+        localStorage.removeItem('userApiKey'); // 저장된 키 삭제
+
+        // 사용자에게 서버 기본 키로 전환되었음을 알립니다.
+        if (window.app && window.app.ui && typeof window.app.ui.showToast === 'function') {
+            window.app.ui.showToast('잘못된 API 키가 삭제되었습니다. 이제 서버 기본 키로 AI 기능이 동작합니다.', 'info', 5000);
+        } else if (typeof showToast === 'function') {
+            showToast('잘못된 API 키가 삭제되었습니다. 이제 서버 기본 키로 AI 기능이 동작합니다.', 'info', 5000);
+        } else {
+            alert('잘못된 API 키가 삭제되었습니다. 이제 서버 기본 키로 AI 기능이 동작합니다.');
+        }
+    });
 }
 
 // 리팩토링 완료: 모든 비즈니스 로직은 App.js와 StateManager로 이동됨

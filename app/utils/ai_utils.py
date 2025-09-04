@@ -219,6 +219,15 @@ async def call_ai_model(
                     )
                     raise HTTPException(status_code=503, detail=error_response.model_dump())
 
+    except google_exceptions.PermissionDenied as e:
+        logger.error(f"AI API 키 인증 실패: {e}")
+        error_response = create_error_response(
+            error_code="AI_API_KEY_INVALID",
+            message="AI API 키가 유효하지 않습니다.",
+            user_message="입력하신 API 키가 잘못되었거나 만료되었습니다. 키를 확인하고 다시 시도해주세요."
+        )
+        raise HTTPException(status_code=403, detail=error_response.model_dump())
+
     except HTTPException:
         raise
     except Exception as e:

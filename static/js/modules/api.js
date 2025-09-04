@@ -13,10 +13,31 @@ async function handleResponse(response) {
             errorData = await response.json();
         } catch (e) {
             console.error('Failed to parse error response as JSON:', e);
-            errorData = { detail: response.statusText };
+            errorData = { detail: { message: response.statusText } };
         }
+
+        // [수정] API 키 오류를 감지하고 맞춤형 피드백을 제공합니다.
+        if (errorData.detail && errorData.detail.error_code === "AI_API_KEY_INVALID") {
+            const userMessage = errorData.detail.user_message || "API 키가 유효하지 않습니다. 확인 후 다시 시도해주세요.";
+
+            // 사용자에게 명확한 토스트 메시지를 보여줍니다.
+            if (window.app && window.app.ui && typeof window.app.ui.showToast === 'function') {
+                // showToast가 정의되어 있는지 확인
+                window.app.ui.showToast(userMessage, 'error', 7000); // 7초간 길게 표시
+            } else if (typeof showToast === 'function') {
+                // ui.js가 아닌 validation-utils.js에서 직접 가져온 경우
+                showToast(userMessage, 'error', 7000);
+            } else {
+                alert(userMessage); // 최후의 폴백
+            }
+
+            // 잘못된 키를 자동으로 삭제하도록 이벤트를 발생시킵니다.
+            document.dispatchEvent(new CustomEvent('invalidApiKeyDetected'));
+        }
+
+        const errorMessage = (errorData.detail && errorData.detail.message) ? errorData.detail.message : `서버 오류: ${response.statusText}`;
         console.error('API Error:', errorData);
-        throw new Error(errorData.detail || `서버 오류: ${response.statusText}`);
+        throw new Error(errorMessage);
     }
 
     if (response.status === 204) {
