@@ -1,0 +1,46 @@
+# UniverseBuilder 포터블 빌드 가이드 (build.bat)
+
+이 문서는 `build.bat` 파일을 언제 수정해야 하는지에 대한 가이드입니다.
+
+## ✅ 자동 반영 (수정 필요 없음)
+
+아래와 같은 일반적인 개발 작업들은 `build.bat` 파일을 수정하지 않아도 빌드 시 **자동으로 반영**됩니다.
+
+* **코드 변경**: `.py` 또는 `.js` 파일의 기능을 수정하거나 새로운 파일을 추가하는 경우.
+* **데이터베이스 구조 변경**: `alembic/versions` 폴더에 새로운 마이그레이션 파일이 추가되는 경우.
+* **AI 스타일 가이드 추가/수정**: `app/style_guides` 폴더에 `.txt` 파일을 추가하거나 수정하는 경우.
+* **웹 파일 변경**: `static` 폴더 내의 `html`, `css`, 이미지 파일 등을 변경하는 경우.
+
+---
+
+## ⚠️ 수동 업데이트 필요
+
+다음 두 가지 경우에는 `build.bat` 파일을 직접 열어 수정해야 합니다.
+
+**1. 새로운 Python 라이브러리를 추가했을 때**
+
+   - **상황**: `pip install` 명령어로 새로운 패키지를 설치하고 코드에서 `import` 했을 때.
+   - **문제**: `UniverseBuilder.exe` 실행 시 `ModuleNotFoundError` 오류가 발생할 수 있습니다.
+   - **해결**: `build.bat` 파일을 열어 `--hidden-import` 옵션을 추가합니다.
+   - **예시**: `numpy` 라이브러리를 추가했다면 아래와 같이 한 줄을 추가합니다.
+     ```bat
+     ...
+     --hidden-import "uvicorn.protocols" ^
+     --hidden-import "numpy" ^  <-- 이와 같이 추가
+     --noconsole ^
+     ...
+     ```
+
+**2. 새로운 데이터 폴더/파일을 추가했을 때**
+
+   - **상황**: `static`, `alembic` 외에 이미지나 폰트가 담긴 `assets` 같은 새 폴더를 만들고 코드에서 사용할 때.
+   - **문제**: 실행 파일이 해당 폴더를 찾지 못해 오류가 발생합니다.
+   - **해결**: `build.bat` 파일을 열어 `--add-data` 옵션을 추가합니다.
+   - **예시**: `assets` 폴더를 추가했다면 아래와 같이 한 줄을 추가합니다.
+     ```bat
+     ...
+     --add-data "app/style_guides;app/style_guides" ^
+     --add-data "assets;assets" ^  <-- "원본폴더;실행파일내부경로" 형식으로 추가
+     --hidden-import "passlib.handlers.bcrypt" ^
+     ...
+     ```
