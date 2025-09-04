@@ -44,11 +44,14 @@ pyinstaller --name "UniverseBuilder" ^
             --add-data "static;static" ^
             --add-data "alembic;alembic" ^
             --add-data "alembic.ini;." ^
+            --add-data ".env;." ^
             --add-data "app;app" ^
             --hidden-import "passlib.handlers.bcrypt" ^
             --hidden-import "uvicorn.logging" ^
             --hidden-import "uvicorn.loops" ^
             --hidden-import "uvicorn.protocols" ^
+            --hidden-import "google.generativeai" ^
+            --hidden-import "google.api_core" ^
             run.py
 
 if %errorlevel% neq 0 (

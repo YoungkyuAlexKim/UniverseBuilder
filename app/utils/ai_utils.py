@@ -12,6 +12,7 @@ AI 유틸리티 모듈 - Google Gemini AI 호출 및 응답 처리
 """
 
 import os
+import sys
 import json
 import time
 import logging
@@ -83,6 +84,21 @@ async def call_ai_model(
 
     # 사용할 API 키 결정 (사용자 키 우선, 없으면 서버 기본 키로 폴백)
     default_api_key = os.getenv("GOOGLE_API_KEY")
+
+    # PyInstaller 포터블 환경에서는 추가 경로에서 .env 파일 검색
+    if not default_api_key and getattr(sys, 'frozen', False):
+        try:
+            # 포터블 환경에서 .env 파일이 실행 파일과 같은 디렉토리에 있을 수 있음
+            import sys
+            app_dir = os.path.dirname(sys.executable)
+            env_path = os.path.join(app_dir, '.env')
+            if os.path.exists(env_path):
+                from dotenv import load_dotenv
+                load_dotenv(env_path)
+                default_api_key = os.getenv("GOOGLE_API_KEY")
+                logger.info(f"포터블 환경에서 .env 파일 로드 성공: {env_path}")
+        except Exception as e:
+            logger.warning(f"포터블 환경 .env 파일 로드 실패: {e}")
 
     # 사용자 키 검증 및 정리
     if user_api_key and isinstance(user_api_key, str):
