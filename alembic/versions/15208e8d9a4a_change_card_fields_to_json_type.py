@@ -47,10 +47,10 @@ def upgrade() -> None:
             group_id,
             name,
             description,
-            CASE WHEN goal IS NULL OR goal = '' THEN NULL ELSE goal END,
-            CASE WHEN personality IS NULL OR personality = '' THEN NULL ELSE personality END,
-            CASE WHEN abilities IS NULL OR abilities = '' THEN NULL ELSE abilities END,
-            CASE WHEN quote IS NULL OR quote = '' THEN NULL ELSE quote END,
+            CASE WHEN goal IS NULL OR goal = '' THEN NULL ELSE goal::jsonb END,
+            CASE WHEN personality IS NULL OR personality = '' THEN NULL ELSE personality::jsonb END,
+            CASE WHEN abilities IS NULL OR abilities = '' THEN NULL ELSE abilities::jsonb END,
+            CASE WHEN quote IS NULL OR quote = '' THEN NULL ELSE quote::jsonb END,
             introduction_story,
             ordering
         FROM cards
