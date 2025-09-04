@@ -4,6 +4,7 @@ from sqlalchemy import func
 import time
 import json
 import os
+import sys
 import asyncio
 import re # [신규] 정규 표현식 모듈 추가
 from pydantic import BaseModel
@@ -109,7 +110,15 @@ def get_style_guide_content(style_guide_id: str, task_type: str) -> str:
     if ".." in style_guide_id or "/" in style_guide_id or "\\" in style_guide_id:
         return ""
 
-    file_path = f"app/style_guides/{style_guide_id}.txt"
+    # PyInstaller용 경로 처리
+    if getattr(sys, 'frozen', False):
+        # PyInstaller로 패키징된 경우
+        base_path = sys._MEIPASS
+    else:
+        # 개발 환경인 경우
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    file_path = os.path.join(base_path, "app", "style_guides", f"{style_guide_id}.txt")
     if not os.path.exists(file_path):
         return ""
 
